@@ -1,0 +1,19 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        // هذا هو المستودع الرسمي الذي يحتوي الآن على مكتبة logsender
+        mavenCentral()
+    }
+}
+
+rootProject.name = "simple-keyboard" // يمكنك تغيير الاسم حسب مشروعك
+include ':app'

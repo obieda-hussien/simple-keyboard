@@ -1,0 +1,34 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace = 'rkr.simplekeyboard.inputmethod' // هذا السطر ضروري
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "rkr.simplekeyboard.inputmethod"
+        minSdkVersion = 19
+        targetSdkVersion = 34
+        versionCode = 132
+        versionName = "5.36"
+    }
+    buildFeatures {
+        buildConfig = true
+    }
+    buildTypes {
+        release {
+            minifyEnabled = true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
+}
+
+dependencies {
+    // لا تحتاج لإضافة logsender هنا، سيتم إضافته تلقائيا من AndroidIDE
+    // والآن سيجده Gradle بنجاح في mavenCentral
+}

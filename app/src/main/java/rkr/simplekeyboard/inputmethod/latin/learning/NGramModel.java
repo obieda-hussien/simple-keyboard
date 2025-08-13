@@ -1,0 +1,223 @@
+/*
+ * Copyright (C) 2024 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package rkr.simplekeyboard.inputmethod.latin.learning;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * N-gram model for context-based word prediction.
+ * Supports bigram and trigram predictions based on previous words.
+ */
+public class NGramModel {
+    private final Map<String, Map<String, Integer>> bigramModel;
+    private final Map<String, Map<String, Integer>> trigramModel;
+    private static final int MAX_PREDICTIONS = 3;
+
+    public NGramModel() {
+        this.bigramModel = new HashMap<>();
+        this.trigramModel = new HashMap<>();
+    }
+
+    /**
+     * Learns from a sequence of words by updating bigram and trigram frequencies.
+     */
+    public void learnFromSequence(String[] words) {
+        if (words == null || words.length < 2) {
+            return;
+        }
+
+        // Normalize words
+        for (int i = 0; i < words.length; i++) {
+            words[i] = normalizeWord(words[i]);
+        }
+
+        // Learn bigrams
+        for (int i = 0; i < words.length - 1; i++) {
+            if (isValidWord(words[i]) && isValidWord(words[i + 1])) {
+                addBigram(words[i], words[i + 1]);
+            }
+        }
+
+        // Learn trigrams
+        for (int i = 0; i < words.length - 2; i++) {
+            if (isValidWord(words[i]) && isValidWord(words[i + 1]) && isValidWord(words[i + 2])) {
+                addTrigram(words[i] + " " + words[i + 1], words[i + 2]);
+            }
+        }
+    }
+
+    /**
+     * Learns from a sentence by splitting it into words.
+     */
+    public void learnFromSentence(String sentence) {
+        if (sentence == null || sentence.trim().isEmpty()) {
+            return;
+        }
+
+        // Simple word tokenization (split by spaces and common punctuation)
+        String[] words = sentence.trim()
+                .replaceAll("[.!?;:,]", " ")
+                .split("\\s+");
+
+        learnFromSequence(words);
+    }
+
+    /**
+     * Predicts next words based on the given context.
+     */
+    public List<String> predictNextWords(String context) {
+        if (context == null || context.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        String[] contextWords = context.trim().split("\\s+");
+        List<String> predictions = new ArrayList<>();
+
+        // Try trigram prediction first (if we have at least 2 context words)
+        if (contextWords.length >= 2) {
+            String trigramKey = normalizeWord(contextWords[contextWords.length - 2]) + 
+                               " " + normalizeWord(contextWords[contextWords.length - 1]);
+            List<String> trigramPredictions = getPredictions(trigramModel, trigramKey);
+            predictions.addAll(trigramPredictions);
+        }
+
+        // Add bigram predictions
+        if (contextWords.length >= 1) {
+            String bigramKey = normalizeWord(contextWords[contextWords.length - 1]);
+            List<String> bigramPredictions = getPredictions(bigramModel, bigramKey);
+            
+            // Add bigram predictions that aren't already in trigram results
+            for (String prediction : bigramPredictions) {
+                if (!predictions.contains(prediction)) {
+                    predictions.add(prediction);
+                }
+            }
+        }
+
+        // Limit results
+        return predictions.size() > MAX_PREDICTIONS ? 
+               predictions.subList(0, MAX_PREDICTIONS) : predictions;
+    }
+
+    /**
+     * Suggests appropriate punctuation based on context.
+     */
+    public List<String> suggestPunctuation(String context) {
+        if (context == null || context.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<String> punctuationSuggestions = new ArrayList<>();
+        String trimmedContext = context.trim();
+        String lowerContext = trimmedContext.toLowerCase();
+
+        // Count words to determine sentence length
+        int wordCount = trimmedContext.split("\\s+").length;
+
+        // Suggest period for longer sentences
+        if (wordCount >= 5 && !trimmedContext.endsWith(".") && 
+            !trimmedContext.endsWith("!") && !trimmedContext.endsWith("?")) {
+            punctuationSuggestions.add(".");
+        }
+
+        // Suggest question mark for question patterns
+        if (lowerContext.startsWith("what") || lowerContext.startsWith("how") ||
+            lowerContext.startsWith("when") || lowerContext.startsWith("where") ||
+            lowerContext.startsWith("why") || lowerContext.startsWith("who") ||
+            lowerContext.startsWith("which") || lowerContext.startsWith("can") ||
+            lowerContext.startsWith("could") || lowerContext.startsWith("would") ||
+            lowerContext.startsWith("should") || lowerContext.startsWith("do") ||
+            lowerContext.startsWith("does") || lowerContext.startsWith("did") ||
+            lowerContext.startsWith("is") || lowerContext.startsWith("are") ||
+            lowerContext.startsWith("was") || lowerContext.startsWith("were")) {
+            if (!punctuationSuggestions.contains("?")) {
+                punctuationSuggestions.add("?");
+            }
+        }
+
+        // Suggest comma for longer phrases
+        if (wordCount >= 3 && wordCount < 8 && !trimmedContext.endsWith(",") && 
+            !trimmedContext.endsWith(".") && !trimmedContext.endsWith("!") && 
+            !trimmedContext.endsWith("?")) {
+            // Add comma suggestion if sentence contains connecting words
+            if (lowerContext.contains(" and ") || lowerContext.contains(" but ") ||
+                lowerContext.contains(" or ") || lowerContext.contains(" so ") ||
+                lowerContext.contains(" because ") || lowerContext.contains(" since ")) {
+                punctuationSuggestions.add(",");
+            }
+        }
+
+        // Suggest exclamation for exclamatory words
+        if (lowerContext.contains("wow") || lowerContext.contains("amazing") ||
+            lowerContext.contains("great") || lowerContext.contains("awesome") ||
+            lowerContext.contains("fantastic") || lowerContext.contains("excellent")) {
+            if (!punctuationSuggestions.contains("!")) {
+                punctuationSuggestions.add("!");
+            }
+        }
+
+        return punctuationSuggestions;
+    }
+
+    private void addBigram(String word1, String word2) {
+        bigramModel.computeIfAbsent(word1, k -> new HashMap<>())
+                   .merge(word2, 1, Integer::sum);
+    }
+
+    private void addTrigram(String context, String word) {
+        trigramModel.computeIfAbsent(context, k -> new HashMap<>())
+                    .merge(word, 1, Integer::sum);
+    }
+
+    private List<String> getPredictions(Map<String, Map<String, Integer>> model, String key) {
+        Map<String, Integer> candidates = model.get(key);
+        if (candidates == null || candidates.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Map.Entry<String, Integer>> sortedCandidates = new ArrayList<>(candidates.entrySet());
+        Collections.sort(sortedCandidates, new Comparator<Map.Entry<String, Integer>>() {
+            @Override
+            public int compare(Map.Entry<String, Integer> a, Map.Entry<String, Integer> b) {
+                return b.getValue().compareTo(a.getValue()); // Descending order
+            }
+        });
+
+        List<String> result = new ArrayList<>();
+        int limit = Math.min(sortedCandidates.size(), MAX_PREDICTIONS);
+        for (int i = 0; i < limit; i++) {
+            result.add(sortedCandidates.get(i).getKey());
+        }
+
+        return result;
+    }
+
+    private String normalizeWord(String word) {
+        if (word == null) return "";
+        return word.toLowerCase().trim()
+                  .replaceAll("[^a-zA-Z0-9\\u0600-\\u06FF]", ""); // Support Arabic characters
+    }
+
+    private boolean isValidWord(String word) {
+        return word != null && !word.trim().isEmpty() && word.length() > 1;
+    }
+}

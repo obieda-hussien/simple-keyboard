@@ -1,0 +1,65 @@
+{
+  "allFiles": [
+    {
+      "file": "/storage/emulated/0/AndroidIDEProjects/simple-keyboard/settings.gradle",
+      "selection": {
+        "end": {
+          "column": 0,
+          "index": 0,
+          "line": 0
+        },
+        "start": {
+          "column": 0,
+          "index": 0,
+          "line": 0
+        }
+      }
+    },
+    {
+      "file": "/storage/emulated/0/AndroidIDEProjects/simple-keyboard/gradle.properties",
+      "selection": {
+        "end": {
+          "column": 0,
+          "index": 526,
+          "line": 19
+        },
+        "start": {
+          "column": 0,
+          "index": 526,
+          "line": 19
+        }
+      }
+    },
+    {
+      "file": "/storage/emulated/0/AndroidIDEProjects/simple-keyboard/build.gradle",
+      "selection": {
+        "end": {
+          "column": 0,
+          "index": 274,
+          "line": 10
+        },
+        "start": {
+          "column": 0,
+          "index": 274,
+          "line": 10
+        }
+      }
+    },
+    {
+      "file": "/storage/emulated/0/AndroidIDEProjects/simple-keyboard/app/build.gradle",
+      "selection": {
+        "end": {
+          "column": 29,
+          "index": 457,
+          "line": 20
+        },
+        "start": {
+          "column": 29,
+          "index": 457,
+          "line": 20
+        }
+      }
+    }
+  ],
+  "selectedFile": "/storage/emulated/0/AndroidIDEProjects/simple-keyboard/gradle.properties"
+}
