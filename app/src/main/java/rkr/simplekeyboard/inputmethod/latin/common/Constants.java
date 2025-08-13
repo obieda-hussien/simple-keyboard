@@ -74,6 +74,8 @@ public final class Constants {
     public static final int CODE_SPACE = ' ';
     public static final int CODE_PERIOD = '.';
     public static final int CODE_COMMA = ',';
+    public static final int CODE_EXCLAMATION = '!';
+    public static final int CODE_QUESTION = '?';
     public static final int CODE_SINGLE_QUOTE = '\'';
     public static final int CODE_DOUBLE_QUOTE = '"';
     public static final int CODE_BACKSLASH = '\\';

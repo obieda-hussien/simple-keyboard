@@ -75,13 +75,12 @@ public class LocalStorage {
      * Saves N-gram model data to local storage.
      */
     public void saveNGramData(NGramModel ngramModel) {
-        // This is a simplified implementation
-        // In a real implementation, you'd serialize the n-gram maps
-        // For now, we'll use a basic string-based storage approach
+        String bigramData = ngramModel.serializeBigramData();
+        String trigramData = ngramModel.serializeTrigramData();
         
         preferences.edit()
-                .putString(KEY_BIGRAM_DATA, "")  // Placeholder
-                .putString(KEY_TRIGRAM_DATA, "") // Placeholder
+                .putString(KEY_BIGRAM_DATA, bigramData)
+                .putString(KEY_TRIGRAM_DATA, trigramData)
                 .apply();
     }
 
@@ -92,8 +91,12 @@ public class LocalStorage {
         String bigramData = preferences.getString(KEY_BIGRAM_DATA, "");
         String trigramData = preferences.getString(KEY_TRIGRAM_DATA, "");
         
-        // Deserialize and load data into the model
-        // This would need proper implementation for production use
+        if (!TextUtils.isEmpty(bigramData)) {
+            ngramModel.deserializeBigramData(bigramData);
+        }
+        if (!TextUtils.isEmpty(trigramData)) {
+            ngramModel.deserializeTrigramData(trigramData);
+        }
     }
 
     /**
@@ -142,5 +145,12 @@ public class LocalStorage {
     public int getUserWordCount() {
         Set<String> userWords = preferences.getStringSet(KEY_USER_WORDS, new HashSet<String>());
         return userWords.size();
+    }
+
+    /**
+     * Gets all user words for dictionary lookups.
+     */
+    public Set<String> getUserWords() {
+        return new HashSet<>(preferences.getStringSet(KEY_USER_WORDS, new HashSet<String>()));
     }
 }
