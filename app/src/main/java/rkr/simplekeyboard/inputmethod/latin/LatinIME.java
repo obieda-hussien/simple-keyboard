@@ -85,7 +85,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     final Settings mSettings;
     private Locale mLocale;
-    final InputLogic mInputLogic = new InputLogic(this /* LatinIME */);
+    InputLogic mInputLogic;
 
     // TODO: Move these {@link View}s to {@link KeyboardSwitcher}.
     private View mInputView;
@@ -262,6 +262,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         AudioAndHapticFeedbackManager.init(this);
         super.onCreate();
 
+        // Initialize InputLogic after service context is available
+        mInputLogic = new InputLogic(this);
+
         // TODO: Resolve mutual dependencies of {@link #loadSettings()} and
         // {@link #resetDictionaryFacilitatorIfNecessary()}.
         loadSettings();
@@ -338,7 +341,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                 mSuggestionStrip.setOnSuggestionClickListener(new rkr.simplekeyboard.inputmethod.latin.ui.SuggestionStripView.OnSuggestionClickListener() {
                     @Override
                     public void onSuggestionClicked(String suggestion) {
-                        mInputLogic.onSuggestionSelected(suggestion);
+                        if (mInputLogic != null) {
+                            mInputLogic.onSuggestionSelected(suggestion);
+                        }
                     }
                 });
             }
@@ -375,7 +380,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     @Override
     public void onCurrentSubtypeChanged() {
-        mInputLogic.onSubtypeChanged();
+        if (mInputLogic != null) {
+            mInputLogic.onSubtypeChanged();
+        }
         loadKeyboard();
     }
 
@@ -449,11 +456,13 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             // span, so we should reset our state unconditionally, even if restarting is true.
             // We also tell the input logic about the combining rules for the current subtype, so
             // it can adjust its combiners if needed.
-            mInputLogic.startInput();
+            if (mInputLogic != null) {
+                mInputLogic.startInput();
 
-            // Some applications call onStartInputView without updating EditorInfo. In these cases
-            // selection will be incorrect.
-            mInputLogic.mConnection.reloadTextCache(editorInfo);
+                // Some applications call onStartInputView without updating EditorInfo. In these cases
+                // selection will be incorrect.
+                mInputLogic.mConnection.reloadTextCache(editorInfo);
+            }
         }
 
         if (isDifferentTextField ||
@@ -528,12 +537,14 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
         Log.i(TAG, "Update Selection. Cursor position = " + newSelStart + "," + newSelEnd);
 
-        mInputLogic.onUpdateSelection(newSelStart, newSelEnd);
-        if (isInputViewShown()) {
-            mInputLogic.reloadTextCache();
+        if (mInputLogic != null) {
+            mInputLogic.onUpdateSelection(newSelStart, newSelEnd);
+            if (isInputViewShown()) {
+                mInputLogic.reloadTextCache();
 
-            mKeyboardSwitcher.requestUpdatingShiftState(getCurrentAutoCapsState(),
-                    getCurrentRecapitalizeState());
+                mKeyboardSwitcher.requestUpdatingShiftState(getCurrentAutoCapsState(),
+                        getCurrentRecapitalizeState());
+            }
         }
     }
 
@@ -643,12 +654,18 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     }
 
     int getCurrentAutoCapsState() {
-        return mInputLogic.getCurrentAutoCapsState(mSettings.getCurrent(),
-                mRichImm.getCurrentSubtype().getKeyboardLayoutSet());
+        if (mInputLogic != null) {
+            return mInputLogic.getCurrentAutoCapsState(mSettings.getCurrent(),
+                    mRichImm.getCurrentSubtype().getKeyboardLayoutSet());
+        }
+        return 0;
     }
 
     int getCurrentRecapitalizeState() {
-        return mInputLogic.getCurrentRecapitalizeState();
+        if (mInputLogic != null) {
+            return mInputLogic.getCurrentRecapitalizeState();
+        }
+        return 0;
     }
 
     @Override
@@ -675,6 +692,8 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     @Override
     public void onMoveCursorPointer(int steps) {
+        if (mInputLogic == null) return;
+        
         if (mInputLogic.mConnection.hasCursorPosition()) {
             if (TextUtils.getLayoutDirectionFromLocale(getCurrentLayoutLocale()) == View.LAYOUT_DIRECTION_RTL)
                 steps = -steps;
@@ -698,6 +717,8 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     @Override
     public void onMoveDeletePointer(int steps) {
+        if (mInputLogic == null) return;
+        
         if (mInputLogic.mConnection.hasCursorPosition()) {
             steps = mInputLogic.mConnection.getUnicodeSteps(steps, false);
             if (steps == 0) {
