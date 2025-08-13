@@ -580,7 +580,16 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             mInsetsUpdater.setInsets(outInsets);
             return;
         }
-        final int visibleTopY = inputHeight - visibleKeyboardView.getHeight();
+        
+        // Calculate total visible input height including suggestion strip
+        int totalVisibleHeight = visibleKeyboardView.getHeight();
+        
+        // Add suggestion strip height if it's visible
+        if (mSuggestionStrip != null && mSuggestionStrip.getVisibility() == View.VISIBLE) {
+            totalVisibleHeight += mSuggestionStrip.getHeight();
+        }
+        
+        final int visibleTopY = inputHeight - totalVisibleHeight;
         // Need to set expanded touchable region only if a keyboard view is being shown.
         if (visibleKeyboardView.isShown()) {
             final int touchLeft = 0;
@@ -928,7 +937,16 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
      */
     public void updateSuggestionStrip(java.util.List<String> suggestions) {
         if (mSuggestionStrip != null) {
+            final boolean wasVisible = mSuggestionStrip.getVisibility() == View.VISIBLE;
             mSuggestionStrip.setSuggestions(suggestions);
+            final boolean isVisible = mSuggestionStrip.getVisibility() == View.VISIBLE;
+            
+            // If suggestion strip visibility changed, request insets recalculation
+            if (wasVisible != isVisible) {
+                if (mInputView != null) {
+                    mInputView.requestLayout();
+                }
+            }
         }
     }
 
