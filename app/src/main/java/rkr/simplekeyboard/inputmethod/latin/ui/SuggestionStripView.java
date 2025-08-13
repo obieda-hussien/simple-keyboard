@@ -145,4 +145,16 @@ public class SuggestionStripView extends LinearLayout {
         float density = getContext().getResources().getDisplayMetrics().density;
         return Math.round(dp * density);
     }
+    
+    @Override
+    public void setVisibility(int visibility) {
+        int oldVisibility = getVisibility();
+        super.setVisibility(visibility);
+        
+        // If visibility changed, request parent to recalculate layout
+        if (oldVisibility != visibility && getParent() != null) {
+            // Request the parent view to recalculate layout since our visibility changed
+            ((View) getParent()).requestLayout();
+        }
+    }
 }
