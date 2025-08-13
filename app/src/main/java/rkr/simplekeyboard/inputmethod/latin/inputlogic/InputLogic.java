@@ -305,15 +305,21 @@ public final class InputLogic {
     private void handleNonSeparatorEvent(final Event event) {
         final char character = (char) event.mCodePoint;
         
-        // Only add to current word if it's a letter or digit
-        if (Character.isLetterOrDigit(character)) {
+        // Track current word building for better suggestions
+        if (Character.isLetterOrDigit(character) || character == '\'' || character == '-') {
             mCurrentWord.append(character);
+            
+            // Update suggestions in real-time as user types
+            updateSuggestions();
+        } else {
+            // Handle other non-separator characters
+            sendKeyCodePoint(event.mCodePoint);
         }
         
-        sendKeyCodePoint(event.mCodePoint);
-        
-        // Update suggestions based on current word
-        updateSuggestions();
+        // Send the character to the input connection
+        if (Character.isLetterOrDigit(character) || character == '\'' || character == '-') {
+            sendKeyCodePoint(event.mCodePoint);
+        }
     }
 
     /**
@@ -334,6 +340,12 @@ public final class InputLogic {
             }
             
             mCurrentWord.setLength(0); // Clear current word
+        }
+        
+        // Check if this separator indicates sentence completion
+        int codePoint = event.mCodePoint;
+        if (codePoint == '.' || codePoint == '!' || codePoint == '?') {
+            learnFromCurrentSentence(); // Learn from the completed sentence
         }
         
         sendKeyCodePoint(event.mCodePoint);
@@ -595,6 +607,7 @@ public final class InputLogic {
             String textBeforeCursor = mConnection.getTextBeforeCursor();
             if (textBeforeCursor != null && !textBeforeCursor.isEmpty()) {
                 String context = textBeforeCursor;
+                
                 // Remove the current word from context if it's at the end
                 if (mCurrentWord.length() > 0) {
                     String currentWord = mCurrentWord.toString();
@@ -602,9 +615,18 @@ public final class InputLogic {
                         context = context.substring(0, context.length() - currentWord.length()).trim();
                     }
                 }
-                // Limit context to last 50 characters for performance
-                if (context.length() > 50) {
-                    context = context.substring(context.length() - 50);
+                
+                // Clean the context: get the last few words for better relevance
+                context = cleanContextForPrediction(context);
+                
+                // Limit context to last 100 characters for performance but keep word boundaries
+                if (context.length() > 100) {
+                    int lastSpaceIndex = context.lastIndexOf(' ', 100);
+                    if (lastSpaceIndex > 50) {
+                        context = context.substring(lastSpaceIndex + 1);
+                    } else {
+                        context = context.substring(context.length() - 100);
+                    }
                 }
                 return context;
             }
@@ -612,6 +634,30 @@ public final class InputLogic {
             // Ignore errors and return empty context
         }
         return "";
+    }
+
+    /**
+     * Cleans and optimizes context for better n-gram predictions.
+     */
+    private String cleanContextForPrediction(String context) {
+        if (TextUtils.isEmpty(context)) return "";
+        
+        // Remove extra whitespace and normalize
+        context = context.trim().replaceAll("\\s+", " ");
+        
+        // For n-gram predictions, we want the last 2-3 words for trigram context
+        String[] words = context.split("\\s+");
+        if (words.length > 3) {
+            // Take the last 3 words for optimal trigram prediction
+            StringBuilder sb = new StringBuilder();
+            for (int i = Math.max(0, words.length - 3); i < words.length; i++) {
+                if (sb.length() > 0) sb.append(" ");
+                sb.append(words[i]);
+            }
+            return sb.toString();
+        }
+        
+        return context;
     }
     
     /**

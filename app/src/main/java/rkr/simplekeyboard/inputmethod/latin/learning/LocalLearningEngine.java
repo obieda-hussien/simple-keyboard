@@ -38,6 +38,10 @@ public class LocalLearningEngine {
     
     private static final int MAX_SUGGESTIONS = 5;
     
+    // Counters for optimized saving
+    private int saveLearningCounter = 0;
+    private int wordLearningCounter = 0;
+    
     private LocalLearningEngine(Context context) {
         this.context = context.getApplicationContext();
         this.wordTrie = new WordTrie();
@@ -68,14 +72,28 @@ public class LocalLearningEngine {
         List<String> suggestions = new ArrayList<>();
         
         if (!TextUtils.isEmpty(currentWord)) {
-            // Get word completions from trie
+            // Get word completions from trie (user-learned words have higher priority)
             List<String> wordSuggestions = wordTrie.getSuggestions(currentWord);
-            suggestions.addAll(wordSuggestions);
             
-            // If no user-learned suggestions, fall back to bootstrap vocabulary
-            if (suggestions.isEmpty()) {
+            // Prioritize user dictionary words
+            List<String> userWordSuggestions = getUserWordSuggestions(currentWord);
+            suggestions.addAll(userWordSuggestions);
+            
+            // Add other word suggestions that aren't already in user suggestions
+            for (String suggestion : wordSuggestions) {
+                if (!suggestions.contains(suggestion) && suggestions.size() < MAX_SUGGESTIONS) {
+                    suggestions.add(suggestion);
+                }
+            }
+            
+            // If still not enough suggestions, fall back to bootstrap vocabulary
+            if (suggestions.size() < 3) {
                 List<String> bootstrapSuggestions = BootstrapVocabulary.getCommonWordsForPrefix(currentWord);
-                suggestions.addAll(bootstrapSuggestions);
+                for (String suggestion : bootstrapSuggestions) {
+                    if (!suggestions.contains(suggestion) && suggestions.size() < MAX_SUGGESTIONS) {
+                        suggestions.add(suggestion);
+                    }
+                }
             }
         }
         
@@ -124,12 +142,14 @@ public class LocalLearningEngine {
             }
         }
         
-        // Learn from sentence context
+        // Learn from sentence context - this is critical for n-gram learning
         ngramModel.learnFromSentence(text);
         
-        // Periodically save data (for performance, don't save on every input)
-        if (Math.random() < 0.1) { // 10% chance to save
+        // Force save more frequently for learning data (every 5th call instead of 10%)
+        saveLearningCounter++;
+        if (saveLearningCounter >= 5) {
             saveLearningData();
+            saveLearningCounter = 0;
         }
     }
 
@@ -140,6 +160,13 @@ public class LocalLearningEngine {
         if (isValidWord(word)) {
             wordTrie.insert(word);
             localStorage.addUserWord(word);
+            
+            // Force save every 10 words learned
+            wordLearningCounter++;
+            if (wordLearningCounter >= 10) {
+                saveLearningData();
+                wordLearningCounter = 0;
+            }
         }
     }
 
@@ -155,7 +182,52 @@ public class LocalLearningEngine {
             for (String word : words) {
                 learnWord(word);
             }
+            
+            // Force save for sentence learning as it's valuable data
+            saveLearningData();
         }
+    }
+
+    /**
+     * Adds a word to the user dictionary for high-priority suggestions.
+     */
+    public void addToUserDictionary(String word) {
+        if (isValidWord(word)) {
+            localStorage.addUserWord(word);
+            wordTrie.insert(word);
+            // Give user words extra frequency boost
+            for (int i = 0; i < 5; i++) {
+                wordTrie.insert(word);
+            }
+            // Save immediately for user dictionary changes
+            saveLearningData();
+        }
+    }
+
+    /**
+     * Checks if a word is in the user dictionary.
+     */
+    public boolean isInUserDictionary(String word) {
+        if (TextUtils.isEmpty(word)) return false;
+        return localStorage.getUserWords().contains(word.toLowerCase().trim());
+    }
+
+    /**
+     * Gets suggestions from user dictionary words that match the prefix.
+     */
+    private List<String> getUserWordSuggestions(String prefix) {
+        List<String> userSuggestions = new ArrayList<>();
+        Set<String> userWords = localStorage.getUserWords();
+        
+        String lowerPrefix = prefix.toLowerCase();
+        for (String userWord : userWords) {
+            if (userWord.toLowerCase().startsWith(lowerPrefix)) {
+                userSuggestions.add(userWord);
+                if (userSuggestions.size() >= 3) break; // Limit user suggestions
+            }
+        }
+        
+        return userSuggestions;
     }
 
     /**

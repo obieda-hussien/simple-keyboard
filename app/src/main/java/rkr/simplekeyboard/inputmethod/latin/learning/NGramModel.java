@@ -83,6 +83,7 @@ public class NGramModel {
 
     /**
      * Predicts next words based on the given context.
+     * Enhanced to provide both single words and multi-word phrases.
      */
     public List<String> predictNextWords(String context) {
         if (context == null || context.trim().isEmpty()) {
@@ -98,6 +99,14 @@ public class NGramModel {
                                " " + normalizeWord(contextWords[contextWords.length - 1]);
             List<String> trigramPredictions = getPredictions(trigramModel, trigramKey);
             predictions.addAll(trigramPredictions);
+            
+            // Also try multi-word predictions from trigram model
+            List<String> phrasePredictions = getPhrasePredictions(trigramKey);
+            for (String phrase : phrasePredictions) {
+                if (!predictions.contains(phrase) && predictions.size() < MAX_PREDICTIONS) {
+                    predictions.add(phrase);
+                }
+            }
         }
 
         // Add bigram predictions
@@ -116,6 +125,37 @@ public class NGramModel {
         // Limit results
         return predictions.size() > MAX_PREDICTIONS ? 
                predictions.subList(0, MAX_PREDICTIONS) : predictions;
+    }
+
+    /**
+     * Gets phrase predictions (multi-word suggestions) from trigram model.
+     */
+    private List<String> getPhrasePredictions(String context) {
+        List<String> phrases = new ArrayList<>();
+        
+        // Look for common phrase patterns in the trigram model
+        Map<String, Integer> nextWords = trigramModel.get(context);
+        if (nextWords != null) {
+            // For each predicted next word, try to find what commonly follows it
+            for (String nextWord : nextWords.keySet()) {
+                String extendedContext = context.split(" ")[1] + " " + nextWord;
+                Map<String, Integer> followingWords = trigramModel.get(extendedContext);
+                
+                if (followingWords != null && !followingWords.isEmpty()) {
+                    // Find the most common word that follows
+                    String mostCommon = followingWords.entrySet().stream()
+                        .max(Map.Entry.comparingByValue())
+                        .map(Map.Entry::getKey)
+                        .orElse(null);
+                    
+                    if (mostCommon != null && followingWords.get(mostCommon) > 2) {
+                        phrases.add(nextWord + " " + mostCommon);
+                    }
+                }
+            }
+        }
+        
+        return phrases;
     }
 
     /**
@@ -219,5 +259,81 @@ public class NGramModel {
 
     private boolean isValidWord(String word) {
         return word != null && !word.trim().isEmpty() && word.length() > 1;
+    }
+
+    /**
+     * Serializes bigram data for persistence.
+     */
+    public String serializeBigramData() {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Map<String, Integer>> entry : bigramModel.entrySet()) {
+            String key = entry.getKey();
+            for (Map.Entry<String, Integer> subEntry : entry.getValue().entrySet()) {
+                sb.append(key).append("|||").append(subEntry.getKey()).append("|||").append(subEntry.getValue()).append(";;;");
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Serializes trigram data for persistence.
+     */
+    public String serializeTrigramData() {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Map<String, Integer>> entry : trigramModel.entrySet()) {
+            String key = entry.getKey();
+            for (Map.Entry<String, Integer> subEntry : entry.getValue().entrySet()) {
+                sb.append(key).append("|||").append(subEntry.getKey()).append("|||").append(subEntry.getValue()).append(";;;");
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Deserializes bigram data from persistence.
+     */
+    public void deserializeBigramData(String data) {
+        if (data == null || data.isEmpty()) return;
+        
+        bigramModel.clear();
+        String[] entries = data.split(";;;");
+        for (String entry : entries) {
+            if (entry.trim().isEmpty()) continue;
+            String[] parts = entry.split("\\|\\|\\|");
+            if (parts.length == 3) {
+                String key = parts[0];
+                String value = parts[1];
+                try {
+                    int frequency = Integer.parseInt(parts[2]);
+                    bigramModel.computeIfAbsent(key, k -> new HashMap<>()).put(value, frequency);
+                } catch (NumberFormatException e) {
+                    // Skip invalid entries
+                }
+            }
+        }
+    }
+
+    /**
+     * Deserializes trigram data from persistence.
+     */
+    public void deserializeTrigramData(String data) {
+        if (data == null || data.isEmpty()) return;
+        
+        trigramModel.clear();
+        String[] entries = data.split(";;;");
+        for (String entry : entries) {
+            if (entry.trim().isEmpty()) continue;
+            String[] parts = entry.split("\\|\\|\\|");
+            if (parts.length == 3) {
+                String key = parts[0];
+                String value = parts[1];
+                try {
+                    int frequency = Integer.parseInt(parts[2]);
+                    trigramModel.computeIfAbsent(key, k -> new HashMap<>()).put(value, frequency);
+                } catch (NumberFormatException e) {
+                    // Skip invalid entries
+                }
+            }
+        }
     }
 }
