@@ -106,21 +106,46 @@ public class BootstrapVocabulary {
         }
         
         prefix = prefix.toLowerCase();
+        java.util.List<String> matches = new java.util.ArrayList<>();
         
-        // Simple prefix matching for common words
-        if (prefix.startsWith("th")) {
-            return Arrays.asList("the", "this", "that", "they", "there");
-        } else if (prefix.startsWith("a")) {
-            return Arrays.asList("and", "are", "all", "also", "about");
-        } else if (prefix.startsWith("w")) {
-            return Arrays.asList("what", "when", "where", "with", "would");
-        } else if (prefix.startsWith("h")) {
-            return Arrays.asList("how", "have", "has", "here", "home");
-        } else if (prefix.startsWith("i")) {
-            return Arrays.asList("is", "in", "it", "if", "I");
+        // Find all words that start with the prefix
+        for (String word : COMMON_ENGLISH_WORDS) {
+            if (word.toLowerCase().startsWith(prefix)) {
+                matches.add(word);
+                if (matches.size() >= 5) break; // Limit to 5 suggestions
+            }
         }
         
-        return Arrays.asList();
+        // If no matches found, provide some common suggestions based on first letter
+        if (matches.isEmpty()) {
+            char firstChar = prefix.charAt(0);
+            switch (firstChar) {
+                case 't':
+                    return Arrays.asList("the", "this", "that", "they", "there");
+                case 'a':
+                    return Arrays.asList("and", "are", "all", "also", "about");
+                case 'w':
+                    return Arrays.asList("what", "when", "where", "with", "would");
+                case 'h':
+                    return Arrays.asList("how", "have", "has", "here", "home");
+                case 'i':
+                    return Arrays.asList("is", "in", "it", "if", "I");
+                case 's':
+                    return Arrays.asList("see", "said", "show", "such", "still");
+                case 'c':
+                    return Arrays.asList("can", "came", "call", "could", "car");
+                case 'b':
+                    return Arrays.asList("but", "boy", "back", "big", "being");
+                case 'm':
+                    return Arrays.asList("may", "man", "make", "most", "move");
+                case 'n':
+                    return Arrays.asList("not", "new", "now", "need", "next");
+                default:
+                    return Arrays.asList("the", "and", "for", "you", "are");
+            }
+        }
+        
+        return matches;
     }
     
     /**

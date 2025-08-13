@@ -61,10 +61,15 @@ public class SuggestionStripView extends LinearLayout {
         
         int paddingPx = dpToPx(8);
         setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
-        setBackgroundColor(Color.parseColor("#F5F5F5"));
         
-        // Add divider line at bottom
-        setBackgroundResource(android.R.drawable.bottom_bar);
+        // Use a more visible background with proper contrast
+        setBackgroundColor(Color.parseColor("#FFFFFF"));
+        
+        // Add a subtle border for better visibility
+        setElevation(dpToPx(2));
+        
+        // Ensure minimum height for better touch targets
+        setMinimumHeight(dpToPx(48));
     }
     
     /**
@@ -91,14 +96,15 @@ public class SuggestionStripView extends LinearLayout {
         TextView suggestionView = new TextView(getContext());
         suggestionView.setText(suggestion);
         
-        // Set text appearance
+        // Set text appearance with better contrast
         suggestionView.setTextSize(TypedValue.COMPLEX_UNIT_SP, SUGGESTION_TEXT_SIZE_SP);
-        suggestionView.setTextColor(isPrimary ? Color.parseColor("#1976D2") : Color.parseColor("#424242"));
+        suggestionView.setTextColor(isPrimary ? Color.parseColor("#1976D2") : Color.parseColor("#212121"));
         suggestionView.setTypeface(null, isPrimary ? Typeface.BOLD : Typeface.NORMAL);
         
-        // Set padding
+        // Set padding for better touch targets
         int paddingPx = dpToPx(SUGGESTION_PADDING_DP);
-        suggestionView.setPadding(paddingPx, paddingPx / 2, paddingPx, paddingPx / 2);
+        int verticalPadding = dpToPx(12); // Increased for better touch area
+        suggestionView.setPadding(paddingPx, verticalPadding, paddingPx, verticalPadding);
         
         // Set click behavior
         suggestionView.setClickable(true);
@@ -118,8 +124,9 @@ public class SuggestionStripView extends LinearLayout {
             }
         });
         
-        // Set layout parameters
-        LayoutParams layoutParams = new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1.0f);
+        // Set layout parameters with minimum height
+        LayoutParams layoutParams = new LayoutParams(0, LayoutParams.MATCH_PARENT, 1.0f);
+        layoutParams.height = dpToPx(48); // Standard touch target height
         suggestionView.setLayoutParams(layoutParams);
         suggestionView.setGravity(Gravity.CENTER);
         

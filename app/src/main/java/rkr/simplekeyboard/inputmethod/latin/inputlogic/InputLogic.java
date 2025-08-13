@@ -583,6 +583,21 @@ public final class InputLogic {
         String previousContext = getPreviousContext();
         
         java.util.List<String> suggestions = mLearningEngine.getSuggestions(currentWord, previousContext);
+        
+        // Ensure we always have some suggestions to show
+        if (suggestions == null || suggestions.isEmpty()) {
+            suggestions = new java.util.ArrayList<>();
+            if (currentWord.isEmpty()) {
+                // When no current word, show common starter words
+                suggestions.add("I");
+                suggestions.add("The");
+                suggestions.add("You");
+            } else {
+                // When typing, show prefix-based suggestions
+                suggestions.addAll(rkr.simplekeyboard.inputmethod.latin.learning.BootstrapVocabulary.getCommonWordsForPrefix(currentWord));
+            }
+        }
+        
         mLatinIME.updateSuggestionStrip(suggestions);
     }
     

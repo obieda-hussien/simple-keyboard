@@ -489,6 +489,17 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         }
 
         if (TRACE) Debug.startMethodTracing("/data/trace/latinime");
+        
+        // Initialize suggestions when starting input view
+        if (mInputLogic != null && mSuggestionStrip != null) {
+            // Show initial suggestions for better user experience
+            java.util.List<String> initialSuggestions = new java.util.ArrayList<>();
+            // Add some common words as initial suggestions to make the strip visible
+            initialSuggestions.add("the");
+            initialSuggestions.add("and");
+            initialSuggestions.add("for");
+            mSuggestionStrip.setSuggestions(initialSuggestions);
+        }
     }
 
     @Override
@@ -928,7 +939,16 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
      */
     public void updateSuggestionStrip(java.util.List<String> suggestions) {
         if (mSuggestionStrip != null) {
-            mSuggestionStrip.setSuggestions(suggestions);
+            // If no suggestions provided, show some basic suggestions to keep strip visible
+            if (suggestions == null || suggestions.isEmpty()) {
+                java.util.List<String> fallbackSuggestions = new java.util.ArrayList<>();
+                fallbackSuggestions.add("the");
+                fallbackSuggestions.add("and");
+                fallbackSuggestions.add("to");
+                mSuggestionStrip.setSuggestions(fallbackSuggestions);
+            } else {
+                mSuggestionStrip.setSuggestions(suggestions);
+            }
         }
     }
 
