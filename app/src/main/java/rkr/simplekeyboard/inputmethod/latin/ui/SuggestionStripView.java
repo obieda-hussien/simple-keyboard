@@ -41,9 +41,15 @@ public class SuggestionStripView extends LinearLayout {
     
     private ThemeManager themeManager;
     private OnSuggestionClickListener suggestionClickListener;
+    private OnToggleClickListener toggleClickListener;
+    private android.widget.ImageButton toggleButton;
     
     public interface OnSuggestionClickListener {
         void onSuggestionClicked(String suggestion);
+    }
+    
+    public interface OnToggleClickListener {
+        void onToggleClicked();
     }
     
     public SuggestionStripView(Context context) {
@@ -67,7 +73,46 @@ public class SuggestionStripView extends LinearLayout {
         int paddingPx = dpToPx(8);
         setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
         
+        // Create toggle button for Gboard-style switching
+        createToggleButton();
+        
         applyTheme();
+    }
+    
+    /**
+     * Creates the toggle button for switching back to toolbar view.
+     */
+    private void createToggleButton() {
+        toggleButton = new android.widget.ImageButton(getContext());
+        toggleButton.setImageResource(android.R.drawable.ic_menu_more); // Use system chevron right icon
+        toggleButton.setBackground(null); // Remove default button background
+        toggleButton.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
+        
+        // Set size and padding
+        int buttonSize = dpToPx(40);
+        int buttonPadding = dpToPx(8);
+        toggleButton.setPadding(buttonPadding, buttonPadding, buttonPadding, buttonPadding);
+        
+        LayoutParams toggleParams = new LayoutParams(buttonSize, buttonSize);
+        toggleParams.gravity = Gravity.CENTER_VERTICAL;
+        toggleButton.setLayoutParams(toggleParams);
+        
+        // Set click listener
+        toggleButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (toggleClickListener != null) {
+                    toggleClickListener.onToggleClicked();
+                }
+            }
+        });
+        
+        // Apply ripple effect
+        TypedValue outValue = new TypedValue();
+        getContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true);
+        toggleButton.setBackgroundResource(outValue.resourceId);
+        
+        addView(toggleButton, 0); // Add as first child (far-left)
     }
     
     /**
@@ -76,6 +121,12 @@ public class SuggestionStripView extends LinearLayout {
     private void applyTheme() {
         int topBarBgColor = themeManager.getTopBarBackgroundColor();
         setBackgroundColor(topBarBgColor);
+        
+        // Apply theme to toggle button
+        if (toggleButton != null) {
+            int iconTintColor = themeManager.getIconTintColor();
+            toggleButton.setColorFilter(iconTintColor);
+        }
     }
     
     /**
@@ -89,7 +140,7 @@ public class SuggestionStripView extends LinearLayout {
         for (int i = 0; i < childCount; i++) {
             View child = getChildAt(i);
             if (child instanceof TextView) {
-                applySuggestionTheme((TextView) child, i == 0);
+                applySuggestionTheme((TextView) child, i == 1); // Account for toggle button at index 0
             }
         }
     }
@@ -98,7 +149,10 @@ public class SuggestionStripView extends LinearLayout {
      * Updates the suggestion strip with new suggestions.
      */
     public void setSuggestions(List<String> suggestions) {
-        removeAllViews();
+        // Remove all views except the toggle button
+        while (getChildCount() > 1) {
+            removeViewAt(1);
+        }
         
         if (suggestions == null || suggestions.isEmpty()) {
             // Don't change visibility - stay within the fixed container
@@ -172,10 +226,20 @@ public class SuggestionStripView extends LinearLayout {
     }
     
     /**
+     * Sets the toggle click listener.
+     */
+    public void setOnToggleClickListener(OnToggleClickListener listener) {
+        this.toggleClickListener = listener;
+    }
+    
+    /**
      * Clears all suggestions.
      */
     public void clearSuggestions() {
-        removeAllViews();
+        // Remove all views except the toggle button
+        while (getChildCount() > 1) {
+            removeViewAt(1);
+        }
         // Don't change visibility - stay within the fixed container
     }
     
@@ -188,6 +252,6 @@ public class SuggestionStripView extends LinearLayout {
      * Returns true if there are suggestions to display.
      */
     public boolean hasSuggestions() {
-        return getChildCount() > 0;
+        return getChildCount() > 1; // More than just the toggle button
     }
 }

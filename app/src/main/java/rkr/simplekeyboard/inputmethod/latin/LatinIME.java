@@ -273,6 +273,14 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         AudioAndHapticFeedbackManager.init(this);
         super.onCreate();
 
+        // Initialize EmojiCompat for proper emoji rendering
+        try {
+            androidx.emoji2.text.EmojiCompat.init(new androidx.emoji2.bundled.BundledEmojiCompatConfig(this));
+        } catch (Exception e) {
+            // EmojiCompat may already be initialized or fail on some devices
+            Log.w(TAG, "EmojiCompat initialization failed: " + e.getMessage());
+        }
+
         // Initialize ThemeManager for dynamic theming
         rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager.getInstance(this);
 
@@ -364,6 +372,14 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                         if (mInputLogic != null) {
                             mInputLogic.onSuggestionSelected(suggestion);
                         }
+                    }
+                });
+                
+                // Set toggle listener for switching back to toolbar
+                mSuggestionStrip.setOnToggleClickListener(new rkr.simplekeyboard.inputmethod.latin.ui.SuggestionStripView.OnToggleClickListener() {
+                    @Override
+                    public void onToggleClicked() {
+                        toggleTopContainer();
                     }
                 });
             }
@@ -637,39 +653,48 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         if (mInputView == null) {
             return;
         }
-        final View visibleKeyboardView = mKeyboardSwitcher.getVisibleKeyboardView();
-        if (visibleKeyboardView == null) {
-            return;
-        }
+        
         final int inputHeight = mInputView.getHeight();
-        if (isImeSuppressedByHardwareKeyboard() && !visibleKeyboardView.isShown()) {
-            // If there is a hardware keyboard and a visible software keyboard view has been hidden,
-            // no visual element will be shown on the screen.
+        if (isImeSuppressedByHardwareKeyboard()) {
+            // If there is a hardware keyboard, no visual element will be shown on the screen.
             outInsets.contentTopInsets = inputHeight;
             outInsets.visibleTopInsets = inputHeight;
             mInsetsUpdater.setInsets(outInsets);
             return;
         }
         
-        // Calculate total visible input height including FIXED top container (Gboard model)
-        int totalVisibleHeight = visibleKeyboardView.getHeight();
+        // Calculate total visible input height based on current keyboard mode
+        int totalVisibleHeight = 0;
         
         // Always include the fixed top container height (50dp converted to pixels)
         final int fixedTopContainerHeight = dpToPx(50);
         totalVisibleHeight += fixedTopContainerHeight;
         
+        // Add the appropriate keyboard height based on current mode
+        if (mIsEmojiMode && mEmojiKeyboard != null && mEmojiKeyboard.isShown()) {
+            // Emoji keyboard mode - use emoji keyboard height
+            totalVisibleHeight += mEmojiKeyboard.getHeight();
+        } else {
+            // Main keyboard mode - use main keyboard height
+            final View visibleKeyboardView = mKeyboardSwitcher.getVisibleKeyboardView();
+            if (visibleKeyboardView != null && visibleKeyboardView.isShown()) {
+                totalVisibleHeight += visibleKeyboardView.getHeight();
+            }
+        }
+        
         final int visibleTopY = inputHeight - totalVisibleHeight;
-        // Need to set expanded touchable region only if a keyboard view is being shown.
-        if (visibleKeyboardView.isShown()) {
+        
+        // Set touchable region
+        final View currentKeyboard = mIsEmojiMode ? mEmojiKeyboard : mKeyboardSwitcher.getVisibleKeyboardView();
+        if (currentKeyboard != null && currentKeyboard.isShown()) {
             final int touchLeft = 0;
             final int touchTop = mKeyboardSwitcher.isShowingMoreKeysPanel() ? 0 : visibleTopY;
-            final int touchRight = visibleKeyboardView.getWidth();
-            final int touchBottom = inputHeight
-                    // Extend touchable region below the keyboard.
-                    + EXTENDED_TOUCHABLE_REGION_HEIGHT;
+            final int touchRight = currentKeyboard.getWidth();
+            final int touchBottom = inputHeight + EXTENDED_TOUCHABLE_REGION_HEIGHT;
             outInsets.touchableInsets = InputMethodService.Insets.TOUCHABLE_INSETS_REGION;
             outInsets.touchableRegion.set(touchLeft, touchTop, touchRight, touchBottom);
         }
+        
         outInsets.contentTopInsets = visibleTopY;
         outInsets.visibleTopInsets = visibleTopY;
         mInsetsUpdater.setInsets(outInsets);
@@ -1161,6 +1186,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             } else {
                 showToolbarView();
             }
+            
+            // Trigger inset recalculation for height change
+            updateInputViewShown();
         }
     }
     
@@ -1179,6 +1207,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             
             // Always show toolbar when in emoji mode
             showToolbarView();
+            
+            // Trigger inset recalculation for height change
+            updateInputViewShown();
         }
     }
     
