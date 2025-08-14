@@ -27,12 +27,14 @@ import rkr.simplekeyboard.inputmethod.R;
 
 /**
  * Top bar component for accessing keyboard features like emoji and clipboard.
+ * Fixed height toolbar that follows the Gboard model.
  */
 public class KeyboardTopBarView extends LinearLayout {
     
     private Button emojiButton;
     private Button clipboardButton;
     private Button settingsButton;
+    private Button toggleButton;
     
     private OnTopBarActionListener actionListener;
     
@@ -40,6 +42,7 @@ public class KeyboardTopBarView extends LinearLayout {
         void onEmojiButtonClicked();
         void onClipboardButtonClicked();
         void onSettingsButtonClicked();
+        void onToggleButtonClicked(); // New toggle functionality
     }
     
     public KeyboardTopBarView(Context context) {
@@ -63,6 +66,7 @@ public class KeyboardTopBarView extends LinearLayout {
         emojiButton = findViewById(R.id.top_bar_emoji_button);
         clipboardButton = findViewById(R.id.top_bar_clipboard_button);
         settingsButton = findViewById(R.id.top_bar_settings_button);
+        toggleButton = findViewById(R.id.top_bar_toggle_button);
         
         setupButtons();
     }
@@ -85,6 +89,12 @@ public class KeyboardTopBarView extends LinearLayout {
                 actionListener.onSettingsButtonClicked();
             }
         });
+        
+        toggleButton.setOnClickListener(v -> {
+            if (actionListener != null) {
+                actionListener.onToggleButtonClicked();
+            }
+        });
     }
     
     public void setOnTopBarActionListener(OnTopBarActionListener listener) {
@@ -101,6 +111,19 @@ public class KeyboardTopBarView extends LinearLayout {
         } else {
             emojiButton.setText("😊"); // Emoji button when in text mode
             emojiButton.setAlpha(0.7f);
+        }
+    }
+    
+    /**
+     * Updates the toggle button appearance based on current view state.
+     */
+    public void setShowingSuggestions(boolean showingSuggestions) {
+        if (showingSuggestions) {
+            toggleButton.setText("⬆"); // Up arrow when showing suggestions
+            toggleButton.setAlpha(1.0f);
+        } else {
+            toggleButton.setText("⬇"); // Down arrow when showing toolbar
+            toggleButton.setAlpha(0.7f);
         }
     }
 }

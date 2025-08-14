@@ -25,19 +25,26 @@
     android:layout_gravity="bottom"
     android:orientation="vertical" >
 
-    <!-- Top bar for feature access -->
-    <rkr.simplekeyboard.inputmethod.latin.ui.KeyboardTopBarView
-        android:id="@+id/keyboard_top_bar"
+    <!-- Fixed height top container (50dp) - Gboard model -->
+    <ViewFlipper
+        android:id="@+id/top_container"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="visible" />
+        android:layout_height="50dp"
+        android:background="?android:attr/colorBackground" >
 
-    <!-- Suggestion strip for intelligent word suggestions -->
-    <rkr.simplekeyboard.inputmethod.latin.ui.SuggestionStripView
-        android:id="@+id/suggestion_strip"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="visible" />
+        <!-- Toolbar view - shown by default when no suggestions -->
+        <rkr.simplekeyboard.inputmethod.latin.ui.KeyboardTopBarView
+            android:id="@+id/keyboard_top_bar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Suggestion strip - shown when typing with suggestions -->
+        <rkr.simplekeyboard.inputmethod.latin.ui.SuggestionStripView
+            android:id="@+id/suggestion_strip"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </ViewFlipper>
 
     <!-- Container for switching between keyboards -->
     <FrameLayout

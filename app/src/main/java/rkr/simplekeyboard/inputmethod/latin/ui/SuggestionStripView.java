@@ -74,11 +74,9 @@ public class SuggestionStripView extends LinearLayout {
         removeAllViews();
         
         if (suggestions == null || suggestions.isEmpty()) {
-            setVisibility(GONE);
+            // Don't change visibility - stay within the fixed container
             return;
         }
-        
-        setVisibility(VISIBLE);
         
         int suggestionCount = Math.min(suggestions.size(), MAX_SUGGESTIONS);
         for (int i = 0; i < suggestionCount; i++) {
@@ -134,11 +132,11 @@ public class SuggestionStripView extends LinearLayout {
     }
     
     /**
-     * Clears all suggestions and hides the strip.
+     * Clears all suggestions.
      */
     public void clearSuggestions() {
         removeAllViews();
-        setVisibility(GONE);
+        // Don't change visibility - stay within the fixed container
     }
     
     private int dpToPx(int dp) {
@@ -146,15 +144,10 @@ public class SuggestionStripView extends LinearLayout {
         return Math.round(dp * density);
     }
     
-    @Override
-    public void setVisibility(int visibility) {
-        int oldVisibility = getVisibility();
-        super.setVisibility(visibility);
-        
-        // If visibility changed, request parent to recalculate layout
-        if (oldVisibility != visibility && getParent() != null) {
-            // Request the parent view to recalculate layout since our visibility changed
-            ((View) getParent()).requestLayout();
-        }
+    /**
+     * Returns true if there are suggestions to display.
+     */
+    public boolean hasSuggestions() {
+        return getChildCount() > 0;
     }
 }

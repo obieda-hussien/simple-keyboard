@@ -91,14 +91,19 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     private View mInputView;
     private InsetsUpdater mInsetsUpdater;
     
-    // Suggestion strip for intelligent word suggestions
+    // Fixed top container and its child views following Gboard model
+    private android.widget.ViewFlipper mTopContainer;
     private rkr.simplekeyboard.inputmethod.latin.ui.SuggestionStripView mSuggestionStrip;
-    
-    // Top bar and emoji keyboard components
     private rkr.simplekeyboard.inputmethod.latin.ui.KeyboardTopBarView mTopBar;
+    
+    // Keyboard components
     private rkr.simplekeyboard.inputmethod.emoji.EmojiKeyboardView mEmojiKeyboard;
     private rkr.simplekeyboard.inputmethod.keyboard.MainKeyboardView mMainKeyboard;
     private boolean mIsEmojiMode = false;
+    
+    // View state management for Gboard model
+    private boolean mShowingSuggestions = false;
+    private boolean mForcedToolbarMode = false;
 
     private RichInputMethodManager mRichImm;
     final KeyboardSwitcher mKeyboardSwitcher;
@@ -340,9 +345,12 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         mInputView = view;
         mInsetsUpdater = ViewOutlineProviderCompatUtils.setInsetsOutlineProvider(view);
         
-        // Initialize suggestion strip
+        // Initialize fixed top container following Gboard model
         if (view != null) {
+            mTopContainer = view.findViewById(R.id.top_container);
             mSuggestionStrip = view.findViewById(R.id.suggestion_strip);
+            mTopBar = view.findViewById(R.id.keyboard_top_bar);
+            
             if (mSuggestionStrip != null) {
                 mSuggestionStrip.setOnSuggestionClickListener(new rkr.simplekeyboard.inputmethod.latin.ui.SuggestionStripView.OnSuggestionClickListener() {
                     @Override
@@ -354,8 +362,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                 });
             }
             
-            // Initialize top bar
-            mTopBar = view.findViewById(R.id.keyboard_top_bar);
+            // Initialize top bar with toggle functionality
             if (mTopBar != null) {
                 mTopBar.setOnTopBarActionListener(new rkr.simplekeyboard.inputmethod.latin.ui.KeyboardTopBarView.OnTopBarActionListener() {
                     @Override
@@ -371,6 +378,11 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                     @Override
                     public void onSettingsButtonClicked() {
                         launchSettings();
+                    }
+                    
+                    @Override
+                    public void onToggleButtonClicked() {
+                        toggleTopContainer();
                     }
                 });
             }
@@ -396,6 +408,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                     }
                 });
             }
+            
+            // Initialize to toolbar view (Gboard model default)
+            showToolbarView();
         }
         
         updateSoftInputWindowLayoutParameters();
@@ -630,13 +645,12 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             return;
         }
         
-        // Calculate total visible input height including suggestion strip
+        // Calculate total visible input height including FIXED top container (Gboard model)
         int totalVisibleHeight = visibleKeyboardView.getHeight();
         
-        // Add suggestion strip height if it's visible
-        if (mSuggestionStrip != null && mSuggestionStrip.getVisibility() == View.VISIBLE) {
-            totalVisibleHeight += mSuggestionStrip.getHeight();
-        }
+        // Always include the fixed top container height (50dp converted to pixels)
+        final int fixedTopContainerHeight = dpToPx(50);
+        totalVisibleHeight += fixedTopContainerHeight;
         
         final int visibleTopY = inputHeight - totalVisibleHeight;
         // Need to set expanded touchable region only if a keyboard view is being shown.
@@ -653,6 +667,14 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         outInsets.contentTopInsets = visibleTopY;
         outInsets.visibleTopInsets = visibleTopY;
         mInsetsUpdater.setInsets(outInsets);
+    }
+    
+    /**
+     * Converts dp to pixels.
+     */
+    private int dpToPx(int dp) {
+        final float density = getResources().getDisplayMetrics().density;
+        return Math.round(dp * density);
     }
 
     @Override
@@ -982,20 +1004,22 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     };
 
     /**
-     * Updates the suggestion strip with new suggestions.
+     * Updates the suggestion strip with new suggestions following Gboard model.
      */
     public void updateSuggestionStrip(java.util.List<String> suggestions) {
-        if (mSuggestionStrip != null) {
-            final boolean wasVisible = mSuggestionStrip.getVisibility() == View.VISIBLE;
+        if (mSuggestionStrip != null && mTopContainer != null) {
             mSuggestionStrip.setSuggestions(suggestions);
-            final boolean isVisible = mSuggestionStrip.getVisibility() == View.VISIBLE;
             
-            // If suggestion strip visibility changed, request insets recalculation
-            if (wasVisible != isVisible) {
-                if (mInputView != null) {
-                    mInputView.requestLayout();
-                }
+            boolean hasSuggestions = suggestions != null && !suggestions.isEmpty() && mSuggestionStrip.hasSuggestions();
+            
+            // Gboard model logic: Auto-switch to suggestions if we have them and not in forced toolbar mode
+            if (hasSuggestions && !mForcedToolbarMode) {
+                showSuggestionsView();
+            } else if (!hasSuggestions && !mForcedToolbarMode) {
+                // No suggestions available, show toolbar by default
+                showToolbarView();
             }
+            // If in forced toolbar mode, don't auto-switch
         }
     }
 
@@ -1094,9 +1118,14 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                 mTopBar.setEmojiMode(false);
             }
             
-            // Show suggestion strip for main keyboard
-            if (mSuggestionStrip != null) {
-                mSuggestionStrip.setVisibility(View.VISIBLE);
+            // Reset forced toolbar mode when switching back to main keyboard
+            mForcedToolbarMode = false;
+            
+            // Show appropriate view based on current suggestions
+            if (mSuggestionStrip != null && mSuggestionStrip.hasSuggestions()) {
+                showSuggestionsView();
+            } else {
+                showToolbarView();
             }
         }
     }
@@ -1114,24 +1143,87 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                 mTopBar.setEmojiMode(true);
             }
             
-            // Hide suggestion strip for emoji keyboard
-            if (mSuggestionStrip != null) {
-                mSuggestionStrip.setVisibility(View.GONE);
-            }
+            // Always show toolbar when in emoji mode
+            showToolbarView();
         }
     }
     
     /**
-     * Inserts clipboard content into the text field.
+     * Inserts clipboard content into the text field with improved reliability.
      */
     private void insertClipboardContent() {
-        String clipboardText = rkr.simplekeyboard.inputmethod.latin.utils.ClipboardUtils.getClipboardText(this);
-        if (clipboardText != null && !clipboardText.isEmpty() && mInputLogic != null) {
-            // Remove clipboard formatting prefix if present
-            if (clipboardText.startsWith("📋 ")) {
-                clipboardText = clipboardText.substring(2).trim();
+        try {
+            android.content.ClipboardManager clipboardManager = 
+                (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            
+            if (clipboardManager == null || !clipboardManager.hasPrimaryClip()) {
+                return;
             }
-            mInputLogic.commitText(clipboardText);
+            
+            android.content.ClipData clipData = clipboardManager.getPrimaryClip();
+            if (clipData == null || clipData.getItemCount() == 0) {
+                return;
+            }
+            
+            // Get the full text content using coerceToText for reliable conversion
+            CharSequence clipboardText = clipData.getItemAt(0).coerceToText(this);
+            if (clipboardText != null && clipboardText.length() > 0) {
+                String fullText = clipboardText.toString();
+                
+                // Remove clipboard formatting prefix if present
+                if (fullText.startsWith("📋 ")) {
+                    fullText = fullText.substring(2).trim();
+                }
+                
+                if (mInputLogic != null && !fullText.isEmpty()) {
+                    // Use commitText to properly insert the full clipboard content
+                    mInputLogic.mConnection.commitText(fullText, 1);
+                }
+            }
+        } catch (Exception e) {
+            // Silently handle any clipboard access errors
+            android.util.Log.w(TAG, "Error accessing clipboard: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Shows the toolbar view in the top container (Gboard default state).
+     */
+    private void showToolbarView() {
+        if (mTopContainer != null && mTopBar != null) {
+            mTopContainer.setDisplayedChild(0); // First child is toolbar
+            mShowingSuggestions = false;
+            mTopBar.setShowingSuggestions(false);
+        }
+    }
+    
+    /**
+     * Shows the suggestions view in the top container.
+     */
+    private void showSuggestionsView() {
+        if (mTopContainer != null && mTopBar != null) {
+            mTopContainer.setDisplayedChild(1); // Second child is suggestions
+            mShowingSuggestions = true;
+            mTopBar.setShowingSuggestions(true);
+        }
+    }
+    
+    /**
+     * Toggles the top container between toolbar and suggestions (manual override).
+     */
+    private void toggleTopContainer() {
+        if (mShowingSuggestions) {
+            // Force toolbar view and remember this was a manual action
+            mForcedToolbarMode = true;
+            showToolbarView();
+        } else {
+            // Allow auto-switching again
+            mForcedToolbarMode = false;
+            
+            // If we have suggestions, show them; otherwise stay on toolbar
+            if (mSuggestionStrip != null && mSuggestionStrip.hasSuggestions()) {
+                showSuggestionsView();
+            }
         }
     }
 }

@@ -20,32 +20,32 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:orientation="horizontal"
     android:background="?android:attr/colorBackground"
     android:paddingStart="8dp"
     android:paddingEnd="8dp"
     android:paddingTop="4dp"
     android:paddingBottom="4dp"
-    android:elevation="2dp" >
+    android:gravity="center_vertical" >
 
     <!-- Emoji button -->
     <Button
         android:id="@+id/top_bar_emoji_button"
-        android:layout_width="48dp"
-        android:layout_height="36dp"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
         android:text="😊"
-        android:textSize="18sp"
+        android:textSize="16sp"
         android:background="?android:attr/selectableItemBackground"
         android:layout_marginEnd="4dp" />
 
     <!-- Clipboard button -->
     <Button
         android:id="@+id/top_bar_clipboard_button"
-        android:layout_width="48dp"
-        android:layout_height="36dp"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
         android:text="📋"
-        android:textSize="18sp"
+        android:textSize="16sp"
         android:background="?android:attr/selectableItemBackground"
         android:layout_marginEnd="4dp" />
 
@@ -55,13 +55,23 @@
         android:layout_height="1dp"
         android:layout_weight="1" />
 
+    <!-- Toggle suggestions button -->
+    <Button
+        android:id="@+id/top_bar_toggle_button"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:text="⬇"
+        android:textSize="16sp"
+        android:background="?android:attr/selectableItemBackground"
+        android:layout_marginEnd="4dp" />
+
     <!-- Settings button -->
     <Button
         android:id="@+id/top_bar_settings_button"
-        android:layout_width="48dp"
-        android:layout_height="36dp"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
         android:text="⚙️"
-        android:textSize="18sp"
+        android:textSize="16sp"
         android:background="?android:attr/selectableItemBackground" />
 
 </LinearLayout>
