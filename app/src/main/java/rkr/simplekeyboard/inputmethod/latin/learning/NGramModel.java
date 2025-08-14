@@ -66,19 +66,59 @@ public class NGramModel {
     }
 
     /**
-     * Learns from a sentence by splitting it into words.
+     * Learns from a sentence by splitting it into words and punctuation tokens.
+     * Enhanced to handle punctuation as separate tokens and preserve single-letter words.
      */
     public void learnFromSentence(String sentence) {
         if (sentence == null || sentence.trim().isEmpty()) {
             return;
         }
 
-        // Simple word tokenization (split by spaces and common punctuation)
-        String[] words = sentence.trim()
-                .replaceAll("[.!?;:,]", " ")
-                .split("\\s+");
-
-        learnFromSequence(words);
+        // Enhanced tokenization that preserves punctuation and single-letter words
+        String[] tokens = tokenizeWithPunctuation(sentence);
+        learnFromSequence(tokens);
+    }
+    
+    /**
+     * Enhanced tokenization that treats punctuation as separate tokens
+     * and preserves single-letter words.
+     */
+    private String[] tokenizeWithPunctuation(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return new String[0];
+        }
+        
+        // Step 1: Insert spaces around punctuation marks to separate them
+        String processed = text
+            .replaceAll("([.!?;:,])", " $1 ")  // Add spaces around punctuation
+            .replaceAll("\\s+", " ")           // Normalize whitespace
+            .trim();
+        
+        // Step 2: Split by whitespace to get tokens (words + punctuation)
+        String[] tokens = processed.split("\\s+");
+        
+        // Step 3: Filter out empty tokens but keep valid words and punctuation
+        List<String> validTokens = new ArrayList<>();
+        for (String token : tokens) {
+            token = token.trim();
+            if (!token.isEmpty()) {
+                // Keep words (including single letters) and punctuation
+                if (isValidWord(token) || isPunctuation(token)) {
+                    validTokens.add(token);
+                }
+            }
+        }
+        
+        return validTokens.toArray(new String[0]);
+    }
+    
+    /**
+     * Checks if a token is punctuation.
+     */
+    private boolean isPunctuation(String token) {
+        return token.length() == 1 && 
+               (token.equals(".") || token.equals("!") || token.equals("?") || 
+                token.equals(",") || token.equals(";") || token.equals(":"));
     }
 
     /**
@@ -258,7 +298,8 @@ public class NGramModel {
     }
 
     private boolean isValidWord(String word) {
-        return word != null && !word.trim().isEmpty() && word.length() > 1;
+        // Updated to accept single-letter words like "a" in English or "و" in Arabic
+        return word != null && !word.trim().isEmpty() && word.length() >= 1;
     }
 
     /**

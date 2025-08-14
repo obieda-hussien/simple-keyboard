@@ -25,8 +25,11 @@ import java.util.List;
  */
 public class BootstrapVocabulary {
     
-    // Common English words for initial suggestions
+    // Common English words for initial suggestions (including single-letter words)
     private static final String[] COMMON_ENGLISH_WORDS = {
+        // Single-letter words that are important
+        "a", "I",
+        // Common short words
         "the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her", "was", "one",
         "our", "out", "day", "get", "has", "him", "his", "how", "its", "may", "new", "now", "old",
         "see", "two", "way", "who", "boy", "did", "man", "car", "dog", "cat", "run", "big", "red",
@@ -39,8 +42,11 @@ public class BootstrapVocabulary {
         "those", "three", "under", "water", "where", "which", "world", "would", "write", "young"
     };
     
-    // Common Arabic words for initial suggestions (supporting Arabic users)
+    // Common Arabic words for initial suggestions (including single-letter words and conjunctions)
     private static final String[] COMMON_ARABIC_WORDS = {
+        // Single-letter words and short conjunctions that are important
+        "و", "أ", "ب", "ل", "ف", "ك", 
+        // Common words
         "في", "من", "على", "إلى", "هذا", "هذه", "التي", "الذي", "كان", "كانت", "يكون", "تكون",
         "لكن", "أيضا", "أيضاً", "بعد", "قبل", "عند", "حول", "حتى", "أثناء", "خلال", "كل",
         "بعض", "جميع", "معظم", "أكثر", "أقل", "أول", "آخر", "جديد", "قديم", "كبير", "صغير",
@@ -72,9 +78,10 @@ public class BootstrapVocabulary {
     
     /**
      * Initializes the N-gram model with common word patterns.
+     * Enhanced to include single-letter words and punctuation patterns.
      */
     public static void initializeNGramModel(NGramModel ngramModel) {
-        // Add some common English patterns
+        // Add some common English patterns with single-letter words
         ngramModel.learnFromSentence("I am going to");
         ngramModel.learnFromSentence("How are you");
         ngramModel.learnFromSentence("What is your");
@@ -85,8 +92,13 @@ public class BootstrapVocabulary {
         ngramModel.learnFromSentence("How do you do");
         ngramModel.learnFromSentence("What time is it");
         ngramModel.learnFromSentence("Where are you from");
+        // Patterns with "a"
+        ngramModel.learnFromSentence("I have a car");
+        ngramModel.learnFromSentence("This is a good idea");
+        ngramModel.learnFromSentence("Once upon a time");
+        ngramModel.learnFromSentence("What a beautiful day");
         
-        // Add some common Arabic patterns
+        // Add some common Arabic patterns with single-letter words
         ngramModel.learnFromSentence("كيف حالك اليوم");
         ngramModel.learnFromSentence("أهلا وسهلا بك");
         ngramModel.learnFromSentence("شكرا لك جزيلا");
@@ -95,29 +107,48 @@ public class BootstrapVocabulary {
         ngramModel.learnFromSentence("إن شاء الله");
         ngramModel.learnFromSentence("الحمد لله");
         ngramModel.learnFromSentence("ما شاء الله");
+        // Patterns with "و" (and)
+        ngramModel.learnFromSentence("أنا و أنت");
+        ngramModel.learnFromSentence("الأب و الأم");
+        ngramModel.learnFromSentence("القراءة و الكتابة");
+        ngramModel.learnFromSentence("صباح الخير و مساء الخير");
+        
+        // Common punctuation patterns
+        ngramModel.learnFromSentence("Hello, how are you?");
+        ngramModel.learnFromSentence("Yes, I agree.");
+        ngramModel.learnFromSentence("What time is it?");
+        ngramModel.learnFromSentence("That's great!");
+        ngramModel.learnFromSentence("I think so.");
+        ngramModel.learnFromSentence("Please, help me.");
     }
     
     /**
      * Gets common words for the given prefix.
+     * Enhanced to support single-letter words and Arabic.
      */
     public static List<String> getCommonWordsForPrefix(String prefix) {
         if (prefix == null || prefix.isEmpty()) {
-            return Arrays.asList("the", "and", "for", "you", "are");
+            return Arrays.asList("the", "and", "for", "you", "are", "I", "a", "و");
         }
         
         prefix = prefix.toLowerCase();
         
+        // Single letter suggestions
+        if (prefix.equals("a")) {
+            return Arrays.asList("a", "and", "are", "all", "also", "about");
+        } else if (prefix.equals("i")) {
+            return Arrays.asList("I", "is", "in", "it", "if");
+        } else if (prefix.equals("و")) {
+            return Arrays.asList("و", "وهو", "وهي", "ولكن", "وقد");
+        }
+        
         // Simple prefix matching for common words
         if (prefix.startsWith("th")) {
             return Arrays.asList("the", "this", "that", "they", "there");
-        } else if (prefix.startsWith("a")) {
-            return Arrays.asList("and", "are", "all", "also", "about");
         } else if (prefix.startsWith("w")) {
             return Arrays.asList("what", "when", "where", "with", "would");
         } else if (prefix.startsWith("h")) {
             return Arrays.asList("how", "have", "has", "here", "home");
-        } else if (prefix.startsWith("i")) {
-            return Arrays.asList("is", "in", "it", "if", "I");
         }
         
         return Arrays.asList();
