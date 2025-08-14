@@ -29,13 +29,6 @@ android {
 }
 
 dependencies {
-    // Room database for local learning data storage
-    implementation 'androidx.room:room-runtime:2.5.0'
-    annotationProcessor 'androidx.room:room-compiler:2.5.0'
-    
-    // Support for async operations
-    implementation 'androidx.room:room-rxjava3:2.5.0'
-    
     // Emoji support
     implementation 'androidx.emoji2:emoji2:1.4.0'
     implementation 'androidx.emoji2:emoji2-views:1.4.0'
