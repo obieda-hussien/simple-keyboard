@@ -28,14 +28,18 @@ import android.widget.TextView;
 
 import java.util.List;
 
+import rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager;
+
 /**
  * Suggestion strip view that displays word suggestions above the keyboard.
+ * Uses dynamic theming for consistent appearance.
  */
 public class SuggestionStripView extends LinearLayout {
     private static final int MAX_SUGGESTIONS = 5;
     private static final int SUGGESTION_PADDING_DP = 16;
     private static final int SUGGESTION_TEXT_SIZE_SP = 16;
     
+    private ThemeManager themeManager;
     private OnSuggestionClickListener suggestionClickListener;
     
     public interface OnSuggestionClickListener {
@@ -56,15 +60,38 @@ public class SuggestionStripView extends LinearLayout {
     }
     
     private void init() {
+        themeManager = ThemeManager.getInstance(getContext());
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
         
         int paddingPx = dpToPx(8);
         setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
-        setBackgroundColor(Color.parseColor("#F5F5F5"));
         
-        // Add divider line at bottom
-        setBackgroundResource(android.R.drawable.bottom_bar);
+        applyTheme();
+    }
+    
+    /**
+     * Apply dynamic theme colors to the suggestion strip.
+     */
+    private void applyTheme() {
+        int topBarBgColor = themeManager.getTopBarBackgroundColor();
+        setBackgroundColor(topBarBgColor);
+    }
+    
+    /**
+     * Refresh theme when preferences change.
+     */
+    public void refreshTheme() {
+        themeManager.refreshTheme();
+        applyTheme();
+        // Refresh all existing suggestion views
+        int childCount = getChildCount();
+        for (int i = 0; i < childCount; i++) {
+            View child = getChildAt(i);
+            if (child instanceof TextView) {
+                applySuggestionTheme((TextView) child, i == 0);
+            }
+        }
     }
     
     /**
@@ -89,10 +116,8 @@ public class SuggestionStripView extends LinearLayout {
         TextView suggestionView = new TextView(getContext());
         suggestionView.setText(suggestion);
         
-        // Set text appearance
-        suggestionView.setTextSize(TypedValue.COMPLEX_UNIT_SP, SUGGESTION_TEXT_SIZE_SP);
-        suggestionView.setTextColor(isPrimary ? Color.parseColor("#1976D2") : Color.parseColor("#424242"));
-        suggestionView.setTypeface(null, isPrimary ? Typeface.BOLD : Typeface.NORMAL);
+        // Apply theme styling
+        applySuggestionTheme(suggestionView, isPrimary);
         
         // Set padding
         int paddingPx = dpToPx(SUGGESTION_PADDING_DP);
@@ -122,6 +147,21 @@ public class SuggestionStripView extends LinearLayout {
         suggestionView.setGravity(Gravity.CENTER);
         
         addView(suggestionView);
+    }
+    
+    /**
+     * Apply theme styling to a suggestion TextView.
+     */
+    private void applySuggestionTheme(TextView suggestionView, boolean isPrimary) {
+        suggestionView.setTextSize(TypedValue.COMPLEX_UNIT_SP, SUGGESTION_TEXT_SIZE_SP);
+        
+        if (isPrimary) {
+            suggestionView.setTextColor(themeManager.getAccentColor());
+            suggestionView.setTypeface(null, Typeface.BOLD);
+        } else {
+            suggestionView.setTextColor(themeManager.getSuggestionTextColor());
+            suggestionView.setTypeface(null, Typeface.NORMAL);
+        }
     }
     
     /**

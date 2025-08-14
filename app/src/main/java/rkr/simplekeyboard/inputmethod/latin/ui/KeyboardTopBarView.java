@@ -17,25 +17,28 @@
 package rkr.simplekeyboard.inputmethod.latin.ui;
 
 import android.content.Context;
+import android.graphics.PorterDuff;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
 import rkr.simplekeyboard.inputmethod.R;
+import rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager;
 
 /**
  * Top bar component for accessing keyboard features like emoji and clipboard.
- * Fixed height toolbar that follows the Gboard model.
+ * Fixed height toolbar that follows the Gboard model with dynamic theming.
  */
 public class KeyboardTopBarView extends LinearLayout {
     
-    private Button emojiButton;
-    private Button clipboardButton;
-    private Button settingsButton;
-    private Button toggleButton;
+    private ImageButton emojiButton;
+    private ImageButton clipboardButton;
+    private ImageButton settingsButton;
+    private ImageButton toggleButton;
     
+    private ThemeManager themeManager;
     private OnTopBarActionListener actionListener;
     
     public interface OnTopBarActionListener {
@@ -61,6 +64,7 @@ public class KeyboardTopBarView extends LinearLayout {
     }
     
     private void init() {
+        themeManager = ThemeManager.getInstance(getContext());
         LayoutInflater.from(getContext()).inflate(R.layout.keyboard_top_bar, this, true);
         
         emojiButton = findViewById(R.id.top_bar_emoji_button);
@@ -68,7 +72,33 @@ public class KeyboardTopBarView extends LinearLayout {
         settingsButton = findViewById(R.id.top_bar_settings_button);
         toggleButton = findViewById(R.id.top_bar_toggle_button);
         
+        applyTheme();
         setupButtons();
+    }
+    
+    /**
+     * Apply dynamic theme colors to all components.
+     */
+    private void applyTheme() {
+        int topBarBgColor = themeManager.getTopBarBackgroundColor();
+        int iconTintColor = themeManager.getIconTintColor();
+        
+        // Apply background color
+        setBackgroundColor(topBarBgColor);
+        
+        // Apply icon tints
+        emojiButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
+        clipboardButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
+        settingsButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
+        toggleButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
+    }
+    
+    /**
+     * Refresh theme when preferences change.
+     */
+    public void refreshTheme() {
+        themeManager.refreshTheme();
+        applyTheme();
     }
     
     private void setupButtons() {
@@ -106,12 +136,15 @@ public class KeyboardTopBarView extends LinearLayout {
      */
     public void setEmojiMode(boolean isEmojiMode) {
         if (isEmojiMode) {
-            emojiButton.setText("🔤"); // ABC button when in emoji mode
+            emojiButton.setImageResource(R.drawable.ic_abc); // ABC icon when in emoji mode
             emojiButton.setAlpha(1.0f);
+            emojiButton.setContentDescription("Switch to text keyboard");
         } else {
-            emojiButton.setText("😊"); // Emoji button when in text mode
-            emojiButton.setAlpha(0.7f);
+            emojiButton.setImageResource(R.drawable.ic_emoji); // Emoji icon when in text mode  
+            emojiButton.setAlpha(0.8f);
+            emojiButton.setContentDescription("Switch to emoji keyboard");
         }
+        applyTheme(); // Reapply tint after icon change
     }
     
     /**
@@ -119,11 +152,14 @@ public class KeyboardTopBarView extends LinearLayout {
      */
     public void setShowingSuggestions(boolean showingSuggestions) {
         if (showingSuggestions) {
-            toggleButton.setText("⬆"); // Up arrow when showing suggestions
+            toggleButton.setImageResource(R.drawable.ic_expand_less); // Up arrow when showing suggestions
             toggleButton.setAlpha(1.0f);
+            toggleButton.setContentDescription("Show toolbar");
         } else {
-            toggleButton.setText("⬇"); // Down arrow when showing toolbar
-            toggleButton.setAlpha(0.7f);
+            toggleButton.setImageResource(R.drawable.ic_expand_more); // Down arrow when showing toolbar
+            toggleButton.setAlpha(0.8f);
+            toggleButton.setContentDescription("Show suggestions");
         }
+        applyTheme(); // Reapply tint after icon change
     }
 }

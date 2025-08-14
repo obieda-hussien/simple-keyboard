@@ -22,32 +22,45 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
-    android:background="?android:attr/colorBackground"
-    android:paddingStart="8dp"
-    android:paddingEnd="8dp"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp"
+    android:paddingStart="6dp"
+    android:paddingEnd="6dp"
     android:gravity="center_vertical" >
 
+    <!-- Toggle button - Gboard style, left-most position -->
+    <ImageButton
+        android:id="@+id/top_bar_toggle_button"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/ic_expand_more"
+        android:background="@drawable/button_selector"
+        android:contentDescription="Toggle suggestions"
+        android:layout_marginEnd="8dp"
+        android:scaleType="centerInside"
+        android:padding="8dp" />
+
     <!-- Emoji button -->
-    <Button
+    <ImageButton
         android:id="@+id/top_bar_emoji_button"
-        android:layout_width="42dp"
-        android:layout_height="42dp"
-        android:text="😊"
-        android:textSize="16sp"
-        android:background="?android:attr/selectableItemBackground"
-        android:layout_marginEnd="4dp" />
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/ic_emoji"
+        android:background="@drawable/button_selector"
+        android:contentDescription="Emoji keyboard"
+        android:layout_marginEnd="6dp"
+        android:scaleType="centerInside"
+        android:padding="8dp" />
 
     <!-- Clipboard button -->
-    <Button
+    <ImageButton
         android:id="@+id/top_bar_clipboard_button"
-        android:layout_width="42dp"
-        android:layout_height="42dp"
-        android:text="📋"
-        android:textSize="16sp"
-        android:background="?android:attr/selectableItemBackground"
-        android:layout_marginEnd="4dp" />
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/ic_clipboard"
+        android:background="@drawable/button_selector"
+        android:contentDescription="Clipboard"
+        android:layout_marginEnd="6dp"
+        android:scaleType="centerInside"
+        android:padding="8dp" />
 
     <!-- Spacer -->
     <View
@@ -55,23 +68,15 @@
         android:layout_height="1dp"
         android:layout_weight="1" />
 
-    <!-- Toggle suggestions button -->
-    <Button
-        android:id="@+id/top_bar_toggle_button"
-        android:layout_width="42dp"
-        android:layout_height="42dp"
-        android:text="⬇"
-        android:textSize="16sp"
-        android:background="?android:attr/selectableItemBackground"
-        android:layout_marginEnd="4dp" />
-
     <!-- Settings button -->
-    <Button
+    <ImageButton
         android:id="@+id/top_bar_settings_button"
-        android:layout_width="42dp"
-        android:layout_height="42dp"
-        android:text="⚙️"
-        android:textSize="16sp"
-        android:background="?android:attr/selectableItemBackground" />
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/ic_settings"
+        android:background="@drawable/button_selector"
+        android:contentDescription="Settings"
+        android:scaleType="centerInside"
+        android:padding="8dp" />
 
 </LinearLayout>

@@ -44,7 +44,6 @@ public class EmojiKeyboardView extends LinearLayout {
     private RecyclerView emojiRecyclerView;
     private EditText searchEditText;
     private Button searchClearButton;
-    private Button backButton;
     private LinearLayout categoryTabsLayout;
     
     private EmojiAdapter emojiAdapter;
@@ -83,13 +82,11 @@ public class EmojiKeyboardView extends LinearLayout {
         emojiRecyclerView = findViewById(R.id.emoji_recycler_view);
         searchEditText = findViewById(R.id.emoji_search);
         searchClearButton = findViewById(R.id.emoji_search_clear);
-        backButton = findViewById(R.id.emoji_back_button);
         categoryTabsLayout = findViewById(R.id.emoji_category_tabs);
         
         setupRecyclerView();
         setupSearchFunctionality();
         setupCategoryTabs();
-        setupBackButton();
         
         // Load initial emojis
         loadEmojisByCategory(selectedCategory);
@@ -148,14 +145,6 @@ public class EmojiKeyboardView extends LinearLayout {
             categoryTabsLayout.addView(categoryButton);
         }
         updateCategorySelection();
-    }
-    
-    private void setupBackButton() {
-        backButton.setOnClickListener(v -> {
-            if (backClickListener != null) {
-                backClickListener.onBackClicked();
-            }
-        });
     }
     
     private void updateCategorySelection() {
