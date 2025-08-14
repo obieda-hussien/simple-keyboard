@@ -52,6 +52,7 @@ import rkr.simplekeyboard.inputmethod.compat.EditorInfoCompatUtils;
 import rkr.simplekeyboard.inputmethod.compat.PreferenceManagerCompat;
 import rkr.simplekeyboard.inputmethod.compat.ViewOutlineProviderCompatUtils;
 import rkr.simplekeyboard.inputmethod.compat.ViewOutlineProviderCompatUtils.InsetsUpdater;
+import rkr.simplekeyboard.inputmethod.emoji.KeyboardState;
 import rkr.simplekeyboard.inputmethod.event.Event;
 import rkr.simplekeyboard.inputmethod.event.InputTransaction;
 import rkr.simplekeyboard.inputmethod.keyboard.Keyboard;
@@ -429,6 +430,17 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                         showMainKeyboard();
                     }
                 });
+                
+                mEmojiKeyboard.setOnKeyboardStateChangeListener(new rkr.simplekeyboard.inputmethod.emoji.EmojiKeyboardView.OnKeyboardStateChangeListener() {
+                    @Override
+                    public void onKeyboardStateChanged(rkr.simplekeyboard.inputmethod.emoji.KeyboardState newState) {
+                        // This will be called when the emoji keyboard switches between browse and search modes
+                        // No additional action needed here as the view switching is handled in EmojiKeyboardView
+                    }
+                });
+                
+                // Set up the search keyboard with the action listener and keyboard switcher
+                mEmojiKeyboard.setupSearchKeyboard(this, mKeyboardSwitcher);
             }
             
             // Initialize to toolbar view (Gboard model default)
@@ -900,6 +912,59 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     // This method is public for testability of LatinIME, but also in the future it should
     // completely replace #onCodeInput.
     public void onEvent(final Event event) {
+        // Check if we're in emoji search mode and redirect input accordingly
+        if (mIsEmojiMode && mEmojiKeyboard != null && 
+            mEmojiKeyboard.getCurrentState() == KeyboardState.EMOJI_SEARCH) {
+            
+            // Redirect input to the emoji search EditText instead of the host application
+            if (event.mCodePoint > 0) {
+                // Handle character input
+                final String character = String.valueOf((char) event.mCodePoint);
+                final android.widget.EditText searchEditText = mEmojiKeyboard.getSearchEditText();
+                if (searchEditText != null) {
+                    // Get current text and cursor position
+                    final android.text.Editable editable = searchEditText.getText();
+                    final int start = searchEditText.getSelectionStart();
+                    final int end = searchEditText.getSelectionEnd();
+                    
+                    // Insert the character at cursor position
+                    if (start >= 0) {
+                        editable.replace(Math.min(start, end), Math.max(start, end), character);
+                    } else {
+                        editable.append(character);
+                    }
+                }
+                return; // Don't send to host application
+            } else if (event.mKeyCode == Constants.CODE_DELETE) {
+                // Handle backspace
+                final android.widget.EditText searchEditText = mEmojiKeyboard.getSearchEditText();
+                if (searchEditText != null) {
+                    final android.text.Editable editable = searchEditText.getText();
+                    final int start = searchEditText.getSelectionStart();
+                    final int end = searchEditText.getSelectionEnd();
+                    
+                    if (start >= 0 && end >= 0) {
+                        if (start == end) {
+                            // Delete character before cursor
+                            if (start > 0) {
+                                editable.delete(start - 1, start);
+                            }
+                        } else {
+                            // Delete selected text
+                            editable.delete(Math.min(start, end), Math.max(start, end));
+                        }
+                    }
+                }
+                return; // Don't send to host application
+            } else if (event.mKeyCode == Constants.CODE_ENTER) {
+                // Handle enter key - exit search mode
+                mEmojiKeyboard.exitSearchMode();
+                return; // Don't send to host application
+            }
+            // For other key codes (like space), fall through to normal processing
+        }
+        
+        // Normal input processing for non-emoji-search mode
         final InputTransaction completeInputTransaction =
                 mInputLogic.onCodeInput(mSettings.getCurrent(), event);
         updateStateAfterInputTransaction(completeInputTransaction);

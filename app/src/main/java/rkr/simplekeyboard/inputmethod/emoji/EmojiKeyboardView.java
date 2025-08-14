@@ -25,6 +25,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -36,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import rkr.simplekeyboard.inputmethod.R;
+import rkr.simplekeyboard.inputmethod.keyboard.MainKeyboardView;
 import rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager;
 
 /**
@@ -48,14 +50,20 @@ public class EmojiKeyboardView extends LinearLayout {
     private EditText searchEditText;
     private ImageButton searchClearButton;
     private LinearLayout categoryTabsLayout;
+    private FrameLayout contentContainer;
+    private MainKeyboardView searchKeyboard;
     
     private ThemeManager themeManager;
     private EmojiAdapter emojiAdapter;
     private List<EmojiItem> currentEmojis;
     private EmojiCategory selectedCategory = EmojiCategory.SMILEYS;
     
+    // State management for keyboard switching
+    private KeyboardState currentState = KeyboardState.EMOJI_BROWSE;
+    
     private OnEmojiClickListener emojiClickListener;
     private OnBackClickListener backClickListener;
+    private OnKeyboardStateChangeListener keyboardStateChangeListener;
     
     public interface OnEmojiClickListener {
         void onEmojiClicked(String emoji);
@@ -63,6 +71,10 @@ public class EmojiKeyboardView extends LinearLayout {
     
     public interface OnBackClickListener {
         void onBackClicked();
+    }
+    
+    public interface OnKeyboardStateChangeListener {
+        void onKeyboardStateChanged(KeyboardState newState);
     }
     
     public EmojiKeyboardView(Context context) {
@@ -88,6 +100,8 @@ public class EmojiKeyboardView extends LinearLayout {
         searchEditText = findViewById(R.id.emoji_search);
         searchClearButton = findViewById(R.id.emoji_search_clear);
         categoryTabsLayout = findViewById(R.id.emoji_category_tabs);
+        contentContainer = findViewById(R.id.emoji_content_container);
+        searchKeyboard = findViewById(R.id.emoji_search_keyboard);
         
         applyTheme();
         setupRecyclerView();
@@ -155,9 +169,22 @@ public class EmojiKeyboardView extends LinearLayout {
             public void afterTextChanged(Editable s) {}
         });
         
+        // Handle search field focus to trigger search mode
+        searchEditText.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                enterSearchMode();
+            }
+        });
+        
+        // Also trigger search mode on click for better UX
+        searchEditText.setOnClickListener(v -> {
+            enterSearchMode();
+        });
+        
         searchClearButton.setOnClickListener(v -> {
             searchEditText.setText("");
             loadEmojisByCategory(selectedCategory);
+            exitSearchMode();
         });
     }
     
@@ -230,6 +257,85 @@ public class EmojiKeyboardView extends LinearLayout {
     
     public void setOnBackClickListener(OnBackClickListener listener) {
         this.backClickListener = listener;
+    }
+    
+    public void setOnKeyboardStateChangeListener(OnKeyboardStateChangeListener listener) {
+        this.keyboardStateChangeListener = listener;
+    }
+    
+    /**
+     * Gets the current keyboard state.
+     */
+    public KeyboardState getCurrentState() {
+        return currentState;
+    }
+    
+    /**
+     * Gets the search EditText for input redirection.
+     */
+    public EditText getSearchEditText() {
+        return searchEditText;
+    }
+    
+    /**
+     * Gets the search keyboard view.
+     */
+    public MainKeyboardView getSearchKeyboard() {
+        return searchKeyboard;
+    }
+    
+    /**
+     * Sets up the search keyboard with the appropriate action listener and keyboard.
+     */
+    public void setupSearchKeyboard(rkr.simplekeyboard.inputmethod.keyboard.KeyboardActionListener actionListener,
+                                   rkr.simplekeyboard.inputmethod.keyboard.KeyboardSwitcher keyboardSwitcher) {
+        if (searchKeyboard != null && actionListener != null && keyboardSwitcher != null) {
+            searchKeyboard.setKeyboardActionListener(actionListener);
+            // Set the current keyboard to the search keyboard
+            final rkr.simplekeyboard.inputmethod.keyboard.Keyboard keyboard = keyboardSwitcher.getKeyboard();
+            if (keyboard != null) {
+                searchKeyboard.setKeyboard(keyboard);
+            }
+        }
+    }
+    
+    /**
+     * Enters search mode by showing the alphabet keyboard and hiding emoji grid.
+     */
+    private void enterSearchMode() {
+        if (currentState != KeyboardState.EMOJI_SEARCH) {
+            currentState = KeyboardState.EMOJI_SEARCH;
+            
+            // Hide emoji grid and show alphabet keyboard
+            emojiRecyclerView.setVisibility(View.GONE);
+            searchKeyboard.setVisibility(View.VISIBLE);
+            
+            // Notify state change
+            if (keyboardStateChangeListener != null) {
+                keyboardStateChangeListener.onKeyboardStateChanged(currentState);
+            }
+        }
+    }
+    
+    /**
+     * Exits search mode by hiding the alphabet keyboard and showing emoji grid.
+     */
+    public void exitSearchMode() {
+        if (currentState == KeyboardState.EMOJI_SEARCH) {
+            currentState = KeyboardState.EMOJI_BROWSE;
+            
+            // Show emoji grid and hide alphabet keyboard
+            emojiRecyclerView.setVisibility(View.VISIBLE);
+            searchKeyboard.setVisibility(View.GONE);
+            
+            // Clear focus from search field
+            searchEditText.clearFocus();
+            
+            // Notify state change
+            if (keyboardStateChangeListener != null) {
+                keyboardStateChangeListener.onKeyboardStateChanged(currentState);
+            }
+        }
     }
     
     private int dpToPx(int dp) {

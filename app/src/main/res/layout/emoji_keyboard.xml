@@ -73,13 +73,30 @@
             android:paddingEnd="8dp" />
     </HorizontalScrollView>
 
-    <!-- Emoji grid -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/emoji_recycler_view"
+    <!-- Container for switching between emoji grid and alphabet keyboard -->
+    <FrameLayout
+        android:id="@+id/emoji_content_container"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="200dp"
-        android:maxHeight="300dp"
-        android:padding="4dp" />
+        android:layout_height="wrap_content">
+
+        <!-- Emoji grid -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/emoji_recycler_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="200dp"
+            android:maxHeight="300dp"
+            android:padding="4dp"
+            android:visibility="visible" />
+
+        <!-- Alphabet keyboard for search -->
+        <rkr.simplekeyboard.inputmethod.keyboard.MainKeyboardView
+            android:id="@+id/emoji_search_keyboard"
+            android:layoutDirection="ltr"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+    </FrameLayout>
 
 </LinearLayout>
