@@ -18,15 +18,27 @@ package rkr.simplekeyboard.inputmethod.latin.utils;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.objecthunter.exp4j.Expression;
+import net.objecthunter.exp4j.ExpressionBuilder;
 
 /**
  * Utility class for detecting and evaluating mathematical expressions.
  */
 public class CalculatorUtils {
     
-    // Pattern to match simple math expressions
+    // Enhanced pattern to match complex math expressions with parentheses
     private static final Pattern MATH_PATTERN = Pattern.compile(
-        "\\s*(\\d+(?:\\.\\d+)?)\\s*([+\\-*/])\\s*(\\d+(?:\\.\\d+)?)\\s*=?\\s*"
+        "\\s*([\\d+\\-*/()\\s.]+)\\s*=?\\s*"
+    );
+    
+    // More specific pattern to validate that expression contains math operations
+    private static final Pattern CONTAINS_MATH_OPS = Pattern.compile(
+        ".*[+\\-*/].*"
+    );
+    
+    // Pattern to ensure expression has numbers and operations
+    private static final Pattern VALID_MATH_EXPRESSION = Pattern.compile(
+        "^[\\d+\\-*/()\\s.]+$"
     );
     
     /**
@@ -37,8 +49,36 @@ public class CalculatorUtils {
             return false;
         }
         
-        Matcher matcher = MATH_PATTERN.matcher(text.trim());
-        return matcher.matches();
+        String trimmed = text.trim();
+        
+        // Remove trailing equals sign if present
+        if (trimmed.endsWith("=")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1).trim();
+        }
+        
+        // Must contain mathematical operations
+        if (!CONTAINS_MATH_OPS.matcher(trimmed).matches()) {
+            return false;
+        }
+        
+        // Must only contain valid mathematical characters
+        if (!VALID_MATH_EXPRESSION.matcher(trimmed).matches()) {
+            return false;
+        }
+        
+        // Must have at least one digit
+        if (!trimmed.matches(".*\\d.*")) {
+            return false;
+        }
+        
+        // Try to parse with exp4j to validate
+        try {
+            Expression expression = new ExpressionBuilder(trimmed).build();
+            expression.evaluate(); // This will throw exception if invalid
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
     
     /**
@@ -50,45 +90,35 @@ public class CalculatorUtils {
             return null;
         }
         
-        Matcher matcher = MATH_PATTERN.matcher(text.trim());
-        if (!matcher.matches()) {
-            return null;
+        String trimmed = text.trim();
+        
+        // Remove trailing equals sign if present
+        if (trimmed.endsWith("=")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1).trim();
         }
         
         try {
-            double num1 = Double.parseDouble(matcher.group(1));
-            String operator = matcher.group(2);
-            double num2 = Double.parseDouble(matcher.group(3));
+            Expression expression = new ExpressionBuilder(trimmed).build();
+            double result = expression.evaluate();
             
-            double result;
-            switch (operator) {
-                case "+":
-                    result = num1 + num2;
-                    break;
-                case "-":
-                    result = num1 - num2;
-                    break;
-                case "*":
-                    result = num1 * num2;
-                    break;
-                case "/":
-                    if (num2 == 0) {
-                        return null; // Division by zero
-                    }
-                    result = num1 / num2;
-                    break;
-                default:
-                    return null;
+            // Check for invalid results
+            if (Double.isNaN(result) || Double.isInfinite(result)) {
+                return null;
             }
             
             // Format result: show integer if it's a whole number
-            if (result == Math.floor(result)) {
+            if (result == Math.floor(result) && !Double.isInfinite(result)) {
                 return String.valueOf((long) result);
             } else {
-                return String.format("%.2f", result);
+                // Format with 2 decimal places, but remove trailing zeros unless it's a .00 case
+                String formatted = String.format("%.2f", result);
+                if (formatted.endsWith("0") && !formatted.endsWith("00")) {
+                    formatted = formatted.substring(0, formatted.length() - 1);
+                }
+                return formatted;
             }
             
-        } catch (NumberFormatException e) {
+        } catch (Exception e) {
             return null;
         }
     }

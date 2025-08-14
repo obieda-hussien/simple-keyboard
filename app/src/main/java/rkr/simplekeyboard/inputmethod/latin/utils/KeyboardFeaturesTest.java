@@ -25,7 +25,7 @@ public class KeyboardFeaturesTest {
      * Tests calculator functionality.
      */
     public static boolean testCalculator() {
-        // Test basic operations
+        // Test basic operations (existing tests)
         String result1 = CalculatorUtils.evaluateMathExpression("125 * 4");
         if (!"500".equals(result1)) {
             System.out.println("Calculator test failed: 125 * 4 = " + result1 + " (expected 500)");
@@ -45,8 +45,38 @@ public class KeyboardFeaturesTest {
         }
         
         String result4 = CalculatorUtils.evaluateMathExpression("7.5 + 2.5");
-        if (!"10.00".equals(result4)) {
-            System.out.println("Calculator test failed: 7.5 + 2.5 = " + result4 + " (expected 10.00)");
+        if (!"10".equals(result4)) {  // Since 7.5 + 2.5 = 10 (whole number)
+            System.out.println("Calculator test failed: 7.5 + 2.5 = " + result4 + " (expected 10)");
+            return false;
+        }
+        
+        // Test new advanced functionality
+        
+        // Test PEMDAS/BODMAS order of operations
+        String result5 = CalculatorUtils.evaluateMathExpression("5 + 7 * 2");
+        if (!"19".equals(result5)) {
+            System.out.println("Calculator test failed: 5 + 7 * 2 = " + result5 + " (expected 19)");
+            return false;
+        }
+        
+        // Test multi-step calculations
+        String result6 = CalculatorUtils.evaluateMathExpression("100 - 25 + 50");
+        if (!"125".equals(result6)) {
+            System.out.println("Calculator test failed: 100 - 25 + 50 = " + result6 + " (expected 125)");
+            return false;
+        }
+        
+        // Test parentheses
+        String result7 = CalculatorUtils.evaluateMathExpression("150 + (5 * 22.5)");
+        if (!"262.5".equals(result7)) {  // 150 + 112.5 = 262.5 (not 262.50)
+            System.out.println("Calculator test failed: 150 + (5 * 22.5) = " + result7 + " (expected 262.5)");
+            return false;
+        }
+        
+        // Test complex expression with parentheses
+        String result8 = CalculatorUtils.evaluateMathExpression("(10 + 5) * 2 - 3");
+        if (!"27".equals(result8)) {
+            System.out.println("Calculator test failed: (10 + 5) * 2 - 3 = " + result8 + " (expected 27)");
             return false;
         }
         
@@ -114,5 +144,12 @@ public class KeyboardFeaturesTest {
         System.out.println("Overall Result: " + (allPassed ? "ALL TESTS PASSED" : "SOME TESTS FAILED"));
         
         return allPassed;
+    }
+    
+    /**
+     * Main method to run tests.
+     */
+    public static void main(String[] args) {
+        runAllTests();
     }
 }
