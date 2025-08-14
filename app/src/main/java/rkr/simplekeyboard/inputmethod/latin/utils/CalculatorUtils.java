@@ -23,58 +23,103 @@ import net.objecthunter.exp4j.ExpressionBuilder;
 
 /**
  * Utility class for detecting and evaluating mathematical expressions.
+ * Supports both Latin and Arabic-Indic numerals.
  */
 public class CalculatorUtils {
     
-    // Enhanced pattern to match complex math expressions with parentheses
-    private static final Pattern MATH_PATTERN = Pattern.compile(
-        "\\s*([\\d+\\-*/()\\s.]+)\\s*=?\\s*"
+    // Pattern to find mathematical expressions in text (supports Arabic-Indic numerals)
+    private static final Pattern MATH_EXPRESSION_PATTERN = Pattern.compile(
+        "([\\d٠-٩+\\-*/()\\s.]+[+\\-*/][\\d٠-٩+\\-*/()\\s.]*)"
     );
     
-    // More specific pattern to validate that expression contains math operations
+    // Pattern to validate that expression contains math operations
     private static final Pattern CONTAINS_MATH_OPS = Pattern.compile(
         ".*[+\\-*/].*"
     );
     
-    // Pattern to ensure expression has numbers and operations
+    // Pattern to ensure expression has valid mathematical characters (including Arabic-Indic)
     private static final Pattern VALID_MATH_EXPRESSION = Pattern.compile(
-        "^[\\d+\\-*/()\\s.]+$"
+        "^[\\d٠-٩+\\-*/()\\s.]+$"
     );
     
     /**
-     * Checks if a string contains a mathematical expression that can be evaluated.
+     * Converts Arabic-Indic numerals to Latin numerals.
      */
-    public static boolean isMathExpression(String text) {
+    private static String convertArabicIndicToLatin(String text) {
+        if (text == null) return null;
+        
+        return text.replace('٠', '0')
+                   .replace('١', '1')
+                   .replace('٢', '2')
+                   .replace('٣', '3')
+                   .replace('٤', '4')
+                   .replace('٥', '5')
+                   .replace('٦', '6')
+                   .replace('٧', '7')
+                   .replace('٨', '8')
+                   .replace('٩', '9');
+    }
+    
+    /**
+     * Extracts the last valid mathematical expression from text.
+     * This handles cases where expressions are embedded in sentences.
+     */
+    private static String extractLastMathExpression(String text) {
         if (text == null || text.trim().isEmpty()) {
+            return null;
+        }
+        
+        // Find all potential mathematical expressions
+        Matcher matcher = MATH_EXPRESSION_PATTERN.matcher(text);
+        String lastExpression = null;
+        
+        while (matcher.find()) {
+            String candidate = matcher.group(1).trim();
+            
+            // Remove trailing equals sign if present
+            if (candidate.endsWith("=")) {
+                candidate = candidate.substring(0, candidate.length() - 1).trim();
+            }
+            
+            // Validate the candidate
+            if (isValidMathExpression(candidate)) {
+                lastExpression = candidate;
+            }
+        }
+        
+        return lastExpression;
+    }
+    
+    /**
+     * Validates if a string is a valid mathematical expression.
+     */
+    private static boolean isValidMathExpression(String expression) {
+        if (expression == null || expression.trim().isEmpty()) {
             return false;
         }
         
-        String trimmed = text.trim();
-        
-        // Remove trailing equals sign if present
-        if (trimmed.endsWith("=")) {
-            trimmed = trimmed.substring(0, trimmed.length() - 1).trim();
-        }
+        String trimmed = expression.trim();
         
         // Must contain mathematical operations
         if (!CONTAINS_MATH_OPS.matcher(trimmed).matches()) {
             return false;
         }
         
-        // Must only contain valid mathematical characters
+        // Must only contain valid mathematical characters (including Arabic-Indic)
         if (!VALID_MATH_EXPRESSION.matcher(trimmed).matches()) {
             return false;
         }
         
-        // Must have at least one digit
-        if (!trimmed.matches(".*\\d.*")) {
+        // Must have at least one digit (Latin or Arabic-Indic)
+        if (!trimmed.matches(".*[\\d٠-٩].*")) {
             return false;
         }
         
-        // Try to parse with exp4j to validate
+        // Convert Arabic-Indic numerals and try to parse with exp4j
+        String latinExpression = convertArabicIndicToLatin(trimmed);
         try {
-            Expression expression = new ExpressionBuilder(trimmed).build();
-            expression.evaluate(); // This will throw exception if invalid
+            Expression exp = new ExpressionBuilder(latinExpression).build();
+            exp.evaluate(); // This will throw exception if invalid
             return true;
         } catch (Exception e) {
             return false;
@@ -82,24 +127,41 @@ public class CalculatorUtils {
     }
     
     /**
+     * Checks if a string contains a mathematical expression that can be evaluated.
+     * Now supports Arabic-Indic numerals and in-sentence expression detection.
+     */
+    public static boolean isMathExpression(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return false;
+        }
+        
+        // Try to extract the last valid mathematical expression from the text
+        String expression = extractLastMathExpression(text);
+        return expression != null;
+    }
+    
+    /**
      * Evaluates a mathematical expression and returns the result.
      * Returns null if the expression cannot be evaluated.
+     * Now supports Arabic-Indic numerals and in-sentence expression detection.
      */
     public static String evaluateMathExpression(String text) {
-        if (!isMathExpression(text)) {
+        if (text == null || text.trim().isEmpty()) {
             return null;
         }
         
-        String trimmed = text.trim();
-        
-        // Remove trailing equals sign if present
-        if (trimmed.endsWith("=")) {
-            trimmed = trimmed.substring(0, trimmed.length() - 1).trim();
+        // Extract the last valid mathematical expression from the text
+        String expression = extractLastMathExpression(text);
+        if (expression == null) {
+            return null;
         }
         
+        // Convert Arabic-Indic numerals to Latin numerals
+        String latinExpression = convertArabicIndicToLatin(expression);
+        
         try {
-            Expression expression = new ExpressionBuilder(trimmed).build();
-            double result = expression.evaluate();
+            Expression exp = new ExpressionBuilder(latinExpression).build();
+            double result = exp.evaluate();
             
             // Check for invalid results
             if (Double.isNaN(result) || Double.isInfinite(result)) {

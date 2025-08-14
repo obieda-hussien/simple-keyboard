@@ -80,6 +80,39 @@ public class KeyboardFeaturesTest {
             return false;
         }
         
+        // Test Arabic-Indic numeral support
+        String result9 = CalculatorUtils.evaluateMathExpression("٥٠ + ١٠");
+        if (!"60".equals(result9)) {
+            System.out.println("Calculator test failed: ٥٠ + ١٠ = " + result9 + " (expected 60)");
+            return false;
+        }
+        
+        String result10 = CalculatorUtils.evaluateMathExpression("٢٥ * ٤");
+        if (!"100".equals(result10)) {
+            System.out.println("Calculator test failed: ٢٥ * ٤ = " + result10 + " (expected 100)");
+            return false;
+        }
+        
+        // Test in-sentence expression detection
+        String result11 = CalculatorUtils.evaluateMathExpression("Total is 25*4, but with tax it's 100+20");
+        if (!"120".equals(result11)) {
+            System.out.println("Calculator test failed: should extract 100+20 from sentence = " + result11 + " (expected 120)");
+            return false;
+        }
+        
+        String result12 = CalculatorUtils.evaluateMathExpression("The price is 50*2 and total with shipping is 50+25");
+        if (!"75".equals(result12)) {
+            System.out.println("Calculator test failed: should extract 50+25 from sentence = " + result12 + " (expected 75)");
+            return false;
+        }
+        
+        // Test mixed Arabic-Indic and Latin in sentences
+        String result13 = CalculatorUtils.evaluateMathExpression("السعر هو ٥٠ + ٢٠ ريال");
+        if (!"70".equals(result13)) {
+            System.out.println("Calculator test failed: should extract ٥٠ + ٢٠ from Arabic sentence = " + result13 + " (expected 70)");
+            return false;
+        }
+        
         // Test invalid expressions
         if (CalculatorUtils.isMathExpression("hello world")) {
             System.out.println("Calculator test failed: 'hello world' should not be a math expression");
