@@ -100,6 +100,23 @@ public class LearningSystemTest {
     }
     
     /**
+     * Tests null context handling in LocalLearningEngine.
+     */
+    public static boolean testNullContextHandling() {
+        // Test that LocalLearningEngine handles null context gracefully
+        try {
+            LocalLearningEngine.getInstance(null);
+            return false; // Should not reach here
+        } catch (IllegalArgumentException e) {
+            // Expected behavior - null context should be rejected
+            return true;
+        } catch (Exception e) {
+            // Unexpected exception
+            return false;
+        }
+    }
+
+    /**
      * Runs all tests and returns overall success.
      */
     public static boolean runAllTests() {
@@ -114,7 +131,10 @@ public class LearningSystemTest {
         boolean bootstrapTest = testBootstrapVocabulary();
         System.out.println("Bootstrap Vocabulary Test: " + (bootstrapTest ? "PASS" : "FAIL"));
         
-        boolean allPassed = trieTest && ngramTest && bootstrapTest;
+        boolean nullContextTest = testNullContextHandling();
+        System.out.println("Null Context Handling Test: " + (nullContextTest ? "PASS" : "FAIL"));
+        
+        boolean allPassed = trieTest && ngramTest && bootstrapTest && nullContextTest;
         System.out.println("Overall Result: " + (allPassed ? "ALL TESTS PASSED" : "SOME TESTS FAILED"));
         
         return allPassed;

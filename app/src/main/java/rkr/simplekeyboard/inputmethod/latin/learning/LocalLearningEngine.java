@@ -46,6 +46,9 @@ public class LocalLearningEngine {
     private int wordLearningCounter = 0;
     
     private LocalLearningEngine(Context context) {
+        if (context == null) {
+            throw new IllegalArgumentException("Context cannot be null");
+        }
         this.context = context.getApplicationContext();
         this.wordTrie = new WordTrie();
         this.ngramModel = new NGramModel();
@@ -63,6 +66,9 @@ public class LocalLearningEngine {
      */
     public static synchronized LocalLearningEngine getInstance(Context context) {
         if (instance == null) {
+            if (context == null) {
+                throw new IllegalArgumentException("Context cannot be null for first-time initialization");
+            }
             instance = new LocalLearningEngine(context);
         }
         return instance;
@@ -70,7 +76,7 @@ public class LocalLearningEngine {
 
     /**
      * Gets suggestions for the current input context.
-     * Enhanced with calculator and clipboard functionality.
+     * Enhanced with calculator, clipboard, emoji, and number functionality.
      */
     public List<String> getSuggestions(String currentWord, String previousContext) {
         List<String> suggestions = new ArrayList<>();
@@ -93,6 +99,24 @@ public class LocalLearningEngine {
             String clipboardSuggestion = ClipboardUtils.createClipboardSuggestion(clipboardText);
             if (clipboardSuggestion != null && !suggestions.contains(clipboardSuggestion)) {
                 suggestions.add(clipboardSuggestion);
+            }
+        }
+        
+        // Add emoji suggestions based on keywords
+        if (!TextUtils.isEmpty(currentWord)) {
+            List<String> emojiSuggestions = EmojiSuggestionProvider.getEmojiSuggestions(currentWord);
+            for (String emoji : emojiSuggestions) {
+                if (!suggestions.contains(emoji) && suggestions.size() < MAX_SUGGESTIONS) {
+                    suggestions.add(emoji);
+                }
+            }
+        }
+        
+        // Add contextual number suggestions
+        List<String> numberSuggestions = NumberSuggestionProvider.getNumberSuggestions(fullText, currentWord);
+        for (String numberSuggestion : numberSuggestions) {
+            if (!suggestions.contains(numberSuggestion) && suggestions.size() < MAX_SUGGESTIONS) {
+                suggestions.add(numberSuggestion);
             }
         }
         
@@ -137,7 +161,7 @@ public class LocalLearningEngine {
                 }
             }
             
-            // Add punctuation suggestions
+            // Add punctuation suggestions (enhanced with single-letter word context)
             List<String> punctuationSuggestions = ngramModel.suggestPunctuation(previousContext);
             for (String punctuation : punctuationSuggestions) {
                 if (!suggestions.contains(punctuation) && suggestions.size() < MAX_SUGGESTIONS) {
@@ -306,17 +330,32 @@ public class LocalLearningEngine {
     private String[] extractWords(String text) {
         if (TextUtils.isEmpty(text)) return new String[0];
         
-        return text.trim()
-                  .replaceAll("[.!?;:,\"'()\\[\\]{}]", " ")
-                  .replaceAll("\\s+", " ")
-                  .split(" ");
+        // Enhanced tokenization that preserves single-letter words and handles punctuation
+        String processed = text.trim()
+                  .replaceAll("([.!?;:,])", " $1 ")  // Add spaces around punctuation
+                  .replaceAll("\\s+", " ")           // Normalize whitespace
+                  .trim();
+        
+        String[] tokens = processed.split("\\s+");
+        
+        // Filter to return only words (not punctuation)
+        List<String> words = new ArrayList<>();
+        for (String token : tokens) {
+            token = token.trim();
+            if (isValidWord(token)) {
+                words.add(token);
+            }
+        }
+        
+        return words.toArray(new String[0]);
     }
 
     private boolean isValidWord(String word) {
         if (TextUtils.isEmpty(word)) return false;
         
         word = word.trim();
-        return word.length() >= 2 && 
+        // Updated to accept single-letter words like "a" in English or "و" in Arabic
+        return word.length() >= 1 && 
                word.matches(".*[a-zA-Z\\u0600-\\u06FF].*"); // Contains at least one letter (Latin or Arabic)
     }
 
