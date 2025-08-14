@@ -273,6 +273,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         AudioAndHapticFeedbackManager.init(this);
         super.onCreate();
 
+        // Initialize ThemeManager for dynamic theming
+        rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager.getInstance(this);
+
         // Initialize InputLogic after service context is available
         mInputLogic = new InputLogic(this);
 
@@ -350,6 +353,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             mTopContainer = view.findViewById(R.id.top_container);
             mSuggestionStrip = view.findViewById(R.id.suggestion_strip);
             mTopBar = view.findViewById(R.id.keyboard_top_bar);
+            
+            // Apply dynamic theming to UI components
+            applyDynamicTheme();
             
             if (mSuggestionStrip != null) {
                 mSuggestionStrip.setOnSuggestionClickListener(new rkr.simplekeyboard.inputmethod.latin.ui.SuggestionStripView.OnSuggestionClickListener() {
@@ -1002,6 +1008,34 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             }
         }
     };
+
+    /**
+     * Apply dynamic theming to all UI components.
+     */
+    private void applyDynamicTheme() {
+        rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager themeManager = 
+            rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager.getInstance(this);
+        
+        // Apply theme to top container
+        if (mTopContainer != null) {
+            mTopContainer.setBackgroundColor(themeManager.getTopBarBackgroundColor());
+        }
+        
+        // Apply theme to top bar
+        if (mTopBar != null) {
+            mTopBar.refreshTheme();
+        }
+        
+        // Apply theme to suggestion strip
+        if (mSuggestionStrip != null) {
+            mSuggestionStrip.refreshTheme();
+        }
+        
+        // Apply theme to emoji keyboard
+        if (mEmojiKeyboard != null) {
+            mEmojiKeyboard.refreshTheme();
+        }
+    }
 
     /**
      * Updates the suggestion strip with new suggestions following Gboard model.

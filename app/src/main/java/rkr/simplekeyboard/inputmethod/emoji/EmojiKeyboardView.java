@@ -25,6 +25,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -35,17 +36,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 import rkr.simplekeyboard.inputmethod.R;
+import rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager;
 
 /**
  * View for displaying emoji keyboard with categories and search functionality.
+ * Uses dynamic theming for consistent appearance with the main keyboard.
  */
 public class EmojiKeyboardView extends LinearLayout {
     
     private RecyclerView emojiRecyclerView;
     private EditText searchEditText;
-    private Button searchClearButton;
+    private ImageButton searchClearButton;
     private LinearLayout categoryTabsLayout;
     
+    private ThemeManager themeManager;
     private EmojiAdapter emojiAdapter;
     private List<EmojiItem> currentEmojis;
     private EmojiCategory selectedCategory = EmojiCategory.SMILEYS;
@@ -77,6 +81,7 @@ public class EmojiKeyboardView extends LinearLayout {
     }
     
     private void init() {
+        themeManager = ThemeManager.getInstance(getContext());
         LayoutInflater.from(getContext()).inflate(R.layout.emoji_keyboard, this, true);
         
         emojiRecyclerView = findViewById(R.id.emoji_recycler_view);
@@ -84,12 +89,42 @@ public class EmojiKeyboardView extends LinearLayout {
         searchClearButton = findViewById(R.id.emoji_search_clear);
         categoryTabsLayout = findViewById(R.id.emoji_category_tabs);
         
+        applyTheme();
         setupRecyclerView();
         setupSearchFunctionality();
         setupCategoryTabs();
         
         // Load initial emojis
         loadEmojisByCategory(selectedCategory);
+    }
+    
+    /**
+     * Apply dynamic theme colors to emoji keyboard components.
+     */
+    private void applyTheme() {
+        int backgroundColor = themeManager.getBackgroundColor();
+        int iconTintColor = themeManager.getIconTintColor();
+        int textColor = themeManager.getKeyTextColor();
+        
+        // Apply background color
+        setBackgroundColor(backgroundColor);
+        
+        // Apply search field styling
+        searchEditText.setTextColor(textColor);
+        searchEditText.setHintTextColor(textColor & 0x7FFFFFFF); // Semi-transparent
+        
+        // Apply clear button tint
+        searchClearButton.setColorFilter(iconTintColor);
+    }
+    
+    /**
+     * Refresh theme when preferences change.
+     */
+    public void refreshTheme() {
+        themeManager.refreshTheme();
+        applyTheme();
+        // Refresh category tabs
+        setupCategoryTabs();
     }
     
     private void setupRecyclerView() {
@@ -127,13 +162,17 @@ public class EmojiKeyboardView extends LinearLayout {
     }
     
     private void setupCategoryTabs() {
+        categoryTabsLayout.removeAllViews(); // Clear existing tabs
+        
         for (EmojiCategory category : EmojiCategory.values()) {
             Button categoryButton = new Button(getContext());
             categoryButton.setText(category.getIcon());
             categoryButton.setTextSize(20);
             categoryButton.setMinimumWidth(dpToPx(48));
             categoryButton.setMinimumHeight(dpToPx(48));
-            categoryButton.setBackground(getContext().getDrawable(android.R.drawable.btn_default));
+            
+            // Apply dynamic theming to category tabs
+            applyCategoryTabTheme(categoryButton, false);
             
             categoryButton.setOnClickListener(v -> {
                 selectedCategory = category;
@@ -147,16 +186,25 @@ public class EmojiKeyboardView extends LinearLayout {
         updateCategorySelection();
     }
     
+    /**
+     * Apply theme styling to category tab buttons.
+     */
+    private void applyCategoryTabTheme(Button button, boolean isSelected) {
+        int backgroundColor = themeManager.getBackgroundColor();
+        int textColor = themeManager.getKeyTextColor();
+        int accentColor = themeManager.getAccentColor();
+        
+        button.setTextColor(isSelected ? accentColor : textColor);
+        button.setBackground(getContext().getDrawable(R.drawable.tab_selector));
+        button.setSelected(isSelected);
+        button.setAlpha(isSelected ? 1.0f : 0.7f);
+    }
+    
     private void updateCategorySelection() {
         for (int i = 0; i < categoryTabsLayout.getChildCount(); i++) {
             Button button = (Button) categoryTabsLayout.getChildAt(i);
-            if (i == selectedCategory.ordinal()) {
-                button.setAlpha(1.0f);
-                button.setBackgroundColor(0xFF2196F3); // Blue highlight
-            } else {
-                button.setAlpha(0.7f);
-                button.setBackgroundColor(0xFFEEEEEE); // Light gray
-            }
+            boolean isSelected = (i == selectedCategory.ordinal());
+            applyCategoryTabTheme(button, isSelected);
         }
     }
     
