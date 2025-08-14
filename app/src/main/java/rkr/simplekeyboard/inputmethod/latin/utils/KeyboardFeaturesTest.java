@@ -129,6 +129,62 @@ public class KeyboardFeaturesTest {
     }
     
     /**
+     * Tests emoji learning functionality.
+     */
+    public static boolean testEmojiLearning() {
+        System.out.println("Testing emoji learning functionality...");
+        
+        // Test emoji detection
+        boolean isEmojiDetected = rkr.simplekeyboard.inputmethod.latin.utils.EmojiUtils.isEmoji("😀");
+        if (!isEmojiDetected) {
+            System.out.println("Emoji learning test failed: 😀 should be detected as emoji");
+            return false;
+        }
+        
+        // Test non-emoji detection
+        boolean isWordNotEmoji = !rkr.simplekeyboard.inputmethod.latin.utils.EmojiUtils.isEmoji("hello");
+        if (!isWordNotEmoji) {
+            System.out.println("Emoji learning test failed: 'hello' should not be detected as emoji");
+            return false;
+        }
+        
+        // Test emoji extraction
+        String[] extractedEmojis = rkr.simplekeyboard.inputmethod.latin.utils.EmojiUtils.extractEmojis("Good night 😴 sweet dreams 🌙");
+        if (extractedEmojis.length != 2 || !"😴".equals(extractedEmojis[0]) || !"🌙".equals(extractedEmojis[1])) {
+            System.out.println("Emoji learning test failed: should extract two emojis from 'Good night 😴 sweet dreams 🌙'");
+            return false;
+        }
+        
+        // Test N-gram model with emojis
+        rkr.simplekeyboard.inputmethod.latin.learning.NGramModel ngramModel = 
+            new rkr.simplekeyboard.inputmethod.latin.learning.NGramModel();
+        
+        // Learn from sentences with emojis
+        ngramModel.learnFromSentence("Good night 😴");
+        ngramModel.learnFromSentence("Good morning ☀️");
+        ngramModel.learnFromSentence("Have a good night 😴");
+        
+        // Test prediction
+        java.util.List<String> predictions = ngramModel.predictNextWords("Good night");
+        
+        boolean foundEmojiPrediction = false;
+        for (String prediction : predictions) {
+            if ("😴".equals(prediction)) {
+                foundEmojiPrediction = true;
+                break;
+            }
+        }
+        
+        if (!foundEmojiPrediction) {
+            System.out.println("Emoji learning test failed: should predict 😴 after 'Good night'");
+            System.out.println("Actual predictions: " + predictions);
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
      * Runs all feature tests.
      */
     public static boolean runAllTests() {
@@ -140,7 +196,10 @@ public class KeyboardFeaturesTest {
         boolean emojiTest = testEmojiSearch();
         System.out.println("Emoji Search Test: " + (emojiTest ? "PASS" : "FAIL"));
         
-        boolean allPassed = calculatorTest && emojiTest;
+        boolean emojiLearningTest = testEmojiLearning();
+        System.out.println("Emoji Learning Test: " + (emojiLearningTest ? "PASS" : "FAIL"));
+        
+        boolean allPassed = calculatorTest && emojiTest && emojiLearningTest;
         System.out.println("Overall Result: " + (allPassed ? "ALL TESTS PASSED" : "SOME TESTS FAILED"));
         
         return allPassed;

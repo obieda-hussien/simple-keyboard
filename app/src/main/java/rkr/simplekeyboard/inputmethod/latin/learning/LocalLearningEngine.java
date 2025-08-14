@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import rkr.simplekeyboard.inputmethod.latin.utils.EmojiUtils;
 
 import rkr.simplekeyboard.inputmethod.latin.utils.CalculatorUtils;
 import rkr.simplekeyboard.inputmethod.latin.utils.ClipboardUtils;
@@ -330,19 +331,38 @@ public class LocalLearningEngine {
     private String[] extractWords(String text) {
         if (TextUtils.isEmpty(text)) return new String[0];
         
-        // Enhanced tokenization that preserves single-letter words and handles punctuation
-        String processed = text.trim()
+        // Enhanced tokenization that preserves single-letter words, handles punctuation and emojis
+        String[] emojis = EmojiUtils.extractEmojis(text);
+        String processed = text.trim();
+        
+        // Replace emojis with placeholders to preserve them during tokenization
+        for (int i = 0; i < emojis.length; i++) {
+            processed = processed.replace(emojis[i], " __EMOJI_" + i + "__ ");
+        }
+        
+        processed = processed
                   .replaceAll("([.!?;:,])", " $1 ")  // Add spaces around punctuation
                   .replaceAll("\\s+", " ")           // Normalize whitespace
                   .trim();
         
         String[] tokens = processed.split("\\s+");
         
-        // Filter to return only words (not punctuation)
+        // Filter to return valid words and emojis (not punctuation)
         List<String> words = new ArrayList<>();
         for (String token : tokens) {
             token = token.trim();
-            if (isValidWord(token)) {
+            
+            // Check if it's an emoji placeholder
+            if (token.startsWith("__EMOJI_") && token.endsWith("__")) {
+                try {
+                    int emojiIndex = Integer.parseInt(token.substring(8, token.length() - 2));
+                    if (emojiIndex >= 0 && emojiIndex < emojis.length) {
+                        words.add(emojis[emojiIndex]);
+                    }
+                } catch (NumberFormatException e) {
+                    // Invalid placeholder, skip
+                }
+            } else if (isValidWord(token)) {
                 words.add(token);
             }
         }
@@ -354,6 +374,12 @@ public class LocalLearningEngine {
         if (TextUtils.isEmpty(word)) return false;
         
         word = word.trim();
+        
+        // Accept emojis as valid tokens
+        if (EmojiUtils.isEmoji(word)) {
+            return true;
+        }
+        
         // Updated to accept single-letter words like "a" in English or "و" in Arabic
         return word.length() >= 1 && 
                word.matches(".*[a-zA-Z\\u0600-\\u06FF].*"); // Contains at least one letter (Latin or Arabic)

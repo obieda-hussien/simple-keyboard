@@ -22,6 +22,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import rkr.simplekeyboard.inputmethod.latin.utils.EmojiUtils;
 
 /**
  * N-gram model for context-based word prediction.
@@ -52,14 +53,14 @@ public class NGramModel {
 
         // Learn bigrams
         for (int i = 0; i < words.length - 1; i++) {
-            if (isValidWord(words[i]) && isValidWord(words[i + 1])) {
+            if (isValidToken(words[i]) && isValidToken(words[i + 1])) {
                 addBigram(words[i], words[i + 1]);
             }
         }
 
         // Learn trigrams
         for (int i = 0; i < words.length - 2; i++) {
-            if (isValidWord(words[i]) && isValidWord(words[i + 1]) && isValidWord(words[i + 2])) {
+            if (isValidToken(words[i]) && isValidToken(words[i + 1]) && isValidToken(words[i + 2])) {
                 addTrigram(words[i] + " " + words[i + 1], words[i + 2]);
             }
         }
@@ -80,7 +81,7 @@ public class NGramModel {
     }
     
     /**
-     * Enhanced tokenization that treats punctuation as separate tokens
+     * Enhanced tokenization that treats punctuation and emojis as separate tokens
      * and preserves single-letter words.
      */
     private String[] tokenizeWithPunctuation(String text) {
@@ -88,28 +89,56 @@ public class NGramModel {
             return new String[0];
         }
         
-        // Step 1: Insert spaces around punctuation marks to separate them
-        String processed = text
+        // Step 1: Extract emojis first and replace them with placeholders
+        String[] emojis = EmojiUtils.extractEmojis(text);
+        String processed = text;
+        
+        // Replace emojis with placeholders to preserve them during tokenization
+        for (int i = 0; i < emojis.length; i++) {
+            processed = processed.replace(emojis[i], " __EMOJI_" + i + "__ ");
+        }
+        
+        // Step 2: Insert spaces around punctuation marks to separate them
+        processed = processed
             .replaceAll("([.!?;:,])", " $1 ")  // Add spaces around punctuation
             .replaceAll("\\s+", " ")           // Normalize whitespace
             .trim();
         
-        // Step 2: Split by whitespace to get tokens (words + punctuation)
+        // Step 3: Split by whitespace to get tokens (words + punctuation + emoji placeholders)
         String[] tokens = processed.split("\\s+");
         
-        // Step 3: Filter out empty tokens but keep valid words and punctuation
+        // Step 4: Filter and restore emojis from placeholders
         List<String> validTokens = new ArrayList<>();
         for (String token : tokens) {
             token = token.trim();
             if (!token.isEmpty()) {
-                // Keep words (including single letters) and punctuation
-                if (isValidWord(token) || isPunctuation(token)) {
-                    validTokens.add(token);
+                // Check if it's an emoji placeholder
+                if (token.startsWith("__EMOJI_") && token.endsWith("__")) {
+                    try {
+                        int emojiIndex = Integer.parseInt(token.substring(8, token.length() - 2));
+                        if (emojiIndex >= 0 && emojiIndex < emojis.length) {
+                            validTokens.add(emojis[emojiIndex]);
+                        }
+                    } catch (NumberFormatException e) {
+                        // Invalid placeholder, skip
+                    }
+                } else {
+                    // Keep words (including single letters) and punctuation
+                    if (isValidToken(token)) {
+                        validTokens.add(token);
+                    }
                 }
             }
         }
         
         return validTokens.toArray(new String[0]);
+    }
+    
+    /**
+     * Checks if a token is valid (word, punctuation, or emoji).
+     */
+    private boolean isValidToken(String token) {
+        return isValidWord(token) || isPunctuation(token) || EmojiUtils.isEmoji(token);
     }
     
     /**
@@ -293,13 +322,29 @@ public class NGramModel {
 
     private String normalizeWord(String word) {
         if (word == null) return "";
+        
+        // Don't normalize emojis - keep them as-is
+        if (EmojiUtils.isEmoji(word)) {
+            return word;
+        }
+        
         return word.toLowerCase().trim()
                   .replaceAll("[^a-zA-Z0-9\\u0600-\\u06FF]", ""); // Support Arabic characters
     }
 
     private boolean isValidWord(String word) {
-        // Updated to accept single-letter words like "a" in English or "و" in Arabic
-        return word != null && !word.trim().isEmpty() && word.length() >= 1;
+        // Updated to accept single-letter words like "a" in English or "و" in Arabic, and emojis
+        if (word == null || word.trim().isEmpty()) {
+            return false;
+        }
+        
+        // Accept emojis as valid tokens
+        if (EmojiUtils.isEmoji(word)) {
+            return true;
+        }
+        
+        // Accept words (including single letters)
+        return word.length() >= 1;
     }
 
     /**
