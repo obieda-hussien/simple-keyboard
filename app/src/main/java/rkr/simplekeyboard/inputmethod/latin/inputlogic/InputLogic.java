@@ -730,4 +730,19 @@ public final class InputLogic {
         char lastChar = trimmed.charAt(trimmed.length() - 1);
         return lastChar == '.' || lastChar == '!' || lastChar == '?';
     }
+    
+    /**
+     * Commits text directly to the input connection.
+     * Used for emoji insertion and clipboard content.
+     */
+    public void commitText(String text) {
+        if (!TextUtils.isEmpty(text)) {
+            mConnection.commitText(text, 1);
+            
+            // Learn from committed text if it's a word
+            if (text.trim().matches("\\w+")) {
+                mLearningEngine.learnWord(text.trim());
+            }
+        }
+    }
 }

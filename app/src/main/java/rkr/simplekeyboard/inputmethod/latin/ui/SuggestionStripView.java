@@ -28,18 +28,28 @@ import android.widget.TextView;
 
 import java.util.List;
 
+import rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager;
+
 /**
  * Suggestion strip view that displays word suggestions above the keyboard.
+ * Uses dynamic theming for consistent appearance.
  */
 public class SuggestionStripView extends LinearLayout {
     private static final int MAX_SUGGESTIONS = 5;
     private static final int SUGGESTION_PADDING_DP = 16;
     private static final int SUGGESTION_TEXT_SIZE_SP = 16;
     
+    private ThemeManager themeManager;
     private OnSuggestionClickListener suggestionClickListener;
+    private OnToggleClickListener toggleClickListener;
+    private android.widget.ImageButton toggleButton;
     
     public interface OnSuggestionClickListener {
         void onSuggestionClicked(String suggestion);
+    }
+    
+    public interface OnToggleClickListener {
+        void onToggleClicked();
     }
     
     public SuggestionStripView(Context context) {
@@ -56,29 +66,98 @@ public class SuggestionStripView extends LinearLayout {
     }
     
     private void init() {
+        themeManager = ThemeManager.getInstance(getContext());
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
         
         int paddingPx = dpToPx(8);
         setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
-        setBackgroundColor(Color.parseColor("#F5F5F5"));
         
-        // Add divider line at bottom
-        setBackgroundResource(android.R.drawable.bottom_bar);
+        // Create toggle button for Gboard-style switching
+        createToggleButton();
+        
+        applyTheme();
+    }
+    
+    /**
+     * Creates the toggle button for switching back to toolbar view.
+     */
+    private void createToggleButton() {
+        toggleButton = new android.widget.ImageButton(getContext());
+        toggleButton.setImageResource(android.R.drawable.ic_menu_more); // Use system chevron right icon
+        toggleButton.setBackground(null); // Remove default button background
+        toggleButton.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
+        
+        // Set size and padding
+        int buttonSize = dpToPx(40);
+        int buttonPadding = dpToPx(8);
+        toggleButton.setPadding(buttonPadding, buttonPadding, buttonPadding, buttonPadding);
+        
+        LayoutParams toggleParams = new LayoutParams(buttonSize, buttonSize);
+        toggleParams.gravity = Gravity.CENTER_VERTICAL;
+        toggleButton.setLayoutParams(toggleParams);
+        
+        // Set click listener
+        toggleButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (toggleClickListener != null) {
+                    toggleClickListener.onToggleClicked();
+                }
+            }
+        });
+        
+        // Apply ripple effect
+        TypedValue outValue = new TypedValue();
+        getContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true);
+        toggleButton.setBackgroundResource(outValue.resourceId);
+        
+        addView(toggleButton, 0); // Add as first child (far-left)
+    }
+    
+    /**
+     * Apply dynamic theme colors to the suggestion strip.
+     */
+    private void applyTheme() {
+        int topBarBgColor = themeManager.getTopBarBackgroundColor();
+        setBackgroundColor(topBarBgColor);
+        
+        // Apply theme to toggle button
+        if (toggleButton != null) {
+            int iconTintColor = themeManager.getIconTintColor();
+            toggleButton.setColorFilter(iconTintColor);
+        }
+    }
+    
+    /**
+     * Refresh theme when preferences change.
+     */
+    public void refreshTheme() {
+        themeManager.refreshTheme();
+        applyTheme();
+        // Refresh all existing suggestion views
+        int childCount = getChildCount();
+        for (int i = 0; i < childCount; i++) {
+            View child = getChildAt(i);
+            if (child instanceof TextView) {
+                applySuggestionTheme((TextView) child, i == 1); // Account for toggle button at index 0
+            }
+        }
     }
     
     /**
      * Updates the suggestion strip with new suggestions.
      */
     public void setSuggestions(List<String> suggestions) {
-        removeAllViews();
-        
-        if (suggestions == null || suggestions.isEmpty()) {
-            setVisibility(GONE);
-            return;
+        // Remove all views except the toggle button
+        while (getChildCount() > 1) {
+            removeViewAt(1);
         }
         
-        setVisibility(VISIBLE);
+        if (suggestions == null || suggestions.isEmpty()) {
+            // Don't change visibility - stay within the fixed container
+            return;
+        }
         
         int suggestionCount = Math.min(suggestions.size(), MAX_SUGGESTIONS);
         for (int i = 0; i < suggestionCount; i++) {
@@ -91,10 +170,8 @@ public class SuggestionStripView extends LinearLayout {
         TextView suggestionView = new TextView(getContext());
         suggestionView.setText(suggestion);
         
-        // Set text appearance
-        suggestionView.setTextSize(TypedValue.COMPLEX_UNIT_SP, SUGGESTION_TEXT_SIZE_SP);
-        suggestionView.setTextColor(isPrimary ? Color.parseColor("#1976D2") : Color.parseColor("#424242"));
-        suggestionView.setTypeface(null, isPrimary ? Typeface.BOLD : Typeface.NORMAL);
+        // Apply theme styling
+        applySuggestionTheme(suggestionView, isPrimary);
         
         // Set padding
         int paddingPx = dpToPx(SUGGESTION_PADDING_DP);
@@ -127,6 +204,21 @@ public class SuggestionStripView extends LinearLayout {
     }
     
     /**
+     * Apply theme styling to a suggestion TextView.
+     */
+    private void applySuggestionTheme(TextView suggestionView, boolean isPrimary) {
+        suggestionView.setTextSize(TypedValue.COMPLEX_UNIT_SP, SUGGESTION_TEXT_SIZE_SP);
+        
+        if (isPrimary) {
+            suggestionView.setTextColor(themeManager.getAccentColor());
+            suggestionView.setTypeface(null, Typeface.BOLD);
+        } else {
+            suggestionView.setTextColor(themeManager.getSuggestionTextColor());
+            suggestionView.setTypeface(null, Typeface.NORMAL);
+        }
+    }
+    
+    /**
      * Sets the suggestion click listener.
      */
     public void setOnSuggestionClickListener(OnSuggestionClickListener listener) {
@@ -134,11 +226,21 @@ public class SuggestionStripView extends LinearLayout {
     }
     
     /**
-     * Clears all suggestions and hides the strip.
+     * Sets the toggle click listener.
+     */
+    public void setOnToggleClickListener(OnToggleClickListener listener) {
+        this.toggleClickListener = listener;
+    }
+    
+    /**
+     * Clears all suggestions.
      */
     public void clearSuggestions() {
-        removeAllViews();
-        setVisibility(GONE);
+        // Remove all views except the toggle button
+        while (getChildCount() > 1) {
+            removeViewAt(1);
+        }
+        // Don't change visibility - stay within the fixed container
     }
     
     private int dpToPx(int dp) {
@@ -146,15 +248,10 @@ public class SuggestionStripView extends LinearLayout {
         return Math.round(dp * density);
     }
     
-    @Override
-    public void setVisibility(int visibility) {
-        int oldVisibility = getVisibility();
-        super.setVisibility(visibility);
-        
-        // If visibility changed, request parent to recalculate layout
-        if (oldVisibility != visibility && getParent() != null) {
-            // Request the parent view to recalculate layout since our visibility changed
-            ((View) getParent()).requestLayout();
-        }
+    /**
+     * Returns true if there are suggestions to display.
+     */
+    public boolean hasSuggestions() {
+        return getChildCount() > 1; // More than just the toggle button
     }
 }

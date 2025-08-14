@@ -25,18 +25,49 @@
     android:layout_gravity="bottom"
     android:orientation="vertical" >
 
-    <!-- Suggestion strip for intelligent word suggestions -->
-    <rkr.simplekeyboard.inputmethod.latin.ui.SuggestionStripView
-        android:id="@+id/suggestion_strip"
+    <!-- Fixed height top container (50dp) - Gboard model -->
+    <ViewFlipper
+        android:id="@+id/top_container"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone" />
+        android:layout_height="50dp"
+        android:background="?android:attr/colorBackground" >
 
-    <!-- To ensure that key preview popup is correctly placed when the current system locale is
-         one of RTL locales, layoutDirection="ltr" is needed in the SDK version 17+. -->
-    <rkr.simplekeyboard.inputmethod.keyboard.MainKeyboardView
-        android:id="@+id/keyboard_view"
-        android:layoutDirection="ltr"
+        <!-- Toolbar view - shown by default when no suggestions -->
+        <rkr.simplekeyboard.inputmethod.latin.ui.KeyboardTopBarView
+            android:id="@+id/keyboard_top_bar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Suggestion strip - shown when typing with suggestions -->
+        <rkr.simplekeyboard.inputmethod.latin.ui.SuggestionStripView
+            android:id="@+id/suggestion_strip"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </ViewFlipper>
+
+    <!-- Container for switching between keyboards -->
+    <FrameLayout
+        android:id="@+id/keyboard_container"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content" >
+
+        <!-- To ensure that key preview popup is correctly placed when the current system locale is
+             one of RTL locales, layoutDirection="ltr" is needed in the SDK version 17+. -->
+        <rkr.simplekeyboard.inputmethod.keyboard.MainKeyboardView
+            android:id="@+id/keyboard_view"
+            android:layoutDirection="ltr"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="visible" />
+
+        <!-- Emoji keyboard -->
+        <rkr.simplekeyboard.inputmethod.emoji.EmojiKeyboardView
+            android:id="@+id/emoji_keyboard_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+    </FrameLayout>
+    
 </LinearLayout>

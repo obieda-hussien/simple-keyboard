@@ -24,6 +24,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import rkr.simplekeyboard.inputmethod.latin.utils.CalculatorUtils;
+import rkr.simplekeyboard.inputmethod.latin.utils.ClipboardUtils;
+
 /**
  * Main suggestion engine that coordinates all learning components.
  * Provides intelligent word, sentence, and punctuation suggestions.
@@ -67,9 +70,31 @@ public class LocalLearningEngine {
 
     /**
      * Gets suggestions for the current input context.
+     * Enhanced with calculator and clipboard functionality.
      */
     public List<String> getSuggestions(String currentWord, String previousContext) {
         List<String> suggestions = new ArrayList<>();
+        String fullText = (previousContext != null ? previousContext + " " : "") + (currentWord != null ? currentWord : "");
+        
+        // Check for calculator expressions first (highest priority)
+        if (CalculatorUtils.isMathExpression(fullText.trim())) {
+            String result = CalculatorUtils.evaluateMathExpression(fullText.trim());
+            if (result != null) {
+                String calcSuggestion = CalculatorUtils.createCalculationSuggestion(fullText.trim(), result);
+                if (calcSuggestion != null) {
+                    suggestions.add(calcSuggestion);
+                }
+            }
+        }
+        
+        // Add clipboard suggestion if available and no current word
+        if (TextUtils.isEmpty(currentWord) && ClipboardUtils.hasClipboardText(context)) {
+            String clipboardText = ClipboardUtils.getClipboardText(context);
+            String clipboardSuggestion = ClipboardUtils.createClipboardSuggestion(clipboardText);
+            if (clipboardSuggestion != null && !suggestions.contains(clipboardSuggestion)) {
+                suggestions.add(clipboardSuggestion);
+            }
+        }
         
         if (!TextUtils.isEmpty(currentWord)) {
             // Get word completions from trie (user-learned words have higher priority)
@@ -77,7 +102,11 @@ public class LocalLearningEngine {
             
             // Prioritize user dictionary words
             List<String> userWordSuggestions = getUserWordSuggestions(currentWord);
-            suggestions.addAll(userWordSuggestions);
+            for (String suggestion : userWordSuggestions) {
+                if (!suggestions.contains(suggestion) && suggestions.size() < MAX_SUGGESTIONS) {
+                    suggestions.add(suggestion);
+                }
+            }
             
             // Add other word suggestions that aren't already in user suggestions
             for (String suggestion : wordSuggestions) {
@@ -120,7 +149,11 @@ public class LocalLearningEngine {
         // If still no suggestions and no current word, provide common starters
         if (suggestions.isEmpty() && TextUtils.isEmpty(currentWord)) {
             List<String> commonStarters = BootstrapVocabulary.getCommonWordsForPrefix("");
-            suggestions.addAll(commonStarters);
+            for (String suggestion : commonStarters) {
+                if (suggestions.size() < MAX_SUGGESTIONS) {
+                    suggestions.add(suggestion);
+                }
+            }
         }
         
         return suggestions.size() > MAX_SUGGESTIONS ? 
