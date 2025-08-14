@@ -47,8 +47,8 @@ public final class InputLogic {
     public final RichInputConnection mConnection;
     private final RecapitalizeStatus mRecapitalizeStatus = new RecapitalizeStatus();
     
-    // Learning engine for intelligent suggestions
-    private final LocalLearningEngine mLearningEngine;
+    // Learning engine for intelligent suggestions - initialized lazily
+    private LocalLearningEngine mLearningEngine;
     
     // Current word being typed for suggestion purposes
     private StringBuilder mCurrentWord = new StringBuilder();
@@ -63,7 +63,17 @@ public final class InputLogic {
     public InputLogic(final LatinIME latinIME) {
         mLatinIME = latinIME;
         mConnection = new RichInputConnection(latinIME);
-        mLearningEngine = LocalLearningEngine.getInstance(latinIME);
+        // Initialize mLearningEngine lazily to avoid context issues during service creation
+    }
+
+    /**
+     * Gets the learning engine, initializing it lazily if needed.
+     */
+    private LocalLearningEngine getLearningEngine() {
+        if (mLearningEngine == null) {
+            mLearningEngine = LocalLearningEngine.getInstance(mLatinIME);
+        }
+        return mLearningEngine;
     }
 
     /**
@@ -331,12 +341,12 @@ public final class InputLogic {
         // Learn from completed word before handling separator
         if (mCurrentWord.length() > 0) {
             String completedWord = mCurrentWord.toString();
-            mLearningEngine.learnWord(completedWord);
+            getLearningEngine().learnWord(completedWord);
             
             // Learn from context if we have previous text
             String previousContext = getPreviousContext();
             if (!TextUtils.isEmpty(previousContext)) {
-                mLearningEngine.learnFromInput(previousContext + " " + completedWord);
+                getLearningEngine().learnFromInput(previousContext + " " + completedWord);
             }
             
             mCurrentWord.setLength(0); // Clear current word
@@ -594,7 +604,7 @@ public final class InputLogic {
         String currentWord = mCurrentWord.toString();
         String previousContext = getPreviousContext();
         
-        java.util.List<String> suggestions = mLearningEngine.getSuggestions(currentWord, previousContext);
+        java.util.List<String> suggestions = getLearningEngine().getSuggestions(currentWord, previousContext);
         mLatinIME.updateSuggestionStrip(suggestions);
     }
     
@@ -670,17 +680,17 @@ public final class InputLogic {
             mConnection.commitText(suggestion, 1);
             
             // Learn from the selected suggestion
-            mLearningEngine.learnWord(suggestion);
+            getLearningEngine().learnWord(suggestion);
             String previousContext = getPreviousContext();
             if (!TextUtils.isEmpty(previousContext)) {
-                mLearningEngine.learnFromInput(previousContext + " " + suggestion);
+                getLearningEngine().learnFromInput(previousContext + " " + suggestion);
             }
             
             mCurrentWord.setLength(0);
         } else {
             // Just insert the suggestion
             mConnection.commitText(suggestion, 1);
-            mLearningEngine.learnWord(suggestion);
+            getLearningEngine().learnWord(suggestion);
         }
         
         // Add space after suggestion if it's a word
@@ -703,7 +713,7 @@ public final class InputLogic {
             if (sentences.length > 0) {
                 String currentSentence = sentences[sentences.length - 1].trim();
                 if (!TextUtils.isEmpty(currentSentence) && currentSentence.split("\\s+").length > 1) {
-                    mLearningEngine.learnSentence(currentSentence);
+                    getLearningEngine().learnSentence(currentSentence);
                 }
             }
         }
@@ -741,7 +751,7 @@ public final class InputLogic {
             
             // Learn from committed text if it's a word
             if (text.trim().matches("\\w+")) {
-                mLearningEngine.learnWord(text.trim());
+                getLearningEngine().learnWord(text.trim());
             }
         }
     }

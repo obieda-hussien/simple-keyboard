@@ -46,6 +46,9 @@ public class LocalLearningEngine {
     private int wordLearningCounter = 0;
     
     private LocalLearningEngine(Context context) {
+        if (context == null) {
+            throw new IllegalArgumentException("Context cannot be null");
+        }
         this.context = context.getApplicationContext();
         this.wordTrie = new WordTrie();
         this.ngramModel = new NGramModel();
@@ -63,6 +66,9 @@ public class LocalLearningEngine {
      */
     public static synchronized LocalLearningEngine getInstance(Context context) {
         if (instance == null) {
+            if (context == null) {
+                throw new IllegalArgumentException("Context cannot be null for first-time initialization");
+            }
             instance = new LocalLearningEngine(context);
         }
         return instance;
