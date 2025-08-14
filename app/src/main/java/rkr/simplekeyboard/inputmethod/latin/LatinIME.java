@@ -93,6 +93,12 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     
     // Suggestion strip for intelligent word suggestions
     private rkr.simplekeyboard.inputmethod.latin.ui.SuggestionStripView mSuggestionStrip;
+    
+    // Top bar and emoji keyboard components
+    private rkr.simplekeyboard.inputmethod.latin.ui.KeyboardTopBarView mTopBar;
+    private rkr.simplekeyboard.inputmethod.emoji.EmojiKeyboardView mEmojiKeyboard;
+    private rkr.simplekeyboard.inputmethod.keyboard.MainKeyboardView mMainKeyboard;
+    private boolean mIsEmojiMode = false;
 
     private RichInputMethodManager mRichImm;
     final KeyboardSwitcher mKeyboardSwitcher;
@@ -344,6 +350,49 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                         if (mInputLogic != null) {
                             mInputLogic.onSuggestionSelected(suggestion);
                         }
+                    }
+                });
+            }
+            
+            // Initialize top bar
+            mTopBar = view.findViewById(R.id.keyboard_top_bar);
+            if (mTopBar != null) {
+                mTopBar.setOnTopBarActionListener(new rkr.simplekeyboard.inputmethod.latin.ui.KeyboardTopBarView.OnTopBarActionListener() {
+                    @Override
+                    public void onEmojiButtonClicked() {
+                        toggleEmojiKeyboard();
+                    }
+                    
+                    @Override
+                    public void onClipboardButtonClicked() {
+                        insertClipboardContent();
+                    }
+                    
+                    @Override
+                    public void onSettingsButtonClicked() {
+                        launchSettings();
+                    }
+                });
+            }
+            
+            // Initialize keyboards
+            mMainKeyboard = view.findViewById(R.id.keyboard_view);
+            mEmojiKeyboard = view.findViewById(R.id.emoji_keyboard_view);
+            
+            if (mEmojiKeyboard != null) {
+                mEmojiKeyboard.setOnEmojiClickListener(new rkr.simplekeyboard.inputmethod.emoji.EmojiKeyboardView.OnEmojiClickListener() {
+                    @Override
+                    public void onEmojiClicked(String emoji) {
+                        if (mInputLogic != null) {
+                            mInputLogic.commitText(emoji);
+                        }
+                    }
+                });
+                
+                mEmojiKeyboard.setOnBackClickListener(new rkr.simplekeyboard.inputmethod.emoji.EmojiKeyboardView.OnBackClickListener() {
+                    @Override
+                    public void onBackClicked() {
+                        showMainKeyboard();
                     }
                 });
             }
@@ -1018,6 +1067,71 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             } else {
                 window.getInsetsController().setSystemBarsAppearance(0, flag);
             }
+        }
+    }
+    
+    /**
+     * Toggles between main keyboard and emoji keyboard.
+     */
+    private void toggleEmojiKeyboard() {
+        if (mIsEmojiMode) {
+            showMainKeyboard();
+        } else {
+            showEmojiKeyboard();
+        }
+    }
+    
+    /**
+     * Shows the main keyboard and hides emoji keyboard.
+     */
+    private void showMainKeyboard() {
+        if (mMainKeyboard != null && mEmojiKeyboard != null) {
+            mMainKeyboard.setVisibility(View.VISIBLE);
+            mEmojiKeyboard.setVisibility(View.GONE);
+            mIsEmojiMode = false;
+            
+            if (mTopBar != null) {
+                mTopBar.setEmojiMode(false);
+            }
+            
+            // Show suggestion strip for main keyboard
+            if (mSuggestionStrip != null) {
+                mSuggestionStrip.setVisibility(View.VISIBLE);
+            }
+        }
+    }
+    
+    /**
+     * Shows the emoji keyboard and hides main keyboard.
+     */
+    private void showEmojiKeyboard() {
+        if (mMainKeyboard != null && mEmojiKeyboard != null) {
+            mMainKeyboard.setVisibility(View.GONE);
+            mEmojiKeyboard.setVisibility(View.VISIBLE);
+            mIsEmojiMode = true;
+            
+            if (mTopBar != null) {
+                mTopBar.setEmojiMode(true);
+            }
+            
+            // Hide suggestion strip for emoji keyboard
+            if (mSuggestionStrip != null) {
+                mSuggestionStrip.setVisibility(View.GONE);
+            }
+        }
+    }
+    
+    /**
+     * Inserts clipboard content into the text field.
+     */
+    private void insertClipboardContent() {
+        String clipboardText = rkr.simplekeyboard.inputmethod.latin.utils.ClipboardUtils.getClipboardText(this);
+        if (clipboardText != null && !clipboardText.isEmpty() && mInputLogic != null) {
+            // Remove clipboard formatting prefix if present
+            if (clipboardText.startsWith("📋 ")) {
+                clipboardText = clipboardText.substring(2).trim();
+            }
+            mInputLogic.commitText(clipboardText);
         }
     }
 }
