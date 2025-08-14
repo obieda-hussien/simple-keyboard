@@ -271,6 +271,13 @@ public class EmojiKeyboardView extends LinearLayout {
     }
     
     /**
+     * Checks if the emoji keyboard is currently in search mode.
+     */
+    public boolean isInSearchMode() {
+        return currentState == KeyboardState.EMOJI_SEARCH;
+    }
+    
+    /**
      * Gets the search EditText for input redirection.
      */
     public EditText getSearchEditText() {
@@ -335,6 +342,21 @@ public class EmojiKeyboardView extends LinearLayout {
             if (keyboardStateChangeListener != null) {
                 keyboardStateChangeListener.onKeyboardStateChanged(currentState);
             }
+        }
+    }
+    
+    /**
+     * Forces exit from search mode, regardless of current state.
+     * Useful for cleanup or error recovery.
+     */
+    public void forceExitSearchMode() {
+        currentState = KeyboardState.EMOJI_BROWSE;
+        emojiRecyclerView.setVisibility(View.VISIBLE);
+        searchKeyboard.setVisibility(View.GONE);
+        searchEditText.clearFocus();
+        
+        if (keyboardStateChangeListener != null) {
+            keyboardStateChangeListener.onKeyboardStateChanged(currentState);
         }
     }
     
