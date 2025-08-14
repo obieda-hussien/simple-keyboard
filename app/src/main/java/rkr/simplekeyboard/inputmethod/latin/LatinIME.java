@@ -721,6 +721,18 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     }
 
     @Override
+    public boolean onKeyDown(final int keyCode, final KeyEvent event) {
+        // Handle back key press in emoji search mode
+        if (keyCode == KeyEvent.KEYCODE_BACK && mIsEmojiMode && mEmojiKeyboard != null &&
+            mEmojiKeyboard.getCurrentState() == KeyboardState.EMOJI_SEARCH) {
+            // Exit search mode instead of closing the keyboard
+            mEmojiKeyboard.exitSearchMode();
+            return true; // Consume the event
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
     public boolean onShowInputRequested(final int flags, final boolean configChange) {
         if (isImeSuppressedByHardwareKeyboard()) {
             return true;
@@ -948,6 +960,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                             // Delete character before cursor
                             if (start > 0) {
                                 editable.delete(start - 1, start);
+                            } else if (editable.length() == 0) {
+                                // If search field is empty, exit search mode
+                                mEmojiKeyboard.exitSearchMode();
                             }
                         } else {
                             // Delete selected text
@@ -960,8 +975,23 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                 // Handle enter key - exit search mode
                 mEmojiKeyboard.exitSearchMode();
                 return; // Don't send to host application
+            } else if (event.mKeyCode == Constants.CODE_SPACE) {
+                // Handle space key - add space to search
+                final android.widget.EditText searchEditText = mEmojiKeyboard.getSearchEditText();
+                if (searchEditText != null) {
+                    final android.text.Editable editable = searchEditText.getText();
+                    final int start = searchEditText.getSelectionStart();
+                    final int end = searchEditText.getSelectionEnd();
+                    
+                    if (start >= 0) {
+                        editable.replace(Math.min(start, end), Math.max(start, end), " ");
+                    } else {
+                        editable.append(" ");
+                    }
+                }
+                return; // Don't send to host application
             }
-            // For other key codes (like space), fall through to normal processing
+            // For other key codes, fall through to normal processing
         }
         
         // Normal input processing for non-emoji-search mode
