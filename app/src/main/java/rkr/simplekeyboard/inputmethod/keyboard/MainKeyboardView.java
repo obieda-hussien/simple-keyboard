@@ -408,6 +408,13 @@ public final class MainKeyboardView extends KeyboardView implements MoreKeysPane
     //@Override
     public MoreKeysPanel showMoreKeysKeyboard(final Key key,
             final PointerTracker tracker) {
+        // Defensive check: ensure keyboard is available before proceeding
+        final Keyboard keyboard = getKeyboard();
+        if (keyboard == null) {
+            // Keyboard not ready yet, safely abort
+            return null;
+        }
+        
         final MoreKeySpec[] moreKeys = key.getMoreKeys();
         if (moreKeys == null) {
             return null;
@@ -423,7 +430,7 @@ public final class MainKeyboardView extends KeyboardView implements MoreKeysPane
                     && !key.noKeyPreview() && moreKeys.length == 1
                     && mKeyPreviewDrawParams.getVisibleWidth() > 0;
             final MoreKeysKeyboard.Builder builder = new MoreKeysKeyboard.Builder(
-                    getContext(), key, getKeyboard(), isSingleMoreKeyWithPreview,
+                    getContext(), key, keyboard, isSingleMoreKeyWithPreview,
                     mKeyPreviewDrawParams.getVisibleWidth(),
                     mKeyPreviewDrawParams.getVisibleHeight(), newLabelPaint(key));
             moreKeysKeyboard = builder.build();
