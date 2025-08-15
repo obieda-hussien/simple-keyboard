@@ -143,7 +143,8 @@ public final class InputLogic {
         // This helps when user taps to a different position
         if (Math.abs(newSelStart - mConnection.getExpectedSelectionStart()) > 1) {
             mCurrentWord.setLength(0);
-            updateSuggestions();
+            // Trigger contextual suggestions based on cursor position
+            updateContextualSuggestions();
         }
     }
 
@@ -612,6 +613,105 @@ public final class InputLogic {
     }
     
     /**
+     * Find the word at the current cursor position.
+     * Uses surrounding text to identify the complete word the cursor is currently on.
+     * @return WordAtCursorInfo containing the word and its position, or null if no word found
+     */
+    private WordAtCursorInfo findWordAtCursor() {
+        if (!mConnection.hasCursorPosition()) {
+            return null;
+        }
+        
+        // Get surrounding text
+        String textBefore = mConnection.getTextBeforeCursor();
+        String textAfter = mConnection.getTextAfterCursor();
+        
+        if (textBefore == null) textBefore = "";
+        if (textAfter == null) textAfter = "";
+        
+        // Find word boundaries
+        int wordStart = textBefore.length();
+        int wordEnd = 0;
+        
+        // Search backwards from cursor to find start of word
+        for (int i = textBefore.length() - 1; i >= 0; i--) {
+            char c = textBefore.charAt(i);
+            if (Character.isWhitespace(c) || isPunctuation(c)) {
+                wordStart = i + 1;
+                break;
+            }
+            if (i == 0) {
+                wordStart = 0;
+            }
+        }
+        
+        // Search forwards from cursor to find end of word
+        for (int i = 0; i < textAfter.length(); i++) {
+            char c = textAfter.charAt(i);
+            if (Character.isWhitespace(c) || isPunctuation(c)) {
+                wordEnd = i;
+                break;
+            }
+            if (i == textAfter.length() - 1) {
+                wordEnd = textAfter.length();
+            }
+        }
+        
+        // Extract the complete word
+        String wordBeforeCursor = wordStart < textBefore.length() ? textBefore.substring(wordStart) : "";
+        String wordAfterCursor = wordEnd > 0 ? textAfter.substring(0, wordEnd) : "";
+        String completeWord = wordBeforeCursor + wordAfterCursor;
+        
+        // Return null if cursor is on whitespace or no valid word found
+        if (completeWord.trim().isEmpty() || !completeWord.matches(".*\\w.*")) {
+            return null;
+        }
+        
+        return new WordAtCursorInfo(completeWord.trim(), wordStart, wordEnd + textBefore.length());
+    }
+    
+    /**
+     * Helper method to check if a character is punctuation
+     */
+    private boolean isPunctuation(char c) {
+        return !Character.isLetterOrDigit(c) && !Character.isWhitespace(c);
+    }
+    
+    /**
+     * Updates suggestions based on cursor position context.
+     * Provides contextual corrections/completions for word at cursor,
+     * or falls back to next-word predictions.
+     */
+    private void updateContextualSuggestions() {
+        // First check if cursor is positioned on a word
+        WordAtCursorInfo wordAtCursor = findWordAtCursor();
+        
+        if (wordAtCursor != null) {
+            // Cursor is on a word - provide corrections and completions
+            java.util.List<String> suggestions = getLearningEngine().getCorrectionsAndCompletions(wordAtCursor.word);
+            mLatinIME.updateSuggestionStrip(suggestions);
+        } else {
+            // Cursor is not on a word (e.g., on space) - fall back to regular next-word suggestions
+            updateSuggestions();
+        }
+    }
+    
+    /**
+     * Simple data class to hold word-at-cursor information
+     */
+    private static class WordAtCursorInfo {
+        public final String word;
+        public final int startOffset;
+        public final int endOffset;
+        
+        public WordAtCursorInfo(String word, int startOffset, int endOffset) {
+            this.word = word;
+            this.startOffset = startOffset;
+            this.endOffset = endOffset;
+        }
+    }
+
+    /**
      * Updates suggestions based on current input context.
      */
     private void updateSuggestions() {
@@ -786,8 +886,14 @@ public final class InputLogic {
      * Handles suggestion selection from the suggestion strip.
      */
     public void onSuggestionSelected(String suggestion) {
-        if (mCurrentWord.length() > 0) {
-            // Replace current word with suggestion
+        // First check if we're replacing a word at cursor position
+        WordAtCursorInfo wordAtCursor = findWordAtCursor();
+        
+        if (wordAtCursor != null) {
+            // Replace word at cursor position
+            replaceWordAtCursor(wordAtCursor, suggestion);
+        } else if (mCurrentWord.length() > 0) {
+            // Replace current word with suggestion (existing behavior)
             mConnection.deleteTextBeforeCursor(mCurrentWord.length());
             mConnection.commitText(suggestion, 1);
             
@@ -811,7 +917,30 @@ public final class InputLogic {
         }
         
         // Update suggestions after selection
-        updateSuggestions();
+        updateContextualSuggestions();
+    }
+    
+    /**
+     * Replaces a word at the cursor position with the selected suggestion.
+     */
+    private void replaceWordAtCursor(WordAtCursorInfo wordInfo, String replacement) {
+        // Calculate absolute positions for text replacement
+        String textBefore = mConnection.getTextBeforeCursor();
+        if (textBefore == null) textBefore = "";
+        
+        int absoluteStart = textBefore.length() + wordInfo.startOffset - textBefore.length();
+        int absoluteEnd = absoluteStart + wordInfo.word.length();
+        
+        // Use setSelection to select the word, then commit the replacement
+        mConnection.setSelection(absoluteStart, absoluteEnd);
+        mConnection.commitText(replacement, 1);
+        
+        // Learn from the replacement
+        getLearningEngine().learnWord(replacement);
+        String previousContext = getPreviousContext();
+        if (!TextUtils.isEmpty(previousContext)) {
+            getLearningEngine().learnFromInput(previousContext + " " + replacement);
+        }
     }
     
     /**
