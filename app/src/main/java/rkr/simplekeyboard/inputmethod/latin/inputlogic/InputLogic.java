@@ -629,6 +629,17 @@ public final class InputLogic {
         if (textBefore == null) textBefore = "";
         if (textAfter == null) textAfter = "";
         
+        // Check if cursor is immediately after or before whitespace (between words)
+        if (textBefore.length() > 0 && Character.isWhitespace(textBefore.charAt(textBefore.length() - 1))) {
+            return null; // Cursor is after whitespace, between words
+        }
+        if (textAfter.length() > 0 && Character.isWhitespace(textAfter.charAt(0))) {
+            // Check if there's a word character immediately before cursor
+            if (textBefore.length() == 0 || !Character.isLetterOrDigit(textBefore.charAt(textBefore.length() - 1))) {
+                return null; // Cursor is before whitespace and not touching a word
+            }
+        }
+        
         // Find word boundaries
         int wordStart = textBefore.length();
         int wordEnd = 0;
@@ -662,7 +673,7 @@ public final class InputLogic {
         String wordAfterCursor = wordEnd > 0 ? textAfter.substring(0, wordEnd) : "";
         String completeWord = wordBeforeCursor + wordAfterCursor;
         
-        // Return null if cursor is on whitespace or no valid word found
+        // Return null if no valid word found
         if (completeWord.trim().isEmpty() || !completeWord.matches(".*\\w.*")) {
             return null;
         }
@@ -924,15 +935,48 @@ public final class InputLogic {
      * Replaces a word at the cursor position with the selected suggestion.
      */
     private void replaceWordAtCursor(WordAtCursorInfo wordInfo, String replacement) {
-        // Calculate absolute positions for text replacement
+        // Get current cursor position
+        int cursorPos = mConnection.getExpectedSelectionStart();
+        
+        // Calculate word boundaries relative to current cursor position
         String textBefore = mConnection.getTextBeforeCursor();
+        String textAfter = mConnection.getTextAfterCursor();
+        
         if (textBefore == null) textBefore = "";
+        if (textAfter == null) textAfter = "";
         
-        int absoluteStart = textBefore.length() + wordInfo.startOffset - textBefore.length();
-        int absoluteEnd = absoluteStart + wordInfo.word.length();
+        // Find word start position (going backwards from cursor)
+        int wordStartFromCursor = 0;
+        for (int i = textBefore.length() - 1; i >= 0; i--) {
+            char c = textBefore.charAt(i);
+            if (Character.isWhitespace(c) || isPunctuation(c)) {
+                wordStartFromCursor = textBefore.length() - i - 1;
+                break;
+            }
+            if (i == 0) {
+                wordStartFromCursor = textBefore.length();
+            }
+        }
         
-        // Use setSelection to select the word, then commit the replacement
-        mConnection.setSelection(absoluteStart, absoluteEnd);
+        // Find word end position (going forwards from cursor)
+        int wordEndFromCursor = 0;
+        for (int i = 0; i < textAfter.length(); i++) {
+            char c = textAfter.charAt(i);
+            if (Character.isWhitespace(c) || isPunctuation(c)) {
+                wordEndFromCursor = i;
+                break;
+            }
+            if (i == textAfter.length() - 1) {
+                wordEndFromCursor = textAfter.length();
+            }
+        }
+        
+        // Calculate absolute positions
+        int wordStart = cursorPos - wordStartFromCursor;
+        int wordEnd = cursorPos + wordEndFromCursor;
+        
+        // Select the word and replace it
+        mConnection.setSelection(wordStart, wordEnd);
         mConnection.commitText(replacement, 1);
         
         // Learn from the replacement
