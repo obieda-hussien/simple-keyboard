@@ -17,10 +17,10 @@
 package rkr.simplekeyboard.inputmethod.latin.utils;
 
 import android.Manifest;
+import android.accounts.Account;
+import android.accounts.AccountManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
-import android.provider.ContactsContract;
 import android.util.Log;
 
 import androidx.core.content.ContextCompat;
@@ -62,20 +62,20 @@ public class EmailSuggestionProvider {
     }
 
     /**
-     * Checks if the READ_CONTACTS permission is granted.
+     * Checks if the GET_ACCOUNTS permission is granted.
      */
-    public boolean hasContactsPermission() {
-        return ContextCompat.checkSelfPermission(mContext, Manifest.permission.READ_CONTACTS) 
+    public boolean hasAccountsPermission() {
+        return ContextCompat.checkSelfPermission(mContext, Manifest.permission.GET_ACCOUNTS) 
                 == PackageManager.PERMISSION_GRANTED;
     }
 
     /**
-     * Gets email suggestions from user's contacts.
+     * Gets email suggestions from user's device accounts.
      * Returns empty list if permission is not granted.
      */
     public List<String> getContactEmails() {
-        if (!hasContactsPermission()) {
-            Log.d(TAG, "READ_CONTACTS permission not granted");
+        if (!hasAccountsPermission()) {
+            Log.d(TAG, "GET_ACCOUNTS permission not granted");
             return new ArrayList<>();
         }
 
@@ -89,35 +89,23 @@ public class EmailSuggestionProvider {
         mCachedEmails = new HashSet<>();
         mLastCacheTime = currentTime;
 
-        Cursor cursor = null;
         try {
-            cursor = mContext.getContentResolver().query(
-                ContactsContract.CommonDataKinds.Email.CONTENT_URI,
-                new String[]{ContactsContract.CommonDataKinds.Email.ADDRESS},
-                null,
-                null,
-                ContactsContract.CommonDataKinds.Email.ADDRESS + " ASC"
-            );
+            AccountManager accountManager = AccountManager.get(mContext);
+            Account[] accounts = accountManager.getAccounts();
 
-            if (cursor != null && cursor.moveToFirst()) {
-                int emailIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Email.ADDRESS);
-                if (emailIndex >= 0) {
-                    do {
-                        String email = cursor.getString(emailIndex);
-                        if (email != null && isValidEmail(email)) {
-                            mCachedEmails.add(email.trim().toLowerCase());
-                        }
-                    } while (cursor.moveToNext() && mCachedEmails.size() < MAX_EMAIL_SUGGESTIONS * 2);
+            for (Account account : accounts) {
+                String email = account.name;
+                if (email != null && isValidEmail(email)) {
+                    mCachedEmails.add(email.trim().toLowerCase());
+                    if (mCachedEmails.size() >= MAX_EMAIL_SUGGESTIONS * 2) {
+                        break; // Limit the number of emails we collect
+                    }
                 }
             }
         } catch (SecurityException e) {
-            Log.w(TAG, "Permission denied while reading contacts", e);
+            Log.w(TAG, "Permission denied while reading accounts", e);
         } catch (Exception e) {
-            Log.e(TAG, "Error reading contacts", e);
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
+            Log.e(TAG, "Error reading accounts", e);
         }
 
         return new ArrayList<>(mCachedEmails);

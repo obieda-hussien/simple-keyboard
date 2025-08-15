@@ -663,18 +663,33 @@ public final class InputLogic {
         
         try {
             String textBeforeCursor = mConnection.getTextBeforeCursor();
+            android.util.Log.d("EmailSuggestions", "Text before cursor: '" + textBeforeCursor + "'");
+            android.util.Log.d("EmailSuggestions", "Current word: '" + currentWord + "'");
+            
             if (textBeforeCursor != null) {
                 // Check for domain completion pattern: (text)@
                 int atIndex = textBeforeCursor.lastIndexOf('@');
+                android.util.Log.d("EmailSuggestions", "@ index: " + atIndex);
+                
                 if (atIndex >= 0) {
-                    // We're typing after @, suggest domains
-                    String beforeAt = textBeforeCursor.substring(0, atIndex);
-                    // Find the start of the email address (last space or beginning)
-                    int emailStart = Math.max(beforeAt.lastIndexOf(' '), beforeAt.lastIndexOf('\n')) + 1;
-                    String emailPrefix = beforeAt.substring(emailStart);
+                    // We found @ - check if we should suggest domains
+                    String textAfterAt = textBeforeCursor.substring(atIndex + 1);
+                    android.util.Log.d("EmailSuggestions", "Text after @: '" + textAfterAt + "'");
                     
-                    if (!emailPrefix.isEmpty() && isValidEmailPrefix(emailPrefix)) {
-                        suggestions.addAll(emailProvider.getDomainCompletions(emailPrefix));
+                    // Only suggest domains if there's no space after @ (immediate domain completion)
+                    if (!textAfterAt.contains(" ") && !textAfterAt.contains("\n")) {
+                        String beforeAt = textBeforeCursor.substring(0, atIndex);
+                        // Find the start of the email address (last space or beginning)
+                        int emailStart = Math.max(beforeAt.lastIndexOf(' '), beforeAt.lastIndexOf('\n')) + 1;
+                        String emailPrefix = beforeAt.substring(emailStart);
+                        
+                        android.util.Log.d("EmailSuggestions", "Email prefix: '" + emailPrefix + "'");
+                        
+                        if (!emailPrefix.isEmpty() && isValidEmailPrefix(emailPrefix)) {
+                            java.util.List<String> domainSuggestions = emailProvider.getDomainCompletions(emailPrefix);
+                            android.util.Log.d("EmailSuggestions", "Domain suggestions: " + domainSuggestions.size());
+                            suggestions.addAll(domainSuggestions);
+                        }
                     }
                 } else {
                     // We're typing an email address from the beginning
@@ -688,9 +703,11 @@ public final class InputLogic {
                 }
             }
         } catch (Exception e) {
-            // Ignore errors and return empty suggestions
+            android.util.Log.e("EmailSuggestions", "Error getting email suggestions", e);
+            // Return empty suggestions on error
         }
         
+        android.util.Log.d("EmailSuggestions", "Final suggestions count: " + suggestions.size());
         return suggestions;
     }
 

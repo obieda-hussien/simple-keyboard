@@ -81,8 +81,8 @@ public class NGramModel {
     }
     
     /**
-     * Enhanced tokenization that treats punctuation and emojis as separate tokens
-     * and preserves single-letter words.
+     * Enhanced tokenization that treats punctuation and emojis as separate tokens,
+     * preserves single-letter words, and handles domain names correctly.
      */
     private String[] tokenizeWithPunctuation(String text) {
         if (text == null || text.trim().isEmpty()) {
@@ -98,16 +98,39 @@ public class NGramModel {
             processed = processed.replace(emojis[i], " __EMOJI_" + i + "__ ");
         }
         
-        // Step 2: Insert spaces around punctuation marks to separate them
+        // Step 2: Protect domain names before punctuation splitting
+        // Common TLDs to preserve as single tokens
+        String[] commonTlds = {"com", "org", "net", "edu", "gov", "io", "co", "me", "tv", "info", "biz"};
+        java.util.Map<String, String> domainPlaceholders = new java.util.HashMap<>();
+        int domainCounter = 0;
+        
+        for (String tld : commonTlds) {
+            String pattern = "\\b([a-zA-Z0-9._-]+\\." + tld + ")\\b";
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile(pattern, java.util.regex.Pattern.CASE_INSENSITIVE);
+            java.util.regex.Matcher m = p.matcher(processed);
+            java.lang.StringBuffer sb = new java.lang.StringBuffer();
+            
+            while (m.find()) {
+                String domain = m.group(1);
+                String placeholder = "__DOMAIN_" + domainCounter + "__";
+                domainPlaceholders.put(placeholder, domain);
+                m.appendReplacement(sb, " " + placeholder + " ");
+                domainCounter++;
+            }
+            m.appendTail(sb);
+            processed = sb.toString();
+        }
+        
+        // Step 3: Insert spaces around punctuation marks to separate them (but domains are now protected)
         processed = processed
             .replaceAll("([.!?;:,])", " $1 ")  // Add spaces around punctuation
             .replaceAll("\\s+", " ")           // Normalize whitespace
             .trim();
         
-        // Step 3: Split by whitespace to get tokens (words + punctuation + emoji placeholders)
+        // Step 4: Split by whitespace to get tokens (words + punctuation + placeholders)
         String[] tokens = processed.split("\\s+");
         
-        // Step 4: Filter and restore emojis from placeholders
+        // Step 5: Filter and restore emojis/domains from placeholders
         List<String> validTokens = new ArrayList<>();
         for (String token : tokens) {
             token = token.trim();
@@ -121,6 +144,13 @@ public class NGramModel {
                         }
                     } catch (NumberFormatException e) {
                         // Invalid placeholder, skip
+                    }
+                } 
+                // Check if it's a domain placeholder
+                else if (token.startsWith("__DOMAIN_") && token.endsWith("__")) {
+                    String domain = domainPlaceholders.get(token);
+                    if (domain != null) {
+                        validTokens.add(domain);
                     }
                 } else {
                     // Keep words (including single letters) and punctuation
