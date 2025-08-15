@@ -75,7 +75,19 @@ public final class InputLogic {
      */
     private LocalLearningEngine getLearningEngine() {
         if (mLearningEngine == null) {
-            mLearningEngine = LocalLearningEngine.getInstance(mLatinIME);
+            try {
+                // Ensure we have a valid context before initializing
+                if (mLatinIME != null && mLatinIME.getApplicationContext() != null) {
+                    mLearningEngine = LocalLearningEngine.getInstance(mLatinIME);
+                } else {
+                    // Context not ready yet, return null to defer initialization
+                    return null;
+                }
+            } catch (Exception e) {
+                // If initialization fails, log and return null to prevent crashes
+                android.util.Log.e("InputLogic", "Failed to initialize learning engine", e);
+                return null;
+            }
         }
         return mLearningEngine;
     }
@@ -139,11 +151,15 @@ public final class InputLogic {
     public void onUpdateSelection(final int newSelStart, final int newSelEnd) {
         mConnection.updateSelection(newSelStart, newSelEnd);
         
-        // Reset current word tracking if cursor moved significantly
-        // This helps when user taps to a different position
-        if (Math.abs(newSelStart - mConnection.getExpectedSelectionStart()) > 1) {
+        // Always trigger contextual suggestions on cursor position change
+        // This ensures suggestions update immediately when user taps or moves cursor
+        boolean cursorMoved = (newSelStart != mConnection.getExpectedSelectionStart() || 
+                              newSelEnd != mConnection.getExpectedSelectionEnd());
+        
+        if (cursorMoved) {
+            // Reset current word tracking when cursor moves
             mCurrentWord.setLength(0);
-            // Trigger contextual suggestions based on cursor position
+            // Trigger contextual suggestions based on new cursor position
             updateContextualSuggestions();
         }
     }
@@ -356,12 +372,15 @@ public final class InputLogic {
         // Learn from completed word before handling separator
         if (mCurrentWord.length() > 0) {
             String completedWord = mCurrentWord.toString();
-            getLearningEngine().learnWord(completedWord);
-            
-            // Learn from context if we have previous text
-            String previousContext = getPreviousContext();
-            if (!TextUtils.isEmpty(previousContext)) {
-                getLearningEngine().learnFromInput(previousContext + " " + completedWord);
+            LocalLearningEngine learningEngine = getLearningEngine();
+            if (learningEngine != null) {
+                learningEngine.learnWord(completedWord);
+                
+                // Learn from context if we have previous text
+                String previousContext = getPreviousContext();
+                if (!TextUtils.isEmpty(previousContext)) {
+                    learningEngine.learnFromInput(previousContext + " " + completedWord);
+                }
             }
             
             mCurrentWord.setLength(0); // Clear current word
@@ -694,12 +713,20 @@ public final class InputLogic {
      * or falls back to next-word predictions.
      */
     private void updateContextualSuggestions() {
+        // Defensive check: don't proceed if learning engine isn't ready
+        LocalLearningEngine learningEngine = getLearningEngine();
+        if (learningEngine == null) {
+            // Learning engine not ready yet, provide empty suggestions
+            mLatinIME.updateSuggestionStrip(new java.util.ArrayList<String>());
+            return;
+        }
+        
         // First check if cursor is positioned on a word
         WordAtCursorInfo wordAtCursor = findWordAtCursor();
         
         if (wordAtCursor != null) {
             // Cursor is on a word - provide corrections and completions
-            java.util.List<String> suggestions = getLearningEngine().getCorrectionsAndCompletions(wordAtCursor.word);
+            java.util.List<String> suggestions = learningEngine.getCorrectionsAndCompletions(wordAtCursor.word);
             mLatinIME.updateSuggestionStrip(suggestions);
         } else {
             // Cursor is not on a word (e.g., on space) - fall back to regular next-word suggestions
@@ -726,6 +753,14 @@ public final class InputLogic {
      * Updates suggestions based on current input context.
      */
     private void updateSuggestions() {
+        // Defensive check: don't proceed if learning engine isn't ready
+        LocalLearningEngine learningEngine = getLearningEngine();
+        if (learningEngine == null) {
+            // Learning engine not ready yet, provide empty suggestions
+            mLatinIME.updateSuggestionStrip(new java.util.ArrayList<String>());
+            return;
+        }
+        
         String currentWord = mCurrentWord.toString();
         String previousContext = getPreviousContext();
         
@@ -740,7 +775,7 @@ public final class InputLogic {
         }
         
         // Fall back to regular learning-based suggestions
-        java.util.List<String> suggestions = getLearningEngine().getSuggestions(currentWord, previousContext);
+        java.util.List<String> suggestions = learningEngine.getSuggestions(currentWord, previousContext);
         mLatinIME.updateSuggestionStrip(suggestions);
     }
 
@@ -909,17 +944,23 @@ public final class InputLogic {
             mConnection.commitText(suggestion, 1);
             
             // Learn from the selected suggestion
-            getLearningEngine().learnWord(suggestion);
-            String previousContext = getPreviousContext();
-            if (!TextUtils.isEmpty(previousContext)) {
-                getLearningEngine().learnFromInput(previousContext + " " + suggestion);
+            LocalLearningEngine learningEngine = getLearningEngine();
+            if (learningEngine != null) {
+                learningEngine.learnWord(suggestion);
+                String previousContext = getPreviousContext();
+                if (!TextUtils.isEmpty(previousContext)) {
+                    learningEngine.learnFromInput(previousContext + " " + suggestion);
+                }
             }
             
             mCurrentWord.setLength(0);
         } else {
             // Just insert the suggestion
             mConnection.commitText(suggestion, 1);
-            getLearningEngine().learnWord(suggestion);
+            LocalLearningEngine learningEngine = getLearningEngine();
+            if (learningEngine != null) {
+                learningEngine.learnWord(suggestion);
+            }
         }
         
         // Add space after suggestion if it's a word
@@ -980,10 +1021,13 @@ public final class InputLogic {
         mConnection.commitText(replacement, 1);
         
         // Learn from the replacement
-        getLearningEngine().learnWord(replacement);
-        String previousContext = getPreviousContext();
-        if (!TextUtils.isEmpty(previousContext)) {
-            getLearningEngine().learnFromInput(previousContext + " " + replacement);
+        LocalLearningEngine learningEngine = getLearningEngine();
+        if (learningEngine != null) {
+            learningEngine.learnWord(replacement);
+            String previousContext = getPreviousContext();
+            if (!TextUtils.isEmpty(previousContext)) {
+                learningEngine.learnFromInput(previousContext + " " + replacement);
+            }
         }
     }
     
@@ -993,12 +1037,15 @@ public final class InputLogic {
     private void learnFromCurrentSentence() {
         String textBeforeCursor = mConnection.getTextBeforeCursor();
         if (!TextUtils.isEmpty(textBeforeCursor)) {
-            // Find the current sentence by looking for sentence boundaries
-            String[] sentences = textBeforeCursor.split("[.!?]");
-            if (sentences.length > 0) {
-                String currentSentence = sentences[sentences.length - 1].trim();
-                if (!TextUtils.isEmpty(currentSentence) && currentSentence.split("\\s+").length > 1) {
-                    getLearningEngine().learnSentence(currentSentence);
+            LocalLearningEngine learningEngine = getLearningEngine();
+            if (learningEngine != null) {
+                // Find the current sentence by looking for sentence boundaries
+                String[] sentences = textBeforeCursor.split("[.!?]");
+                if (sentences.length > 0) {
+                    String currentSentence = sentences[sentences.length - 1].trim();
+                    if (!TextUtils.isEmpty(currentSentence) && currentSentence.split("\\s+").length > 1) {
+                        learningEngine.learnSentence(currentSentence);
+                    }
                 }
             }
         }
@@ -1036,7 +1083,10 @@ public final class InputLogic {
             
             // Learn from committed text if it's a word
             if (text.trim().matches("\\w+")) {
-                getLearningEngine().learnWord(text.trim());
+                LocalLearningEngine learningEngine = getLearningEngine();
+                if (learningEngine != null) {
+                    learningEngine.learnWord(text.trim());
+                }
             }
         }
     }

@@ -624,12 +624,22 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         Log.i(TAG, "Update Selection. Cursor position = " + newSelStart + "," + newSelEnd);
 
         if (mInputLogic != null) {
+            // First update the input logic with new cursor position
             mInputLogic.onUpdateSelection(newSelStart, newSelEnd);
+            
             if (isInputViewShown()) {
+                // Reload text cache for accurate context analysis
                 mInputLogic.reloadTextCache();
 
+                // Update shift state based on new cursor position
                 mKeyboardSwitcher.requestUpdatingShiftState(getCurrentAutoCapsState(),
                         getCurrentRecapitalizeState());
+                
+                // Force suggestion strip refresh after cursor movement
+                // This ensures immediate UI update for cursor-aware suggestions
+                if (mSuggestionStrip != null) {
+                    mSuggestionStrip.invalidate();
+                }
             }
         }
     }
