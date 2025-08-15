@@ -25,7 +25,7 @@ public class KeyboardFeaturesTest {
      * Tests calculator functionality.
      */
     public static boolean testCalculator() {
-        // Test basic operations
+        // Test basic operations (existing tests)
         String result1 = CalculatorUtils.evaluateMathExpression("125 * 4");
         if (!"500".equals(result1)) {
             System.out.println("Calculator test failed: 125 * 4 = " + result1 + " (expected 500)");
@@ -45,8 +45,71 @@ public class KeyboardFeaturesTest {
         }
         
         String result4 = CalculatorUtils.evaluateMathExpression("7.5 + 2.5");
-        if (!"10.00".equals(result4)) {
-            System.out.println("Calculator test failed: 7.5 + 2.5 = " + result4 + " (expected 10.00)");
+        if (!"10".equals(result4)) {  // Since 7.5 + 2.5 = 10 (whole number)
+            System.out.println("Calculator test failed: 7.5 + 2.5 = " + result4 + " (expected 10)");
+            return false;
+        }
+        
+        // Test new advanced functionality
+        
+        // Test PEMDAS/BODMAS order of operations
+        String result5 = CalculatorUtils.evaluateMathExpression("5 + 7 * 2");
+        if (!"19".equals(result5)) {
+            System.out.println("Calculator test failed: 5 + 7 * 2 = " + result5 + " (expected 19)");
+            return false;
+        }
+        
+        // Test multi-step calculations
+        String result6 = CalculatorUtils.evaluateMathExpression("100 - 25 + 50");
+        if (!"125".equals(result6)) {
+            System.out.println("Calculator test failed: 100 - 25 + 50 = " + result6 + " (expected 125)");
+            return false;
+        }
+        
+        // Test parentheses
+        String result7 = CalculatorUtils.evaluateMathExpression("150 + (5 * 22.5)");
+        if (!"262.5".equals(result7)) {  // 150 + 112.5 = 262.5 (not 262.50)
+            System.out.println("Calculator test failed: 150 + (5 * 22.5) = " + result7 + " (expected 262.5)");
+            return false;
+        }
+        
+        // Test complex expression with parentheses
+        String result8 = CalculatorUtils.evaluateMathExpression("(10 + 5) * 2 - 3");
+        if (!"27".equals(result8)) {
+            System.out.println("Calculator test failed: (10 + 5) * 2 - 3 = " + result8 + " (expected 27)");
+            return false;
+        }
+        
+        // Test Arabic-Indic numeral support
+        String result9 = CalculatorUtils.evaluateMathExpression("٥٠ + ١٠");
+        if (!"60".equals(result9)) {
+            System.out.println("Calculator test failed: ٥٠ + ١٠ = " + result9 + " (expected 60)");
+            return false;
+        }
+        
+        String result10 = CalculatorUtils.evaluateMathExpression("٢٥ * ٤");
+        if (!"100".equals(result10)) {
+            System.out.println("Calculator test failed: ٢٥ * ٤ = " + result10 + " (expected 100)");
+            return false;
+        }
+        
+        // Test in-sentence expression detection
+        String result11 = CalculatorUtils.evaluateMathExpression("Total is 25*4, but with tax it's 100+20");
+        if (!"120".equals(result11)) {
+            System.out.println("Calculator test failed: should extract 100+20 from sentence = " + result11 + " (expected 120)");
+            return false;
+        }
+        
+        String result12 = CalculatorUtils.evaluateMathExpression("The price is 50*2 and total with shipping is 50+25");
+        if (!"75".equals(result12)) {
+            System.out.println("Calculator test failed: should extract 50+25 from sentence = " + result12 + " (expected 75)");
+            return false;
+        }
+        
+        // Test mixed Arabic-Indic and Latin in sentences
+        String result13 = CalculatorUtils.evaluateMathExpression("السعر هو ٥٠ + ٢٠ ريال");
+        if (!"70".equals(result13)) {
+            System.out.println("Calculator test failed: should extract ٥٠ + ٢٠ from Arabic sentence = " + result13 + " (expected 70)");
             return false;
         }
         
@@ -99,6 +162,62 @@ public class KeyboardFeaturesTest {
     }
     
     /**
+     * Tests emoji learning functionality.
+     */
+    public static boolean testEmojiLearning() {
+        System.out.println("Testing emoji learning functionality...");
+        
+        // Test emoji detection
+        boolean isEmojiDetected = rkr.simplekeyboard.inputmethod.latin.utils.EmojiUtils.isEmoji("😀");
+        if (!isEmojiDetected) {
+            System.out.println("Emoji learning test failed: 😀 should be detected as emoji");
+            return false;
+        }
+        
+        // Test non-emoji detection
+        boolean isWordNotEmoji = !rkr.simplekeyboard.inputmethod.latin.utils.EmojiUtils.isEmoji("hello");
+        if (!isWordNotEmoji) {
+            System.out.println("Emoji learning test failed: 'hello' should not be detected as emoji");
+            return false;
+        }
+        
+        // Test emoji extraction
+        String[] extractedEmojis = rkr.simplekeyboard.inputmethod.latin.utils.EmojiUtils.extractEmojis("Good night 😴 sweet dreams 🌙");
+        if (extractedEmojis.length != 2 || !"😴".equals(extractedEmojis[0]) || !"🌙".equals(extractedEmojis[1])) {
+            System.out.println("Emoji learning test failed: should extract two emojis from 'Good night 😴 sweet dreams 🌙'");
+            return false;
+        }
+        
+        // Test N-gram model with emojis
+        rkr.simplekeyboard.inputmethod.latin.learning.NGramModel ngramModel = 
+            new rkr.simplekeyboard.inputmethod.latin.learning.NGramModel();
+        
+        // Learn from sentences with emojis
+        ngramModel.learnFromSentence("Good night 😴");
+        ngramModel.learnFromSentence("Good morning ☀️");
+        ngramModel.learnFromSentence("Have a good night 😴");
+        
+        // Test prediction
+        java.util.List<String> predictions = ngramModel.predictNextWords("Good night");
+        
+        boolean foundEmojiPrediction = false;
+        for (String prediction : predictions) {
+            if ("😴".equals(prediction)) {
+                foundEmojiPrediction = true;
+                break;
+            }
+        }
+        
+        if (!foundEmojiPrediction) {
+            System.out.println("Emoji learning test failed: should predict 😴 after 'Good night'");
+            System.out.println("Actual predictions: " + predictions);
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
      * Runs all feature tests.
      */
     public static boolean runAllTests() {
@@ -110,9 +229,19 @@ public class KeyboardFeaturesTest {
         boolean emojiTest = testEmojiSearch();
         System.out.println("Emoji Search Test: " + (emojiTest ? "PASS" : "FAIL"));
         
-        boolean allPassed = calculatorTest && emojiTest;
+        boolean emojiLearningTest = testEmojiLearning();
+        System.out.println("Emoji Learning Test: " + (emojiLearningTest ? "PASS" : "FAIL"));
+        
+        boolean allPassed = calculatorTest && emojiTest && emojiLearningTest;
         System.out.println("Overall Result: " + (allPassed ? "ALL TESTS PASSED" : "SOME TESTS FAILED"));
         
         return allPassed;
+    }
+    
+    /**
+     * Main method to run tests.
+     */
+    public static void main(String[] args) {
+        runAllTests();
     }
 }

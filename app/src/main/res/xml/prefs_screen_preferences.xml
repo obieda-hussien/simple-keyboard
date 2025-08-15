@@ -51,4 +51,9 @@
         android:key="pref_delete_swipe"
         android:title="@string/delete_swipe"
         android:defaultValue="false" />
+    <CheckBoxPreference
+        android:key="pref_email_suggestions"
+        android:title="@string/email_suggestions"
+        android:summary="@string/email_suggestions_summary"
+        android:defaultValue="true" />
 </PreferenceScreen>

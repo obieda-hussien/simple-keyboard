@@ -33,6 +33,7 @@ import rkr.simplekeyboard.inputmethod.latin.common.StringUtils;
 import rkr.simplekeyboard.inputmethod.latin.learning.LocalLearningEngine;
 import rkr.simplekeyboard.inputmethod.latin.settings.SettingsValues;
 import rkr.simplekeyboard.inputmethod.latin.utils.InputTypeUtils;
+import rkr.simplekeyboard.inputmethod.latin.utils.EmailSuggestionProvider;
 import rkr.simplekeyboard.inputmethod.latin.utils.RecapitalizeStatus;
 import rkr.simplekeyboard.inputmethod.latin.utils.SubtypeLocaleUtils;
 
@@ -49,6 +50,9 @@ public final class InputLogic {
     
     // Learning engine for intelligent suggestions - initialized lazily
     private LocalLearningEngine mLearningEngine;
+    
+    // Email suggestion provider for proactive email completion - initialized lazily
+    private EmailSuggestionProvider mEmailSuggestionProvider;
     
     // Current word being typed for suggestion purposes
     private StringBuilder mCurrentWord = new StringBuilder();
@@ -74,6 +78,16 @@ public final class InputLogic {
             mLearningEngine = LocalLearningEngine.getInstance(mLatinIME);
         }
         return mLearningEngine;
+    }
+
+    /**
+     * Gets the email suggestion provider, initializing it lazily if needed.
+     */
+    private EmailSuggestionProvider getEmailSuggestionProvider() {
+        if (mEmailSuggestionProvider == null) {
+            mEmailSuggestionProvider = new EmailSuggestionProvider(mLatinIME);
+        }
+        return mEmailSuggestionProvider;
     }
 
     /**
@@ -604,8 +618,106 @@ public final class InputLogic {
         String currentWord = mCurrentWord.toString();
         String previousContext = getPreviousContext();
         
+        // Check if we're in an email field and email suggestions are enabled
+        EditorInfo editorInfo = mLatinIME.getCurrentInputEditorInfo();
+        if (editorInfo != null && isEmailInputField(editorInfo) && isEmailSuggestionsEnabled()) {
+            java.util.List<String> emailSuggestions = getEmailSuggestions(currentWord, previousContext);
+            if (!emailSuggestions.isEmpty()) {
+                mLatinIME.updateSuggestionStrip(emailSuggestions);
+                return;
+            }
+        }
+        
+        // Fall back to regular learning-based suggestions
         java.util.List<String> suggestions = getLearningEngine().getSuggestions(currentWord, previousContext);
         mLatinIME.updateSuggestionStrip(suggestions);
+    }
+
+    /**
+     * Checks if email suggestions are enabled in settings.
+     */
+    private boolean isEmailSuggestionsEnabled() {
+        try {
+            return mLatinIME.getSettingsValues().mEmailSuggestionsEnabled;
+        } catch (Exception e) {
+            return true; // Default to enabled if we can't read settings
+        }
+    }
+
+    /**
+     * Checks if the current input field is an email field.
+     */
+    private boolean isEmailInputField(EditorInfo editorInfo) {
+        if (editorInfo == null) return false;
+        int inputType = editorInfo.inputType;
+        int variation = inputType & android.text.InputType.TYPE_MASK_VARIATION;
+        return InputTypeUtils.isEmailVariation(variation);
+    }
+
+    /**
+     * Gets email-specific suggestions based on current input.
+     */
+    private java.util.List<String> getEmailSuggestions(String currentWord, String previousContext) {
+        java.util.List<String> suggestions = new java.util.ArrayList<>();
+        EmailSuggestionProvider emailProvider = getEmailSuggestionProvider();
+        
+        try {
+            String textBeforeCursor = mConnection.getTextBeforeCursor();
+            android.util.Log.d("EmailSuggestions", "Text before cursor: '" + textBeforeCursor + "'");
+            android.util.Log.d("EmailSuggestions", "Current word: '" + currentWord + "'");
+            
+            if (textBeforeCursor != null) {
+                // Check for domain completion pattern: (text)@
+                int atIndex = textBeforeCursor.lastIndexOf('@');
+                android.util.Log.d("EmailSuggestions", "@ index: " + atIndex);
+                
+                if (atIndex >= 0) {
+                    // We found @ - check if we should suggest domains
+                    String textAfterAt = textBeforeCursor.substring(atIndex + 1);
+                    android.util.Log.d("EmailSuggestions", "Text after @: '" + textAfterAt + "'");
+                    
+                    // Only suggest domains if there's no space after @ (immediate domain completion)
+                    if (!textAfterAt.contains(" ") && !textAfterAt.contains("\n")) {
+                        String beforeAt = textBeforeCursor.substring(0, atIndex);
+                        // Find the start of the email address (last space or beginning)
+                        int emailStart = Math.max(beforeAt.lastIndexOf(' '), beforeAt.lastIndexOf('\n')) + 1;
+                        String emailPrefix = beforeAt.substring(emailStart);
+                        
+                        android.util.Log.d("EmailSuggestions", "Email prefix: '" + emailPrefix + "'");
+                        
+                        if (!emailPrefix.isEmpty() && isValidEmailPrefix(emailPrefix)) {
+                            java.util.List<String> domainSuggestions = emailProvider.getDomainCompletions(emailPrefix);
+                            android.util.Log.d("EmailSuggestions", "Domain suggestions: " + domainSuggestions.size());
+                            suggestions.addAll(domainSuggestions);
+                        }
+                    }
+                } else {
+                    // We're typing an email address from the beginning
+                    if (currentWord.isEmpty()) {
+                        // Show contact emails when field is empty or starting
+                        suggestions.addAll(emailProvider.getContactEmails());
+                    } else {
+                        // Filter contact emails by current input
+                        suggestions.addAll(emailProvider.getFilteredContactEmails(currentWord));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e("EmailSuggestions", "Error getting email suggestions", e);
+            // Return empty suggestions on error
+        }
+        
+        android.util.Log.d("EmailSuggestions", "Final suggestions count: " + suggestions.size());
+        return suggestions;
+    }
+
+    /**
+     * Validates that the text before @ is a valid email prefix.
+     */
+    private boolean isValidEmailPrefix(String prefix) {
+        if (prefix == null || prefix.trim().isEmpty()) return false;
+        // Basic validation: no spaces, no special chars except dots, underscores, hyphens
+        return prefix.matches("[a-zA-Z0-9._-]+");
     }
     
     /**

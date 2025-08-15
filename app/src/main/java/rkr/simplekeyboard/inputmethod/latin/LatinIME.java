@@ -801,6 +801,10 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         return mLocale;
     }
 
+    public SettingsValues getSettingsValues() {
+        return mSettings.getCurrent();
+    }
+
     @Override
     public void onMoveCursorPointer(int steps) {
         if (mInputLogic == null) return;
