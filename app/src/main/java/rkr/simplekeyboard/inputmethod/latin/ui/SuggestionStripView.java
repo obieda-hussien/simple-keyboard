@@ -149,21 +149,37 @@ public class SuggestionStripView extends LinearLayout {
      * Updates the suggestion strip with new suggestions.
      */
     public void setSuggestions(List<String> suggestions) {
+        android.util.Log.d("CursorDebug", "SuggestionStripView.setSuggestions() called with: " + suggestions);
+        android.util.Log.d("CursorDebug", "Current child count before removal: " + getChildCount());
+        
         // Remove all views except the toggle button
         while (getChildCount() > 1) {
             removeViewAt(1);
         }
         
+        android.util.Log.d("CursorDebug", "Child count after removal: " + getChildCount());
+        
         if (suggestions == null || suggestions.isEmpty()) {
+            android.util.Log.d("CursorDebug", "No suggestions to display - returning early");
             // Don't change visibility - stay within the fixed container
             return;
         }
         
         int suggestionCount = Math.min(suggestions.size(), MAX_SUGGESTIONS);
+        android.util.Log.d("CursorDebug", "Adding " + suggestionCount + " suggestion views");
+        
         for (int i = 0; i < suggestionCount; i++) {
             String suggestion = suggestions.get(i);
+            android.util.Log.d("CursorDebug", "Adding suggestion " + i + ": '" + suggestion + "' (isPrimary: " + (i == 0) + ")");
             addSuggestionView(suggestion, i == 0); // First suggestion is primary
         }
+        
+        android.util.Log.d("CursorDebug", "Final child count: " + getChildCount());
+        android.util.Log.d("CursorDebug", "Forcing invalidate and requestLayout on SuggestionStripView");
+        
+        // Force immediate UI refresh
+        invalidate();
+        requestLayout();
     }
     
     private void addSuggestionView(String suggestion, boolean isPrimary) {

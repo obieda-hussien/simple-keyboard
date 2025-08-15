@@ -713,11 +713,16 @@ public final class InputLogic {
      * or falls back to next-word predictions.
      */
     private void updateContextualSuggestions() {
+        android.util.Log.d("CursorDebug", "updateContextualSuggestions() called");
+        
         // Defensive check: don't proceed if learning engine isn't ready
         LocalLearningEngine learningEngine = getLearningEngine();
         if (learningEngine == null) {
+            android.util.Log.d("CursorDebug", "Learning engine is NULL - providing empty suggestions");
             // Learning engine not ready yet, provide empty suggestions
-            mLatinIME.updateSuggestionStrip(new java.util.ArrayList<String>());
+            java.util.List<String> emptySuggestions = new java.util.ArrayList<String>();
+            android.util.Log.d("CursorDebug", "SUGGESTIONS generated (empty): " + emptySuggestions);
+            mLatinIME.updateSuggestionStrip(emptySuggestions);
             return;
         }
         
@@ -725,10 +730,13 @@ public final class InputLogic {
         WordAtCursorInfo wordAtCursor = findWordAtCursor();
         
         if (wordAtCursor != null) {
+            android.util.Log.d("CursorDebug", "Found word at cursor: '" + wordAtCursor.word + "'");
             // Cursor is on a word - provide corrections and completions
             java.util.List<String> suggestions = learningEngine.getCorrectionsAndCompletions(wordAtCursor.word);
+            android.util.Log.d("CursorDebug", "SUGGESTIONS generated (word-based): " + suggestions);
             mLatinIME.updateSuggestionStrip(suggestions);
         } else {
+            android.util.Log.d("CursorDebug", "No word at cursor - falling back to next-word suggestions");
             // Cursor is not on a word (e.g., on space) - fall back to regular next-word suggestions
             updateSuggestions();
         }
@@ -753,21 +761,28 @@ public final class InputLogic {
      * Updates suggestions based on current input context.
      */
     private void updateSuggestions() {
+        android.util.Log.d("CursorDebug", "updateSuggestions() fallback called");
+        
         // Defensive check: don't proceed if learning engine isn't ready
         LocalLearningEngine learningEngine = getLearningEngine();
         if (learningEngine == null) {
+            android.util.Log.d("CursorDebug", "Learning engine is NULL in fallback - providing empty suggestions");
             // Learning engine not ready yet, provide empty suggestions
-            mLatinIME.updateSuggestionStrip(new java.util.ArrayList<String>());
+            java.util.List<String> emptySuggestions = new java.util.ArrayList<String>();
+            android.util.Log.d("CursorDebug", "SUGGESTIONS generated (fallback empty): " + emptySuggestions);
+            mLatinIME.updateSuggestionStrip(emptySuggestions);
             return;
         }
         
         String currentWord = mCurrentWord.toString();
         String previousContext = getPreviousContext();
+        android.util.Log.d("CursorDebug", "Current word: '" + currentWord + "', Previous context: '" + previousContext + "'");
         
         // Check if we're in an email field and email suggestions are enabled
         EditorInfo editorInfo = mLatinIME.getCurrentInputEditorInfo();
         if (editorInfo != null && isEmailInputField(editorInfo) && isEmailSuggestionsEnabled()) {
             java.util.List<String> emailSuggestions = getEmailSuggestions(currentWord, previousContext);
+            android.util.Log.d("CursorDebug", "SUGGESTIONS generated (email): " + emailSuggestions);
             if (!emailSuggestions.isEmpty()) {
                 mLatinIME.updateSuggestionStrip(emailSuggestions);
                 return;
@@ -776,6 +791,7 @@ public final class InputLogic {
         
         // Fall back to regular learning-based suggestions
         java.util.List<String> suggestions = learningEngine.getSuggestions(currentWord, previousContext);
+        android.util.Log.d("CursorDebug", "SUGGESTIONS generated (learning-based): " + suggestions);
         mLatinIME.updateSuggestionStrip(suggestions);
     }
 
