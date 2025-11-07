@@ -40,7 +40,13 @@ public class LocalLearningEngine {
     private final LocalStorage localStorage;
     private final Context context;
     
+    // Advanced tracking for intelligent suggestions
+    private final java.util.Map<String, Integer> wordFrequency;
+    private final java.util.Map<String, Long> recentUsage;
+    private final java.util.List<String> dictionaryWords;
+    
     private static final int MAX_SUGGESTIONS = 5;
+    private static final int MAX_TYPO_SUGGESTIONS = 3;
     
     // Counters for optimized saving
     private int saveLearningCounter = 0;
@@ -54,6 +60,11 @@ public class LocalLearningEngine {
         this.wordTrie = new WordTrie();
         this.ngramModel = new NGramModel();
         this.localStorage = new LocalStorage(this.context);
+        
+        // Initialize tracking structures
+        this.wordFrequency = new java.util.HashMap<>();
+        this.recentUsage = new java.util.HashMap<>();
+        this.dictionaryWords = new java.util.ArrayList<>();
         
         // Initialize with bootstrap vocabulary
         initializeBootstrapData();
@@ -77,19 +88,19 @@ public class LocalLearningEngine {
 
     /**
      * Gets suggestions for the current input context.
-     * Enhanced with calculator, clipboard, emoji, and number functionality.
+     * Enhanced with advanced ranking, typo tolerance, and context awareness.
      */
     public List<String> getSuggestions(String currentWord, String previousContext) {
-        List<String> suggestions = new ArrayList<>();
+        List<String> candidateSuggestions = new ArrayList<>();
         String fullText = (previousContext != null ? previousContext + " " : "") + (currentWord != null ? currentWord : "");
         
-        // Check for calculator expressions first (highest priority)
+        // Check for calculator expressions first (highest priority for special suggestions)
         if (CalculatorUtils.isMathExpression(fullText.trim())) {
             String result = CalculatorUtils.evaluateMathExpression(fullText.trim());
             if (result != null) {
                 String calcSuggestion = CalculatorUtils.createCalculationSuggestion(fullText.trim(), result);
                 if (calcSuggestion != null) {
-                    suggestions.add(calcSuggestion);
+                    candidateSuggestions.add(calcSuggestion);
                 }
             }
         }
@@ -98,8 +109,8 @@ public class LocalLearningEngine {
         if (TextUtils.isEmpty(currentWord) && ClipboardUtils.hasClipboardText(context)) {
             String clipboardText = ClipboardUtils.getClipboardText(context);
             String clipboardSuggestion = ClipboardUtils.createClipboardSuggestion(clipboardText);
-            if (clipboardSuggestion != null && !suggestions.contains(clipboardSuggestion)) {
-                suggestions.add(clipboardSuggestion);
+            if (clipboardSuggestion != null && !candidateSuggestions.contains(clipboardSuggestion)) {
+                candidateSuggestions.add(clipboardSuggestion);
             }
         }
         
@@ -107,8 +118,8 @@ public class LocalLearningEngine {
         if (!TextUtils.isEmpty(currentWord)) {
             List<String> emojiSuggestions = EmojiSuggestionProvider.getEmojiSuggestions(currentWord);
             for (String emoji : emojiSuggestions) {
-                if (!suggestions.contains(emoji) && suggestions.size() < MAX_SUGGESTIONS) {
-                    suggestions.add(emoji);
+                if (!candidateSuggestions.contains(emoji)) {
+                    candidateSuggestions.add(emoji);
                 }
             }
         }
@@ -116,73 +127,69 @@ public class LocalLearningEngine {
         // Add contextual number suggestions
         List<String> numberSuggestions = NumberSuggestionProvider.getNumberSuggestions(fullText, currentWord);
         for (String numberSuggestion : numberSuggestions) {
-            if (!suggestions.contains(numberSuggestion) && suggestions.size() < MAX_SUGGESTIONS) {
-                suggestions.add(numberSuggestion);
+            if (!candidateSuggestions.contains(numberSuggestion)) {
+                candidateSuggestions.add(numberSuggestion);
             }
         }
         
         if (!TextUtils.isEmpty(currentWord)) {
-            // Get word completions from trie (user-learned words have higher priority)
+            // Get word completions from trie
             List<String> wordSuggestions = wordTrie.getSuggestions(currentWord);
+            candidateSuggestions.addAll(wordSuggestions);
             
-            // Prioritize user dictionary words
+            // Add user dictionary words
             List<String> userWordSuggestions = getUserWordSuggestions(currentWord);
-            for (String suggestion : userWordSuggestions) {
-                if (!suggestions.contains(suggestion) && suggestions.size() < MAX_SUGGESTIONS) {
-                    suggestions.add(suggestion);
-                }
-            }
+            candidateSuggestions.addAll(userWordSuggestions);
             
-            // Add other word suggestions that aren't already in user suggestions
-            for (String suggestion : wordSuggestions) {
-                if (!suggestions.contains(suggestion) && suggestions.size() < MAX_SUGGESTIONS) {
-                    suggestions.add(suggestion);
-                }
-            }
+            // Add bootstrap vocabulary suggestions
+            List<String> bootstrapSuggestions = BootstrapVocabulary.getCommonWordsForPrefix(currentWord);
+            candidateSuggestions.addAll(bootstrapSuggestions);
             
-            // If still not enough suggestions, fall back to bootstrap vocabulary
-            if (suggestions.size() < 3) {
-                List<String> bootstrapSuggestions = BootstrapVocabulary.getCommonWordsForPrefix(currentWord);
-                for (String suggestion : bootstrapSuggestions) {
-                    if (!suggestions.contains(suggestion) && suggestions.size() < MAX_SUGGESTIONS) {
-                        suggestions.add(suggestion);
-                    }
-                }
-            }
+            // Add typo-tolerant suggestions (fuzzy matching)
+            List<String> typoSuggestions = SuggestionRanker.generateTypoSuggestions(
+                currentWord,
+                dictionaryWords,
+                MAX_TYPO_SUGGESTIONS
+            );
+            candidateSuggestions.addAll(typoSuggestions);
         }
         
         if (!TextUtils.isEmpty(previousContext)) {
             // Get next word predictions from n-gram model
             List<String> contextSuggestions = ngramModel.predictNextWords(previousContext);
+            candidateSuggestions.addAll(contextSuggestions);
             
-            // Add context suggestions that aren't duplicates
-            for (String suggestion : contextSuggestions) {
-                if (!suggestions.contains(suggestion) && suggestions.size() < MAX_SUGGESTIONS) {
-                    suggestions.add(suggestion);
-                }
-            }
-            
-            // Add punctuation suggestions (enhanced with single-letter word context)
+            // Add punctuation suggestions
             List<String> punctuationSuggestions = ngramModel.suggestPunctuation(previousContext);
-            for (String punctuation : punctuationSuggestions) {
-                if (!suggestions.contains(punctuation) && suggestions.size() < MAX_SUGGESTIONS) {
-                    suggestions.add(punctuation);
-                }
-            }
+            candidateSuggestions.addAll(punctuationSuggestions);
         }
         
         // If still no suggestions and no current word, provide common starters
-        if (suggestions.isEmpty() && TextUtils.isEmpty(currentWord)) {
+        if (candidateSuggestions.isEmpty() && TextUtils.isEmpty(currentWord)) {
             List<String> commonStarters = BootstrapVocabulary.getCommonWordsForPrefix("");
-            for (String suggestion : commonStarters) {
-                if (suggestions.size() < MAX_SUGGESTIONS) {
-                    suggestions.add(suggestion);
-                }
+            candidateSuggestions.addAll(commonStarters);
+        }
+        
+        // Remove duplicates while preserving order
+        Set<String> seen = new HashSet<>();
+        List<String> uniqueSuggestions = new ArrayList<>();
+        for (String suggestion : candidateSuggestions) {
+            if (seen.add(suggestion.toLowerCase())) {
+                uniqueSuggestions.add(suggestion);
             }
         }
         
-        return suggestions.size() > MAX_SUGGESTIONS ? 
-               suggestions.subList(0, MAX_SUGGESTIONS) : suggestions;
+        // Apply intelligent ranking
+        List<String> rankedSuggestions = SuggestionRanker.rankSuggestions(
+            uniqueSuggestions,
+            currentWord,
+            previousContext,
+            wordFrequency,
+            recentUsage
+        );
+        
+        return rankedSuggestions.size() > MAX_SUGGESTIONS ? 
+               rankedSuggestions.subList(0, MAX_SUGGESTIONS) : rankedSuggestions;
     }
 
     /**
@@ -212,12 +219,23 @@ public class LocalLearningEngine {
     }
 
     /**
-     * Learns from a completed word.
+     * Learns from a completed word with frequency and recency tracking.
      */
     public void learnWord(String word) {
         if (isValidWord(word)) {
             wordTrie.insert(word);
             localStorage.addUserWord(word);
+            
+            // Update frequency count
+            wordFrequency.put(word, wordFrequency.getOrDefault(word, 0) + 1);
+            
+            // Update recent usage timestamp
+            recentUsage.put(word, System.currentTimeMillis());
+            
+            // Add to dictionary for typo suggestions
+            if (!dictionaryWords.contains(word)) {
+                dictionaryWords.add(word);
+            }
             
             // Force save every 10 words learned
             wordLearningCounter++;
@@ -326,6 +344,31 @@ public class LocalLearningEngine {
     private void initializeBootstrapData() {
         BootstrapVocabulary.initializeVocabulary(wordTrie);
         BootstrapVocabulary.initializeNGramModel(ngramModel);
+        
+        // Populate dictionary words for typo suggestions
+        // This is done by getting all words from the trie
+        populateDictionaryFromBootstrap();
+    }
+    
+    /**
+     * Populates the dictionary list with bootstrap vocabulary for typo suggestions.
+     */
+    private void populateDictionaryFromBootstrap() {
+        // Add common prefixes to generate comprehensive dictionary
+        String[] commonPrefixes = {"", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+                                   "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+                                   "th", "wh", "ch", "sh", "ph",
+                                   "و", "أ", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز",
+                                   "س", "ش", "ص", "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك",
+                                   "ل", "م", "ن", "ه", "ي", "ال"};
+        
+        Set<String> uniqueWords = new HashSet<>();
+        for (String prefix : commonPrefixes) {
+            List<String> words = BootstrapVocabulary.getCommonWordsForPrefix(prefix);
+            uniqueWords.addAll(words);
+        }
+        
+        dictionaryWords.addAll(uniqueWords);
     }
 
     private String[] extractWords(String text) {
