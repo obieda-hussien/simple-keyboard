@@ -276,6 +276,7 @@ public class SuggestionRanker {
     
     /**
      * Generates typo-tolerant suggestions by finding words within edit distance.
+     * Enhanced with specialized typo detection for common mistakes.
      */
     public static List<String> generateTypoSuggestions(
             String currentWord,
@@ -288,17 +289,212 @@ public class SuggestionRanker {
             return typoSuggestions;
         }
         
+        // First, try quick specialized typo corrections
+        typoSuggestions.addAll(generateTranspositionSuggestions(currentWord, dictionary));
+        typoSuggestions.addAll(generateMissingCharSuggestions(currentWord, dictionary));
+        typoSuggestions.addAll(generateExtraCharSuggestions(currentWord, dictionary));
+        typoSuggestions.addAll(generateKeyboardProximitySuggestions(currentWord, dictionary));
+        
+        // Then add general edit distance matches that aren't already included
         for (String word : dictionary) {
-            int distance = calculateLevenshteinDistance(
-                currentWord.toLowerCase(),
-                word.toLowerCase()
-            );
-            
-            if (distance > 0 && distance <= maxDistance) {
-                typoSuggestions.add(word);
+            if (!typoSuggestions.contains(word)) {
+                int distance = calculateLevenshteinDistance(
+                    currentWord.toLowerCase(),
+                    word.toLowerCase()
+                );
+                
+                if (distance > 0 && distance <= maxDistance) {
+                    typoSuggestions.add(word);
+                }
             }
         }
         
         return typoSuggestions;
+    }
+    
+    /**
+     * Detects transposition errors (adjacent characters swapped).
+     * Example: "teh" → "the"
+     */
+    private static List<String> generateTranspositionSuggestions(String word, List<String> dictionary) {
+        List<String> suggestions = new ArrayList<>();
+        if (word == null || word.length() < 2) return suggestions;
+        
+        String lowerWord = word.toLowerCase();
+        
+        // Try swapping each pair of adjacent characters
+        for (int i = 0; i < lowerWord.length() - 1; i++) {
+            String transposed = lowerWord.substring(0, i) +
+                               lowerWord.charAt(i + 1) +
+                               lowerWord.charAt(i) +
+                               lowerWord.substring(i + 2);
+            
+            // Check if transposed version matches dictionary
+            for (String dictWord : dictionary) {
+                if (dictWord.toLowerCase().equals(transposed)) {
+                    suggestions.add(dictWord);
+                }
+            }
+        }
+        
+        return suggestions;
+    }
+    
+    /**
+     * Detects missing character errors.
+     * Example: "wrld" → "world"
+     */
+    private static List<String> generateMissingCharSuggestions(String word, List<String> dictionary) {
+        List<String> suggestions = new ArrayList<>();
+        if (word == null || word.isEmpty()) return suggestions;
+        
+        String lowerWord = word.toLowerCase();
+        
+        // For each dictionary word, check if removing one char makes it match input
+        for (String dictWord : dictionary) {
+            String lowerDict = dictWord.toLowerCase();
+            if (lowerDict.length() == lowerWord.length() + 1) {
+                // Try removing each character from dictionary word
+                for (int i = 0; i < lowerDict.length(); i++) {
+                    String withoutChar = lowerDict.substring(0, i) + lowerDict.substring(i + 1);
+                    if (withoutChar.equals(lowerWord)) {
+                        suggestions.add(dictWord);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        return suggestions;
+    }
+    
+    /**
+     * Detects extra character errors.
+     * Example: "helllo" → "hello"
+     */
+    private static List<String> generateExtraCharSuggestions(String word, List<String> dictionary) {
+        List<String> suggestions = new ArrayList<>();
+        if (word == null || word.length() < 2) return suggestions;
+        
+        String lowerWord = word.toLowerCase();
+        
+        // Try removing each character from input
+        for (int i = 0; i < lowerWord.length(); i++) {
+            String withoutChar = lowerWord.substring(0, i) + lowerWord.substring(i + 1);
+            
+            for (String dictWord : dictionary) {
+                if (dictWord.toLowerCase().equals(withoutChar)) {
+                    suggestions.add(dictWord);
+                }
+            }
+        }
+        
+        return suggestions;
+    }
+    
+    /**
+     * Detects keyboard proximity errors (hitting adjacent key).
+     * Example: "n" instead of "m" (adjacent on QWERTY keyboard)
+     */
+    private static List<String> generateKeyboardProximitySuggestions(String word, List<String> dictionary) {
+        List<String> suggestions = new ArrayList<>();
+        if (word == null || word.isEmpty()) return suggestions;
+        
+        String lowerWord = word.toLowerCase();
+        
+        // QWERTY keyboard layout proximity map
+        Map<Character, String> proximityMap = getKeyboardProximityMap();
+        
+        // Try replacing each character with nearby keys
+        for (int i = 0; i < lowerWord.length(); i++) {
+            char c = lowerWord.charAt(i);
+            String nearby = proximityMap.get(c);
+            
+            if (nearby != null) {
+                for (int j = 0; j < nearby.length(); j++) {
+                    String variant = lowerWord.substring(0, i) +
+                                   nearby.charAt(j) +
+                                   lowerWord.substring(i + 1);
+                    
+                    for (String dictWord : dictionary) {
+                        if (dictWord.toLowerCase().equals(variant)) {
+                            suggestions.add(dictWord);
+                        }
+                    }
+                }
+            }
+        }
+        
+        return suggestions;
+    }
+    
+    /**
+     * Returns keyboard proximity map for QWERTY layout.
+     * Each key maps to its adjacent keys.
+     */
+    private static Map<Character, String> getKeyboardProximityMap() {
+        Map<Character, String> map = new HashMap<>();
+        
+        // QWERTY keyboard layout (English)
+        map.put('q', "wa");
+        map.put('w', "qeas");
+        map.put('e', "wrsd");
+        map.put('r', "etdf");
+        map.put('t', "ryfg");
+        map.put('y', "tugh");
+        map.put('u', "yihj");
+        map.put('i', "uojk");
+        map.put('o', "ipkl");
+        map.put('p', "ol");
+        
+        map.put('a', "qwsz");
+        map.put('s', "awedxz");
+        map.put('d', "serfcx");
+        map.put('f', "drtgvc");
+        map.put('g', "ftyhbv");
+        map.put('h', "gyujnb");
+        map.put('j', "huikmn");
+        map.put('k', "jiolm");
+        map.put('l', "kop");
+        
+        map.put('z', "asx");
+        map.put('x', "zsdc");
+        map.put('c', "xdfv");
+        map.put('v', "cfgb");
+        map.put('b', "vghn");
+        map.put('n', "bhjm");
+        map.put('m', "njk");
+        
+        // Arabic keyboard layout (common positions)
+        map.put('ا', "سش");
+        map.put('ب', "لان");
+        map.put('ت', "نفب");
+        map.put('ث', "قفت");
+        map.put('ج', "حخ");
+        map.put('ح', "جخع");
+        map.put('خ', "حجع");
+        map.put('د', "ذجس");
+        map.put('ذ', "دشس");
+        map.put('ر', "زو");
+        map.put('ز', "رة");
+        map.put('س', "شاد");
+        map.put('ش', "سذا");
+        map.put('ص', "ضق");
+        map.put('ض', "صف");
+        map.put('ط', "ظك");
+        map.put('ظ', "طم");
+        map.put('ع', "حخغ");
+        map.put('غ', "عف");
+        map.put('ف', "قثت");
+        map.put('ق', "فصث");
+        map.put('ك', "مطل");
+        map.put('ل', "كاي");
+        map.put('م', "نظك");
+        map.put('ن', "تبم");
+        map.put('ه', "ةو");
+        map.put('و', "هرز");
+        map.put('ي', "لءئ");
+        
+        return map;
     }
 }
