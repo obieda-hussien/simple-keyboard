@@ -40,8 +40,9 @@ public class ProximityInfo {
         mGridWidth = gridWidth;
         mGridHeight = gridHeight;
         mGridSize = mGridWidth * mGridHeight;
-        mCellWidth = (minWidth + mGridWidth - 1) / mGridWidth;
-        mCellHeight = (height + mGridHeight - 1) / mGridHeight;
+        // Prevent division by zero
+        mCellWidth = (mGridWidth > 0) ? (minWidth + mGridWidth - 1) / mGridWidth : 0;
+        mCellHeight = (mGridHeight > 0) ? (height + mGridHeight - 1) / mGridHeight : 0;
         mKeyboardMinWidth = minWidth;
         mKeyboardHeight = height;
         mSortedKeys = sortedKeys;
@@ -58,6 +59,15 @@ public class ProximityInfo {
         final int gridSize = mGridNeighbors.length;
         final int maxKeyRight = mGridWidth * mCellWidth;
         final int maxKeyBottom = mGridHeight * mCellHeight;
+
+        // Guard against division by zero
+        if (mCellWidth == 0 || mCellHeight == 0) {
+            // Initialize with empty lists if cell dimensions are invalid
+            for (int i = 0; i < gridSize; i++) {
+                mGridNeighbors[i] = EMPTY_KEY_LIST;
+            }
+            return;
+        }
 
         // For large layouts, 'neighborsFlatBuffer' is about 80k of memory: gridSize is usually 512,
         // keycount is about 40 and a pointer to a Key is 4 bytes. This contains, for each cell,
@@ -109,6 +119,9 @@ public class ProximityInfo {
     }
 
     public List<Key> getNearestKeys(final int x, final int y) {
+        if (mCellWidth == 0 || mCellHeight == 0) {
+            return EMPTY_KEY_LIST;
+        }
         if (x >= 0 && x < mKeyboardMinWidth && y >= 0 && y < mKeyboardHeight) {
             int index = (y / mCellHeight) * mGridWidth + (x / mCellWidth);
             if (index < mGridSize) {

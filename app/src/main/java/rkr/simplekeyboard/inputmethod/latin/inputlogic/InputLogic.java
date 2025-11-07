@@ -915,7 +915,8 @@ public final class InputLogic {
                 return context;
             }
         } catch (Exception e) {
-            // Ignore errors and return empty context
+            // Log error but continue with empty context to prevent crash
+            android.util.Log.w("InputLogic", "Error extracting context: " + e.getMessage());
         }
         return "";
     }
