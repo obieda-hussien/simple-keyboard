@@ -134,7 +134,7 @@ public final class ThemeManager {
     // Default color getters based on theme
     private int getDefaultBackgroundColor(int themeId) {
         if (themeId == KeyboardTheme.THEME_ID_UNIVERSAL) {
-            return Color.parseColor("#3C4043"); // Universal charcoal gray
+            return Color.parseColor("#2D2F31"); // Universal darker gray for better contrast
         } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_LIGHT) {
             return Color.parseColor("#FEF7FF"); // M3 light purple tint
         } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_DARK) {

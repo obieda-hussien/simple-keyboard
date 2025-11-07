@@ -64,7 +64,7 @@
     <color name="key_background_pressed_m3_expressive_dark">#6750A4</color>
     
     <!-- Color resources for Universal theme (suitable for all ages). -->
-    <color name="background_universal">#3C4043</color>
+    <color name="background_universal">#2D2F31</color>
     <color name="key_text_color_universal">#FFFFFF</color>
     <color name="key_functional_text_color_universal">#E8EAED</color>
     <color name="key_text_inactive_color_universal">#BDC1C6</color>
