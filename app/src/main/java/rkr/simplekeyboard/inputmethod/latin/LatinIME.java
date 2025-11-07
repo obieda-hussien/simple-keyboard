@@ -308,6 +308,11 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     @Override
     public void onDestroy() {
+        // Dismiss any open dialogs to prevent leaks
+        if (mOptionsDialog != null && mOptionsDialog.isShowing()) {
+            mOptionsDialog.dismiss();
+            mOptionsDialog = null;
+        }
         mSettings.onDestroy();
         unregisterReceiver(mRingerModeChangeReceiver);
         super.onDestroy();
