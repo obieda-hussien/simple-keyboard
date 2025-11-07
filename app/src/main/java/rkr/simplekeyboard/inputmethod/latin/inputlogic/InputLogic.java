@@ -952,8 +952,19 @@ public final class InputLogic {
         // Check if this is a special suggestion type (clipboard, calculator, emoji)
         boolean isSpecialSuggestion = isSpecialSuggestion(suggestion);
         
-        // Strip special prefixes from suggestions (clipboard, calculator, etc.)
-        String actualText = stripSuggestionPrefix(suggestion);
+        // For clipboard suggestions, get the full clipboard content instead of the truncated display text
+        String actualText;
+        if (suggestion != null && suggestion.startsWith("📋 ")) {
+            // Get full clipboard content for pasting (not the truncated preview)
+            actualText = getFullClipboardText();
+            if (actualText == null) {
+                // Fallback to stripped suggestion if clipboard is no longer available
+                actualText = stripSuggestionPrefix(suggestion);
+            }
+        } else {
+            // Strip special prefixes from suggestions (calculator, etc.)
+            actualText = stripSuggestionPrefix(suggestion);
+        }
         
         // First check if we're replacing a word at cursor position
         WordAtCursorInfo wordAtCursor = findWordAtCursor();
@@ -1000,6 +1011,38 @@ public final class InputLogic {
         
         // Update suggestions after selection
         updateContextualSuggestions();
+    }
+    
+    /**
+     * Gets the full clipboard text without any truncation.
+     * This is used when pasting clipboard suggestions to ensure the complete content is inserted.
+     */
+    private String getFullClipboardText() {
+        if (mLatinIME == null) {
+            return null;
+        }
+        
+        android.content.ClipboardManager clipboardManager = 
+            (android.content.ClipboardManager) mLatinIME.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+        
+        if (clipboardManager == null || !clipboardManager.hasPrimaryClip()) {
+            return null;
+        }
+        
+        android.content.ClipData clipData = clipboardManager.getPrimaryClip();
+        if (clipData == null || clipData.getItemCount() == 0) {
+            return null;
+        }
+        
+        android.content.ClipData.Item item = clipData.getItemAt(0);
+        CharSequence text = item.getText();
+        
+        if (TextUtils.isEmpty(text)) {
+            return null;
+        }
+        
+        // Return the FULL text without any truncation
+        return text.toString();
     }
     
     /**
