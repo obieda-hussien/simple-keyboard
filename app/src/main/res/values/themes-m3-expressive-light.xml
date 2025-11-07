@@ -20,12 +20,18 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android">
     <style name="KeyboardTheme.M3_Expressive_Light" parent="KeyboardIcons.LXX_Light">
-        <item name="inputViewStyle">@style/InputView</item>
+        <item name="inputViewStyle">@style/InputView.M3_Expressive_Light</item>
         <item name="keyboardStyle">@style/Keyboard.M3_Expressive_Light</item>
         <item name="keyboardViewStyle">@style/KeyboardView.M3_Expressive_Light</item>
         <item name="mainKeyboardViewStyle">@style/MainKeyboardView.M3_Expressive_Light</item>
         <item name="moreKeysKeyboardStyle">@style/MoreKeysKeyboard.M3_Expressive_Light</item>
         <item name="moreKeysKeyboardViewStyle">@style/MoreKeysKeyboardView.M3_Expressive_Light</item>
+    </style>
+    <style
+        name="InputView.M3_Expressive_Light"
+        parent="InputView"
+    >
+        <item name="android:background">@color/background_m3_expressive_light</item>
     </style>
     <style
         name="Keyboard.M3_Expressive_Light"

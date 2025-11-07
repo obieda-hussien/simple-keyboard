@@ -20,12 +20,18 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android">
     <style name="KeyboardTheme.Universal" parent="KeyboardIcons.LXX_Dark">
-        <item name="inputViewStyle">@style/InputView</item>
+        <item name="inputViewStyle">@style/InputView.Universal</item>
         <item name="keyboardStyle">@style/Keyboard.Universal</item>
         <item name="keyboardViewStyle">@style/KeyboardView.Universal</item>
         <item name="mainKeyboardViewStyle">@style/MainKeyboardView.Universal</item>
         <item name="moreKeysKeyboardStyle">@style/MoreKeysKeyboard.Universal</item>
         <item name="moreKeysKeyboardViewStyle">@style/MoreKeysKeyboardView.Universal</item>
+    </style>
+    <style
+        name="InputView.Universal"
+        parent="InputView"
+    >
+        <item name="android:background">@color/background_universal</item>
     </style>
     <style
         name="Keyboard.Universal"
