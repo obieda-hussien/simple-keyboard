@@ -40,6 +40,9 @@ dependencies {
     // AndroidX Core for ContextCompat and permission handling
     implementation 'androidx.core:core:1.12.0'
     
+    // Material 3 components for expressive themes
+    implementation 'com.google.android.material:material:1.11.0'
+    
     // Math expression parser for advanced calculator
     implementation 'net.objecthunter:exp4j:0.4.8'
     

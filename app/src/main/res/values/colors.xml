@@ -40,6 +40,29 @@
     <color name="sliding_key_input_preview_color_lxx_dark">#B380CBC4</color>
     <color name="key_background_normal_lxx_dark">#66222222</color>
     <color name="key_background_pressed_lxx_dark">#19FFFFFF</color>
+    
+    <!-- Color resources for Material 3 Expressive Light theme. -->
+    <color name="background_m3_expressive_light">#FEF7FF</color>
+    <color name="key_text_color_m3_expressive_light">#1D192B</color>
+    <color name="key_functional_text_color_m3_expressive_light">#CC6750A4</color>
+    <color name="key_text_inactive_color_m3_expressive_light">#B31D192B</color>
+    <color name="key_hint_letter_color_m3_expressive_light">#B37E5260</color>
+    <color name="language_on_spacebar_text_color_m3_expressive_light">#B31D192B</color>
+    <color name="sliding_key_input_preview_color_m3_expressive_light">#B36750A4</color>
+    <color name="key_background_normal_m3_expressive_light">#E8DEF8</color>
+    <color name="key_background_pressed_m3_expressive_light">#D0BCFF</color>
+    
+    <!-- Color resources for Material 3 Expressive Dark theme. -->
+    <color name="background_m3_expressive_dark">#1D192B</color>
+    <color name="key_text_color_m3_expressive_dark">#E6E0E9</color>
+    <color name="key_functional_text_color_m3_expressive_dark">#CCD0BCFF</color>
+    <color name="key_text_inactive_color_m3_expressive_dark">#80E6E0E9</color>
+    <color name="key_hint_letter_color_m3_expressive_dark">#80CCC2DC</color>
+    <color name="sliding_key_input_preview_color_m3_expressive_dark">#B3D0BCFF</color>
+    <color name="key_background_normal_m3_expressive_dark">#4A4458</color>
+    <color name="key_background_pressed_m3_expressive_dark">#6750A4</color>
+    
     <!-- Dimensions for all themes. -->
     <dimen name="button_corner_radius_lxx">4dp</dimen>
+    <dimen name="button_corner_radius_m3_expressive">20dp</dimen>
  </resources>
