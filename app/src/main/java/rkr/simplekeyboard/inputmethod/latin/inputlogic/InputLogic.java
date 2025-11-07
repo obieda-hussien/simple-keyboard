@@ -949,6 +949,9 @@ public final class InputLogic {
      * Handles suggestion selection from the suggestion strip.
      */
     public void onSuggestionSelected(String suggestion) {
+        // Check if this is a special suggestion type (clipboard, calculator, emoji)
+        boolean isSpecialSuggestion = isSpecialSuggestion(suggestion);
+        
         // Strip special prefixes from suggestions (clipboard, calculator, etc.)
         String actualText = stripSuggestionPrefix(suggestion);
         
@@ -963,13 +966,15 @@ public final class InputLogic {
             mConnection.deleteTextBeforeCursor(mCurrentWord.length());
             mConnection.commitText(actualText, 1);
             
-            // Learn from the selected suggestion
-            LocalLearningEngine learningEngine = getLearningEngine();
-            if (learningEngine != null) {
-                learningEngine.learnWord(actualText);
-                String previousContext = getPreviousContext();
-                if (!TextUtils.isEmpty(previousContext)) {
-                    learningEngine.learnFromInput(previousContext + " " + actualText);
+            // Learn from the selected suggestion (only if not special)
+            if (!isSpecialSuggestion) {
+                LocalLearningEngine learningEngine = getLearningEngine();
+                if (learningEngine != null) {
+                    learningEngine.learnWord(actualText);
+                    String previousContext = getPreviousContext();
+                    if (!TextUtils.isEmpty(previousContext)) {
+                        learningEngine.learnFromInput(previousContext + " " + actualText);
+                    }
                 }
             }
             
@@ -977,19 +982,85 @@ public final class InputLogic {
         } else {
             // Just insert the suggestion
             mConnection.commitText(actualText, 1);
-            LocalLearningEngine learningEngine = getLearningEngine();
-            if (learningEngine != null) {
-                learningEngine.learnWord(actualText);
+            
+            // Learn from the selected suggestion (only if not special)
+            if (!isSpecialSuggestion) {
+                LocalLearningEngine learningEngine = getLearningEngine();
+                if (learningEngine != null) {
+                    learningEngine.learnWord(actualText);
+                }
             }
         }
         
-        // Add space after suggestion if it's a word
-        if (actualText.matches("\\w+")) {
+        // Add space after suggestion only if it's a regular word (not special suggestions)
+        // Special suggestions (emoji, calculator, clipboard) should not auto-add space
+        if (!isSpecialSuggestion && shouldAddSpaceAfter(actualText)) {
             mConnection.commitText(" ", 1);
         }
         
         // Update suggestions after selection
         updateContextualSuggestions();
+    }
+    
+    /**
+     * Checks if a suggestion is a special type (clipboard, calculator, emoji).
+     * Special suggestions should not trigger learning or auto-spacing.
+     */
+    private boolean isSpecialSuggestion(String suggestion) {
+        if (suggestion == null) {
+            return false;
+        }
+        
+        // Check for clipboard prefix
+        if (suggestion.startsWith("📋 ")) {
+            return true;
+        }
+        
+        // Check for calculator prefix
+        if (suggestion.startsWith("= ")) {
+            return true;
+        }
+        
+        // Check if it's an emoji
+        if (rkr.simplekeyboard.inputmethod.latin.utils.EmojiUtils.isEmoji(suggestion)) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Determines if a space should be added after the inserted text.
+     * Only adds space after regular words, not after numbers, URLs, or punctuation.
+     */
+    private boolean shouldAddSpaceAfter(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        
+        // Don't add space after emojis
+        if (rkr.simplekeyboard.inputmethod.latin.utils.EmojiUtils.containsEmoji(text)) {
+            return false;
+        }
+        
+        // Don't add space after pure numbers (including decimals)
+        if (text.matches("^[0-9]+(\\.[0-9]+)?$")) {
+            return false;
+        }
+        
+        // Don't add space after punctuation
+        if (text.matches("^[.,!?;:]+$")) {
+            return false;
+        }
+        
+        // Don't add space if text ends with punctuation
+        if (text.matches(".*[.,!?;:]$")) {
+            return false;
+        }
+        
+        // Add space after regular words (letters only or mixed with numbers)
+        // But text should contain at least one letter
+        return text.matches(".*[a-zA-Z\\u0600-\\u06FF]+.*");
     }
     
     /**
