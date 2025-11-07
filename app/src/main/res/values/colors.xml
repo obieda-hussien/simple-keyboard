@@ -63,7 +63,19 @@
     <color name="key_background_normal_m3_expressive_dark">#4A4458</color>
     <color name="key_background_pressed_m3_expressive_dark">#6750A4</color>
     
+    <!-- Color resources for Universal theme (suitable for all ages). -->
+    <color name="background_universal">#3C4043</color>
+    <color name="key_text_color_universal">#FFFFFF</color>
+    <color name="key_functional_text_color_universal">#E8EAED</color>
+    <color name="key_text_inactive_color_universal">#BDC1C6</color>
+    <color name="key_hint_letter_color_universal">#9AA0A6</color>
+    <color name="language_on_spacebar_text_color_universal">#E8EAED</color>
+    <color name="sliding_key_input_preview_color_universal">#8AB4F8</color>
+    <color name="key_background_normal_universal">#5F6368</color>
+    <color name="key_background_pressed_universal">#80868B</color>
+    
     <!-- Dimensions for all themes. -->
     <dimen name="button_corner_radius_lxx">4dp</dimen>
     <dimen name="button_corner_radius_m3_expressive">20dp</dimen>
+    <dimen name="button_corner_radius_universal">12dp</dimen>
  </resources>

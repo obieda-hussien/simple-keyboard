@@ -88,6 +88,7 @@
     <string name="keyboard_theme_system_border" translatable="false">System Default Border</string>
     <string name="keyboard_theme_m3_expressive_light" translatable="false">Material 3 Expressive Light</string>
     <string name="keyboard_theme_m3_expressive_dark" translatable="false">Material 3 Expressive Dark</string>
+    <string name="keyboard_theme_universal" translatable="false">Universal</string>
 
     <!-- Title of the button to add a language in the settings dialog [CHAR LIMIT=15] -->
     <string name="add">Add</string>

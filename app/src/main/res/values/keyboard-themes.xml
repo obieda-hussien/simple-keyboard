@@ -26,6 +26,7 @@
         <item>@string/keyboard_theme_dark_border</item>
         <item>@string/keyboard_theme_m3_expressive_light</item>
         <item>@string/keyboard_theme_m3_expressive_dark</item>
+        <item>@string/keyboard_theme_universal</item>
         <item>@string/keyboard_theme_system</item>
         <item>@string/keyboard_theme_system_border</item>
     </string-array>
@@ -38,6 +39,7 @@
         <item>2</item>
         <item>7</item>
         <item>8</item>
+        <item>9</item>
         <item>5</item>
         <item>6</item>
     </integer-array>
@@ -49,6 +51,7 @@
         <item>@color/background_lxx_dark</item>
         <item>@color/background_m3_expressive_light</item>
         <item>@color/background_m3_expressive_dark</item>
+        <item>@color/background_universal</item>
         <item>@color/background_lxx_system</item>
         <item>@color/background_lxx_system</item>
     </array>
