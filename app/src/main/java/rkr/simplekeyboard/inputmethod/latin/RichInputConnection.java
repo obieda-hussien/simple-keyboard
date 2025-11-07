@@ -238,6 +238,10 @@ public final class RichInputConnection {
     public String getTextBeforeCursor() {
         return mTextBeforeCursor;
     }
+    
+    public String getTextAfterCursor() {
+        return mTextAfterCursor;
+    }
 
     public boolean canDeleteCharacters() {
         return mExpectedSelStart > 0;

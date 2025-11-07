@@ -386,6 +386,161 @@ public class LocalLearningEngine {
     }
 
     /**
+     * Gets spelling corrections and word completions for a given word.
+     * This is used for cursor-aware suggestions when the user places their cursor on an existing word.
+     * @param word The word to provide corrections and completions for
+     * @return List of suggested corrections and completions
+     */
+    public List<String> getCorrectionsAndCompletions(String word) {
+        List<String> suggestions = new ArrayList<>();
+        
+        if (TextUtils.isEmpty(word)) {
+            return suggestions;
+        }
+        
+        String cleanWord = word.trim().toLowerCase();
+        
+        // 1. First, add completions (words that start with the given word)
+        List<String> completions = getCompletions(cleanWord);
+        for (String completion : completions) {
+            if (!suggestions.contains(completion) && suggestions.size() < MAX_SUGGESTIONS) {
+                suggestions.add(completion);
+            }
+        }
+        
+        // 2. Add spelling corrections (similar words)
+        List<String> corrections = getSpellingCorrections(cleanWord);
+        for (String correction : corrections) {
+            if (!suggestions.contains(correction) && suggestions.size() < MAX_SUGGESTIONS) {
+                suggestions.add(correction);
+            }
+        }
+        
+        return suggestions;
+    }
+    
+    /**
+     * Gets word completions for a partial word.
+     */
+    private List<String> getCompletions(String partialWord) {
+        List<String> completions = new ArrayList<>();
+        
+        if (TextUtils.isEmpty(partialWord)) {
+            return completions;
+        }
+        
+        // Search in user dictionary first (higher priority)
+        Set<String> userWords = localStorage.getUserWords();
+        for (String userWord : userWords) {
+            if (userWord.toLowerCase().startsWith(partialWord) && 
+                !userWord.toLowerCase().equals(partialWord)) {
+                completions.add(userWord);
+                if (completions.size() >= 3) break; // Limit user completions
+            }
+        }
+        
+        // Search in bootstrap vocabulary for additional completions
+        List<String> bootstrapCompletions = BootstrapVocabulary.getCommonWordsForPrefix(partialWord);
+        for (String completion : bootstrapCompletions) {
+            if (!completions.contains(completion) && completions.size() < MAX_SUGGESTIONS) {
+                completions.add(completion);
+            }
+        }
+        
+        return completions;
+    }
+    
+    /**
+     * Gets spelling corrections for a potentially misspelled word.
+     */
+    private List<String> getSpellingCorrections(String word) {
+        List<String> corrections = new ArrayList<>();
+        
+        if (TextUtils.isEmpty(word) || word.length() < 2) {
+            return corrections;
+        }
+        
+        // Check user dictionary first
+        Set<String> userWords = localStorage.getUserWords();
+        for (String userWord : userWords) {
+            if (isSpellingCandidate(word, userWord)) {
+                corrections.add(userWord);
+                if (corrections.size() >= 2) break; // Limit user corrections
+            }
+        }
+        
+        // Check bootstrap vocabulary for additional corrections
+        List<String> commonWords = BootstrapVocabulary.getCommonWordsForPrefix(word.substring(0, Math.min(2, word.length())));
+        for (String commonWord : commonWords) {
+            if (isSpellingCandidate(word, commonWord) && !corrections.contains(commonWord)) {
+                corrections.add(commonWord);
+                if (corrections.size() >= MAX_SUGGESTIONS) break;
+            }
+        }
+        
+        return corrections;
+    }
+    
+    /**
+     * Determines if a word is a good spelling correction candidate.
+     * Uses simple heuristics like edit distance and common prefixes.
+     */
+    private boolean isSpellingCandidate(String original, String candidate) {
+        if (TextUtils.isEmpty(original) || TextUtils.isEmpty(candidate)) {
+            return false;
+        }
+        
+        String origLower = original.toLowerCase();
+        String candLower = candidate.toLowerCase();
+        
+        // Skip if identical
+        if (origLower.equals(candLower)) {
+            return false;
+        }
+        
+        // Skip if length difference is too large
+        int lengthDiff = Math.abs(origLower.length() - candLower.length());
+        if (lengthDiff > 2) {
+            return false;
+        }
+        
+        // Simple edit distance check (Levenshtein distance approximation)
+        int editDistance = calculateSimpleEditDistance(origLower, candLower);
+        return editDistance <= 2; // Allow up to 2 character changes
+    }
+    
+    /**
+     * Simple edit distance calculation (optimized for short words)
+     */
+    private int calculateSimpleEditDistance(String s1, String s2) {
+        int len1 = s1.length();
+        int len2 = s2.length();
+        
+        // Use a simplified approach for performance
+        if (len1 == 0) return len2;
+        if (len2 == 0) return len1;
+        
+        int[][] dp = new int[2][len2 + 1];
+        
+        for (int j = 0; j <= len2; j++) {
+            dp[0][j] = j;
+        }
+        
+        for (int i = 1; i <= len1; i++) {
+            dp[i % 2][0] = i;
+            for (int j = 1; j <= len2; j++) {
+                int cost = (s1.charAt(i - 1) == s2.charAt(j - 1)) ? 0 : 1;
+                dp[i % 2][j] = Math.min(Math.min(
+                    dp[(i - 1) % 2][j] + 1,      // deletion
+                    dp[i % 2][j - 1] + 1),       // insertion
+                    dp[(i - 1) % 2][j - 1] + cost); // substitution
+            }
+        }
+        
+        return dp[len1 % 2][len2];
+    }
+
+    /**
      * Statistics about the learning system.
      */
     public static class LearningStats {
