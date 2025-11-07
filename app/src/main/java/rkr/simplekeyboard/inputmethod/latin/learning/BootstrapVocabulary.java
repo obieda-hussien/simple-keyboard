@@ -263,77 +263,266 @@ public class BootstrapVocabulary {
     
     /**
      * Initializes the N-gram model with common word patterns.
-     * Enhanced to include single-letter words and punctuation patterns.
+     * Comprehensive training with 100+ common phrases and sentences.
      */
     public static void initializeNGramModel(NGramModel ngramModel) {
-        // Add some common English patterns with single-letter words
-        ngramModel.learnFromSentence("I am going to");
-        ngramModel.learnFromSentence("How are you");
-        ngramModel.learnFromSentence("What is your");
-        ngramModel.learnFromSentence("Thank you very much");
-        ngramModel.learnFromSentence("Have a good day");
-        ngramModel.learnFromSentence("See you later");
+        // Common English greetings and basic conversation
+        ngramModel.learnFromSentence("Hello how are you");
+        ngramModel.learnFromSentence("How are you doing");
+        ngramModel.learnFromSentence("I am fine thank you");
         ngramModel.learnFromSentence("Nice to meet you");
-        ngramModel.learnFromSentence("How do you do");
-        ngramModel.learnFromSentence("What time is it");
+        ngramModel.learnFromSentence("Good morning");
+        ngramModel.learnFromSentence("Good afternoon");
+        ngramModel.learnFromSentence("Good evening");
+        ngramModel.learnFromSentence("Good night");
+        ngramModel.learnFromSentence("See you later");
+        ngramModel.learnFromSentence("See you soon");
+        ngramModel.learnFromSentence("Have a nice day");
+        ngramModel.learnFromSentence("Have a good day");
+        ngramModel.learnFromSentence("Take care");
+        ngramModel.learnFromSentence("You are welcome");
+        ngramModel.learnFromSentence("Thank you very much");
+        ngramModel.learnFromSentence("Thanks a lot");
+        ngramModel.learnFromSentence("I appreciate it");
+        ngramModel.learnFromSentence("No problem");
+        ngramModel.learnFromSentence("I am sorry");
+        ngramModel.learnFromSentence("Excuse me");
+        
+        // Questions and answers
+        ngramModel.learnFromSentence("What is your name");
         ngramModel.learnFromSentence("Where are you from");
-        // Patterns with "a"
-        ngramModel.learnFromSentence("I have a car");
+        ngramModel.learnFromSentence("How old are you");
+        ngramModel.learnFromSentence("What do you do");
+        ngramModel.learnFromSentence("Where do you live");
+        ngramModel.learnFromSentence("What time is it");
+        ngramModel.learnFromSentence("Can you help me");
+        ngramModel.learnFromSentence("Do you speak English");
+        ngramModel.learnFromSentence("I don't understand");
+        ngramModel.learnFromSentence("Could you repeat that");
+        ngramModel.learnFromSentence("What does this mean");
+        
+        // Common statements with "a"
+        ngramModel.learnFromSentence("I have a question");
         ngramModel.learnFromSentence("This is a good idea");
         ngramModel.learnFromSentence("Once upon a time");
         ngramModel.learnFromSentence("What a beautiful day");
+        ngramModel.learnFromSentence("I have a car");
+        ngramModel.learnFromSentence("I have a problem");
+        ngramModel.learnFromSentence("That is a great");
+        ngramModel.learnFromSentence("I need a moment");
         
-        // Add some common Arabic patterns with single-letter words
-        ngramModel.learnFromSentence("كيف حالك اليوم");
-        ngramModel.learnFromSentence("أهلا وسهلا بك");
-        ngramModel.learnFromSentence("شكرا لك جزيلا");
-        ngramModel.learnFromSentence("مع السلامة");
-        ngramModel.learnFromSentence("يوم سعيد");
-        ngramModel.learnFromSentence("إن شاء الله");
+        // Common statements with "I"
+        ngramModel.learnFromSentence("I am going to");
+        ngramModel.learnFromSentence("I will be there");
+        ngramModel.learnFromSentence("I can do it");
+        ngramModel.learnFromSentence("I don't know");
+        ngramModel.learnFromSentence("I think so");
+        ngramModel.learnFromSentence("I hope so");
+        ngramModel.learnFromSentence("I see");
+        ngramModel.learnFromSentence("I understand");
+        ngramModel.learnFromSentence("I agree");
+        
+        // Common phrases
+        ngramModel.learnFromSentence("Let me know");
+        ngramModel.learnFromSentence("Let me see");
+        ngramModel.learnFromSentence("Let me think");
+        ngramModel.learnFromSentence("I would like to");
+        ngramModel.learnFromSentence("I want to go");
+        ngramModel.learnFromSentence("I need to go");
+        ngramModel.learnFromSentence("I have to go");
+        ngramModel.learnFromSentence("It is time to");
+        ngramModel.learnFromSentence("It is nice to");
+        
+        // Arabic greetings and basic conversation
+        ngramModel.learnFromSentence("السلام عليكم");
+        ngramModel.learnFromSentence("وعليكم السلام");
+        ngramModel.learnFromSentence("صباح الخير");
+        ngramModel.learnFromSentence("مساء الخير");
+        ngramModel.learnFromSentence("تصبح على خير");
+        ngramModel.learnFromSentence("كيف حالك");
         ngramModel.learnFromSentence("الحمد لله");
-        ngramModel.learnFromSentence("ما شاء الله");
-        // Patterns with "و" (and)
+        ngramModel.learnFromSentence("أنا بخير");
+        ngramModel.learnFromSentence("شكرا لك");
+        ngramModel.learnFromSentence("شكرا جزيلا");
+        ngramModel.learnFromSentence("عفوا");
+        ngramModel.learnFromSentence("من فضلك");
+        ngramModel.learnFromSentence("لو سمحت");
+        ngramModel.learnFromSentence("آسف");
+        ngramModel.learnFromSentence("مع السلامة");
+        ngramModel.learnFromSentence("إلى اللقاء");
+        ngramModel.learnFromSentence("أهلا وسهلا");
+        ngramModel.learnFromSentence("أهلا بك");
+        ngramModel.learnFromSentence("مرحبا بك");
+        ngramModel.learnFromSentence("تشرفنا");
+        
+        // Arabic questions
+        ngramModel.learnFromSentence("ما اسمك");
+        ngramModel.learnFromSentence("من أين أنت");
+        ngramModel.learnFromSentence("كم عمرك");
+        ngramModel.learnFromSentence("أين تسكن");
+        ngramModel.learnFromSentence("ماذا تعمل");
+        ngramModel.learnFromSentence("كم الساعة");
+        ngramModel.learnFromSentence("هل تتكلم العربية");
+        ngramModel.learnFromSentence("ما معنى هذا");
+        ngramModel.learnFromSentence("كيف أصل إلى");
+        
+        // Arabic common expressions with "و"
         ngramModel.learnFromSentence("أنا و أنت");
         ngramModel.learnFromSentence("الأب و الأم");
+        ngramModel.learnFromSentence("الأخ و الأخت");
         ngramModel.learnFromSentence("القراءة و الكتابة");
-        ngramModel.learnFromSentence("صباح الخير و مساء الخير");
+        ngramModel.learnFromSentence("العلم و المعرفة");
+        ngramModel.learnFromSentence("الحق و الباطل");
+        ngramModel.learnFromSentence("الخير و الشر");
         
-        // Common punctuation patterns
+        // Arabic common statements
+        ngramModel.learnFromSentence("إن شاء الله");
+        ngramModel.learnFromSentence("ما شاء الله");
+        ngramModel.learnFromSentence("الله أكبر");
+        ngramModel.learnFromSentence("سبحان الله");
+        ngramModel.learnFromSentence("استغفر الله");
+        ngramModel.learnFromSentence("بسم الله");
+        ngramModel.learnFromSentence("الله يرحمه");
+        ngramModel.learnFromSentence("الله يحفظك");
+        ngramModel.learnFromSentence("أنا أريد أن");
+        ngramModel.learnFromSentence("أنا أحب أن");
+        ngramModel.learnFromSentence("أنا لا أعرف");
+        ngramModel.learnFromSentence("أنا لا أفهم");
+        ngramModel.learnFromSentence("أنا أفهم");
+        ngramModel.learnFromSentence("أنا موافق");
+        
+        // Punctuation patterns (English)
         ngramModel.learnFromSentence("Hello, how are you?");
         ngramModel.learnFromSentence("Yes, I agree.");
         ngramModel.learnFromSentence("What time is it?");
         ngramModel.learnFromSentence("That's great!");
         ngramModel.learnFromSentence("I think so.");
         ngramModel.learnFromSentence("Please, help me.");
+        ngramModel.learnFromSentence("No, thank you.");
+        ngramModel.learnFromSentence("Are you sure?");
+        ngramModel.learnFromSentence("I don't think so.");
+        
+        // Punctuation patterns (Arabic)
+        ngramModel.learnFromSentence("نعم، أنا موافق.");
+        ngramModel.learnFromSentence("ما رأيك؟");
+        ngramModel.learnFromSentence("هذا رائع!");
+        ngramModel.learnFromSentence("لا، شكرا.");
+        ngramModel.learnFromSentence("هل أنت متأكد؟");
     }
     
     /**
      * Gets common words for the given prefix.
-     * Enhanced to support single-letter words and Arabic.
+     * Comprehensive prefix matching for English and Arabic.
      */
     public static List<String> getCommonWordsForPrefix(String prefix) {
         if (prefix == null || prefix.isEmpty()) {
-            return Arrays.asList("the", "and", "for", "you", "are", "I", "a", "و");
+            return Arrays.asList("the", "and", "I", "you", "to", "a", "is", "it", "of", "in", "و", "في", "من");
         }
         
-        prefix = prefix.toLowerCase();
+        String lowerPrefix = prefix.toLowerCase();
         
-        // Single letter suggestions
-        if (prefix.equals("a")) {
-            return Arrays.asList("a", "and", "are", "all", "also", "about");
-        } else if (prefix.equals("i")) {
-            return Arrays.asList("I", "is", "in", "it", "if");
-        } else if (prefix.equals("و")) {
-            return Arrays.asList("و", "وهو", "وهي", "ولكن", "وقد");
+        // English single letter suggestions
+        if (lowerPrefix.equals("a")) {
+            return Arrays.asList("a", "and", "are", "as", "at", "an", "all", "also", "about", "after", "again");
+        } else if (lowerPrefix.equals("i")) {
+            return Arrays.asList("I", "is", "in", "it", "if", "into", "I'm");
+        } else if (lowerPrefix.equals("t")) {
+            return Arrays.asList("the", "to", "that", "this", "they", "there", "then", "than", "them");
+        } else if (lowerPrefix.equals("w")) {
+            return Arrays.asList("with", "was", "we", "will", "what", "when", "where", "which", "who", "would");
+        } else if (lowerPrefix.equals("h")) {
+            return Arrays.asList("have", "has", "had", "he", "his", "her", "how", "here", "home");
+        } else if (lowerPrefix.equals("b")) {
+            return Arrays.asList("be", "but", "by", "been", "being", "before", "back", "because");
+        } else if (lowerPrefix.equals("f")) {
+            return Arrays.asList("for", "from", "first", "find", "found", "feel", "friend");
+        } else if (lowerPrefix.equals("s")) {
+            return Arrays.asList("so", "see", "said", "she", "should", "some", "say", "same", "still");
+        } else if (lowerPrefix.equals("c")) {
+            return Arrays.asList("can", "could", "come", "came", "call", "called", "car");
+        } else if (lowerPrefix.equals("d")) {
+            return Arrays.asList("do", "does", "did", "done", "don't", "day", "down");
+        } else if (lowerPrefix.equals("m")) {
+            return Arrays.asList("make", "made", "may", "me", "my", "more", "most", "much", "man");
+        } else if (lowerPrefix.equals("p")) {
+            return Arrays.asList("people", "place", "please", "put", "play", "point");
+        } else if (lowerPrefix.equals("y")) {
+            return Arrays.asList("you", "your", "you're", "year", "yes", "yet", "young");
+        } else if (lowerPrefix.equals("g")) {
+            return Arrays.asList("go", "good", "get", "got", "give", "great", "gone");
+        } else if (lowerPrefix.equals("n")) {
+            return Arrays.asList("not", "no", "now", "new", "never", "need", "next", "name");
+        } else if (lowerPrefix.equals("l")) {
+            return Arrays.asList("like", "look", "last", "long", "little", "life", "leave");
+        } else if (lowerPrefix.equals("o")) {
+            return Arrays.asList("of", "on", "or", "one", "only", "out", "over", "other", "old");
+        } else if (lowerPrefix.equals("r")) {
+            return Arrays.asList("right", "really", "run", "room", "read");
         }
         
-        // Simple prefix matching for common words
-        if (prefix.startsWith("th")) {
-            return Arrays.asList("the", "this", "that", "they", "there");
-        } else if (prefix.startsWith("w")) {
-            return Arrays.asList("what", "when", "where", "with", "would");
-        } else if (prefix.startsWith("h")) {
-            return Arrays.asList("how", "have", "has", "here", "home");
+        // Arabic single letter and short word suggestions
+        if (prefix.equals("و")) {
+            return Arrays.asList("و", "وهو", "وهي", "ولكن", "وقد", "ولا", "وما", "ومن", "وإن");
+        } else if (prefix.equals("أ")) {
+            return Arrays.asList("أ", "أن", "أنا", "أنت", "أو", "أي", "أين", "أيضا", "أيضاً");
+        } else if (prefix.equals("ب")) {
+            return Arrays.asList("ب", "بعد", "بين", "بل", "بك", "به", "بها", "بهم");
+        } else if (prefix.equals("ف")) {
+            return Arrays.asList("ف", "في", "فهو", "فهي", "فإن", "فلا", "فقد");
+        } else if (prefix.equals("ل")) {
+            return Arrays.asList("ل", "لا", "له", "لها", "لهم", "لم", "لن", "لكن", "ليس");
+        } else if (prefix.equals("ك")) {
+            return Arrays.asList("ك", "كان", "كل", "كيف", "كما", "كثير");
+        } else if (prefix.equals("م")) {
+            return Arrays.asList("ما", "من", "مع", "متى", "ماذا", "مثل");
+        } else if (prefix.equals("ه")) {
+            return Arrays.asList("هذا", "هذه", "هل", "هنا", "هناك", "هو", "هي", "هم", "هن");
+        } else if (prefix.equals("ع")) {
+            return Arrays.asList("على", "عن", "عند", "عليه", "عليها");
+        } else if (prefix.equals("إ")) {
+            return Arrays.asList("إلى", "إن", "إذا", "إنه", "إنها");
+        }
+        
+        // English multi-letter prefix matching
+        if (lowerPrefix.startsWith("th")) {
+            return Arrays.asList("the", "this", "that", "they", "there", "then", "their", "them", "these", "those", "think", "thing");
+        } else if (lowerPrefix.startsWith("wh")) {
+            return Arrays.asList("what", "when", "where", "which", "who", "why", "while");
+        } else if (lowerPrefix.startsWith("ca")) {
+            return Arrays.asList("can", "call", "came", "called", "car", "case", "care");
+        } else if (lowerPrefix.startsWith("ha")) {
+            return Arrays.asList("have", "has", "had", "have", "hand", "happen", "happy");
+        } else if (lowerPrefix.startsWith("ab")) {
+            return Arrays.asList("about", "above", "able");
+        } else if (lowerPrefix.startsWith("be")) {
+            return Arrays.asList("be", "because", "been", "before", "being", "believe", "best", "better", "between");
+        } else if (lowerPrefix.startsWith("go")) {
+            return Arrays.asList("go", "good", "going", "gone", "got", "government");
+        } else if (lowerPrefix.startsWith("ti")) {
+            return Arrays.asList("time", "think", "thing");
+        } else if (lowerPrefix.startsWith("pe")) {
+            return Arrays.asList("people", "person");
+        } else if (lowerPrefix.startsWith("wo")) {
+            return Arrays.asList("work", "would", "world", "word");
+        }
+        
+        // Arabic multi-letter prefix matching
+        if (prefix.startsWith("ال")) {
+            return Arrays.asList("الذي", "التي", "الله", "الآن", "اليوم", "الحمد", "السلام");
+        } else if (prefix.startsWith("كي")) {
+            return Arrays.asList("كيف", "كيفية");
+        } else if (prefix.startsWith("ما")) {
+            return Arrays.asList("ما", "ماذا", "مالك", "ماله");
+        } else if (prefix.startsWith("أن")) {
+            return Arrays.asList("أنا", "أنت", "أنتم", "أنه", "أنها");
+        } else if (prefix.startsWith("إن")) {
+            return Arrays.asList("إن", "إنه", "إنها", "إنهم");
+        } else if (prefix.startsWith("صب")) {
+            return Arrays.asList("صباح", "صبر");
+        } else if (prefix.startsWith("مس")) {
+            return Arrays.asList("مساء", "مسجد", "مستشفى");
+        } else if (prefix.startsWith("شك")) {
+            return Arrays.asList("شكرا", "شكراً");
         }
         
         return Arrays.asList();
