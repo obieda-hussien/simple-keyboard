@@ -4,11 +4,11 @@ plugins {
 
 android {
     namespace = 'rkr.simplekeyboard.inputmethod' // هذا السطر ضروري
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "rkr.simplekeyboard.inputmethod"
-        minSdkVersion = 19
+        minSdkVersion = 21
         targetSdkVersion = 34
         versionCode = 132
         versionName = "5.36"
@@ -39,6 +39,9 @@ dependencies {
     
     // AndroidX Core for ContextCompat and permission handling
     implementation 'androidx.core:core:1.12.0'
+    
+    // Material 3 components for expressive themes
+    implementation 'com.google.android.material:material:1.14.0-alpha06'
     
     // Math expression parser for advanced calculator
     implementation 'net.objecthunter:exp4j:0.4.8'

@@ -79,27 +79,27 @@ public final class ThemeManager {
     private void loadThemeColors() {
         // Get the current keyboard theme to determine defaults
         KeyboardTheme currentTheme = KeyboardTheme.getKeyboardTheme(mContext);
-        boolean isDarkTheme = isDarkTheme(currentTheme);
+        int themeId = currentTheme.mThemeId;
         
         // Load colors from preferences with theme-appropriate defaults
         mBackgroundColor = mPrefs.getInt(PREF_KEY_BACKGROUND_COLOR, 
-            getDefaultBackgroundColor(isDarkTheme));
+            getDefaultBackgroundColor(themeId));
         mKeyTextColor = mPrefs.getInt(PREF_KEY_TEXT_COLOR, 
-            getDefaultKeyTextColor(isDarkTheme));
+            getDefaultKeyTextColor(themeId));
         mAccentColor = mPrefs.getInt(PREF_KEY_ACCENT_COLOR, 
-            getDefaultAccentColor(isDarkTheme));
+            getDefaultAccentColor(themeId));
         mFunctionalTextColor = mPrefs.getInt(PREF_KEY_FUNCTIONAL_TEXT_COLOR, 
-            getDefaultFunctionalTextColor(isDarkTheme));
+            getDefaultFunctionalTextColor(themeId));
         mKeyPressedColor = mPrefs.getInt(PREF_KEY_PRESSED_COLOR, 
-            getDefaultKeyPressedColor(isDarkTheme));
+            getDefaultKeyPressedColor(themeId));
         mTopBarBackgroundColor = mPrefs.getInt(PREF_TOP_BAR_BACKGROUND_COLOR, 
-            getDefaultTopBarBackgroundColor(isDarkTheme));
+            getDefaultTopBarBackgroundColor(themeId));
         mSuggestionTextColor = mPrefs.getInt(PREF_SUGGESTION_TEXT_COLOR, 
-            getDefaultSuggestionTextColor(isDarkTheme));
+            getDefaultSuggestionTextColor(themeId));
         mIconTintColor = mPrefs.getInt(PREF_ICON_TINT_COLOR, 
-            getDefaultIconTintColor(isDarkTheme));
+            getDefaultIconTintColor(themeId));
             
-        Log.d(TAG, "Theme colors loaded - isDark: " + isDarkTheme);
+        Log.d(TAG, "Theme colors loaded - themeId: " + themeId);
     }
     
     /**
@@ -116,6 +116,8 @@ public final class ThemeManager {
         int themeId = theme.mThemeId;
         return themeId == KeyboardTheme.THEME_ID_DARK || 
                themeId == KeyboardTheme.THEME_ID_DARK_BORDER ||
+               themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_DARK ||
+               themeId == KeyboardTheme.THEME_ID_UNIVERSAL ||
                (themeId == KeyboardTheme.THEME_ID_SYSTEM && isSystemDarkTheme()) ||
                (themeId == KeyboardTheme.THEME_ID_SYSTEM_BORDER && isSystemDarkTheme());
     }
@@ -130,36 +132,113 @@ public final class ThemeManager {
     }
     
     // Default color getters based on theme
-    private int getDefaultBackgroundColor(boolean isDark) {
+    private int getDefaultBackgroundColor(int themeId) {
+        if (themeId == KeyboardTheme.THEME_ID_UNIVERSAL) {
+            return Color.parseColor("#2D2F31"); // Universal darker gray for better contrast
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_LIGHT) {
+            return Color.parseColor("#FEF7FF"); // M3 light purple tint
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_DARK) {
+            return Color.parseColor("#1D192B"); // M3 dark purple
+        }
+        // Check if it's a dark theme
+        boolean isDark = isThemeIdDark(themeId);
         return isDark ? Color.parseColor("#263238") : Color.parseColor("#ECEFF1");
     }
     
-    private int getDefaultKeyTextColor(boolean isDark) {
+    private int getDefaultKeyTextColor(int themeId) {
+        if (themeId == KeyboardTheme.THEME_ID_UNIVERSAL) {
+            return Color.parseColor("#FFFFFF"); // Universal white text
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_LIGHT) {
+            return Color.parseColor("#1D192B"); // M3 light dark text
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_DARK) {
+            return Color.parseColor("#E6E0E9"); // M3 dark light text
+        }
+        boolean isDark = isThemeIdDark(themeId);
         return isDark ? Color.parseColor("#CCFFFFFF") : Color.parseColor("#37474F");
     }
     
-    private int getDefaultAccentColor(boolean isDark) {
+    private int getDefaultAccentColor(int themeId) {
+        if (themeId == KeyboardTheme.THEME_ID_UNIVERSAL) {
+            return Color.parseColor("#8AB4F8"); // Universal blue accent
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_LIGHT) {
+            return Color.parseColor("#6750A4"); // M3 light purple accent
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_DARK) {
+            return Color.parseColor("#D0BCFF"); // M3 dark purple accent
+        }
+        boolean isDark = isThemeIdDark(themeId);
         return isDark ? Color.parseColor("#4DB6AC") : Color.parseColor("#2196F3");
     }
     
-    private int getDefaultFunctionalTextColor(boolean isDark) {
+    private int getDefaultFunctionalTextColor(int themeId) {
+        if (themeId == KeyboardTheme.THEME_ID_UNIVERSAL) {
+            return Color.parseColor("#E8EAED"); // Universal light gray
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_LIGHT) {
+            return Color.parseColor("#CC6750A4"); // M3 light purple functional
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_DARK) {
+            return Color.parseColor("#CCD0BCFF"); // M3 dark purple functional
+        }
+        boolean isDark = isThemeIdDark(themeId);
         return isDark ? Color.parseColor("#CCFFFFFF") : Color.parseColor("#CC37474F");
     }
     
-    private int getDefaultKeyPressedColor(boolean isDark) {
+    private int getDefaultKeyPressedColor(int themeId) {
+        if (themeId == KeyboardTheme.THEME_ID_UNIVERSAL) {
+            return Color.parseColor("#80868B"); // Universal lighter gray
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_LIGHT) {
+            return Color.parseColor("#D0BCFF"); // M3 light purple pressed
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_DARK) {
+            return Color.parseColor("#6750A4"); // M3 dark purple pressed
+        }
+        boolean isDark = isThemeIdDark(themeId);
         return isDark ? Color.parseColor("#19FFFFFF") : Color.parseColor("#2637474F");
     }
     
-    private int getDefaultTopBarBackgroundColor(boolean isDark) {
+    private int getDefaultTopBarBackgroundColor(int themeId) {
+        if (themeId == KeyboardTheme.THEME_ID_UNIVERSAL) {
+            return Color.parseColor("#5F6368"); // Universal medium gray (matches keys)
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_LIGHT) {
+            return Color.parseColor("#E8DEF8"); // M3 light purple background
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_DARK) {
+            return Color.parseColor("#4A4458"); // M3 dark purple background
+        }
+        boolean isDark = isThemeIdDark(themeId);
         return isDark ? Color.parseColor("#37474F") : Color.parseColor("#FAFAFA");
     }
     
-    private int getDefaultSuggestionTextColor(boolean isDark) {
+    private int getDefaultSuggestionTextColor(int themeId) {
+        if (themeId == KeyboardTheme.THEME_ID_UNIVERSAL) {
+            return Color.parseColor("#FFFFFF"); // Universal white text
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_LIGHT) {
+            return Color.parseColor("#1D192B"); // M3 light dark text
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_DARK) {
+            return Color.parseColor("#E6E0E9"); // M3 dark light text
+        }
+        boolean isDark = isThemeIdDark(themeId);
         return isDark ? Color.parseColor("#FFFFFF") : Color.parseColor("#37474F");
     }
     
-    private int getDefaultIconTintColor(boolean isDark) {
+    private int getDefaultIconTintColor(int themeId) {
+        if (themeId == KeyboardTheme.THEME_ID_UNIVERSAL) {
+            return Color.parseColor("#BDC1C6"); // Universal light gray
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_LIGHT) {
+            return Color.parseColor("#B37E5260"); // M3 light gray-purple
+        } else if (themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_DARK) {
+            return Color.parseColor("#80CCC2DC"); // M3 dark light purple
+        }
+        boolean isDark = isThemeIdDark(themeId);
         return isDark ? Color.parseColor("#CCFFFFFF") : Color.parseColor("#757575");
+    }
+    
+    /**
+     * Helper method to check if a theme ID is dark-based (without needing the theme object).
+     */
+    private boolean isThemeIdDark(int themeId) {
+        return themeId == KeyboardTheme.THEME_ID_DARK || 
+               themeId == KeyboardTheme.THEME_ID_DARK_BORDER ||
+               themeId == KeyboardTheme.THEME_ID_M3_EXPRESSIVE_DARK ||
+               themeId == KeyboardTheme.THEME_ID_UNIVERSAL ||
+               (themeId == KeyboardTheme.THEME_ID_SYSTEM && isSystemDarkTheme()) ||
+               (themeId == KeyboardTheme.THEME_ID_SYSTEM_BORDER && isSystemDarkTheme());
     }
     
     // Public color getters
