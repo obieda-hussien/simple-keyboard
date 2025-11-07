@@ -34,12 +34,12 @@ public final class ViewLayoutUtils {
 
     public static MarginLayoutParams newLayoutParam(final ViewGroup placer, final int width,
             final int height) {
-        if (placer instanceof FrameLayout) {
+        if (placer == null) {
+            throw new IllegalArgumentException("placer is null");
+        } else if (placer instanceof FrameLayout) {
             return new FrameLayout.LayoutParams(width, height);
         } else if (placer instanceof RelativeLayout) {
             return new RelativeLayout.LayoutParams(width, height);
-        } else if (placer == null) {
-            throw new NullPointerException("placer is null");
         } else {
             throw new IllegalArgumentException("placer is neither FrameLayout nor RelativeLayout: "
                     + placer.getClass().getName());
@@ -53,7 +53,7 @@ public final class ViewLayoutUtils {
             final MarginLayoutParams marginLayoutParams = (MarginLayoutParams)lp;
             marginLayoutParams.width = w;
             marginLayoutParams.height = h;
-            marginLayoutParams.setMargins(x, y, -50, 0);
+            marginLayoutParams.setMargins(x, y, 0, 0);
         }
     }
 

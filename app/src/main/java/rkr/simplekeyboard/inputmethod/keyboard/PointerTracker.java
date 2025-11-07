@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import rkr.simplekeyboard.inputmethod.R;
 import rkr.simplekeyboard.inputmethod.keyboard.internal.BogusMoveEventDetector;
 import rkr.simplekeyboard.inputmethod.keyboard.internal.DrawingProxy;
+import rkr.simplekeyboard.inputmethod.keyboard.internal.MoreKeySpec;
 import rkr.simplekeyboard.inputmethod.keyboard.internal.PointerTrackerQueue;
 import rkr.simplekeyboard.inputmethod.keyboard.internal.TimerProxy;
 import rkr.simplekeyboard.inputmethod.latin.common.Constants;
@@ -751,11 +752,14 @@ public final class PointerTracker implements PointerTrackerQueue.Element {
         }
         if (key.hasNoPanelAutoMoreKey()) {
             cancelKeyTracking();
-            final int moreKeyCode = key.getMoreKeys()[0].mCode;
-            sListener.onPressKey(moreKeyCode, 0 /* repeatCont */, true /* isSinglePointer */);
-            sListener.onCodeInput(moreKeyCode, Constants.NOT_A_COORDINATE,
-                    Constants.NOT_A_COORDINATE, false /* isKeyRepeat */);
-            sListener.onReleaseKey(moreKeyCode, false /* withSliding */);
+            final MoreKeySpec[] moreKeys = key.getMoreKeys();
+            if (moreKeys != null && moreKeys.length > 0) {
+                final int moreKeyCode = moreKeys[0].mCode;
+                sListener.onPressKey(moreKeyCode, 0 /* repeatCont */, true /* isSinglePointer */);
+                sListener.onCodeInput(moreKeyCode, Constants.NOT_A_COORDINATE,
+                        Constants.NOT_A_COORDINATE, false /* isKeyRepeat */);
+                sListener.onReleaseKey(moreKeyCode, false /* withSliding */);
+            }
             return;
         }
         final int code = key.getCode();

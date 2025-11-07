@@ -915,7 +915,8 @@ public final class InputLogic {
                 return context;
             }
         } catch (Exception e) {
-            // Ignore errors and return empty context
+            // Log error but continue with empty context to prevent crash
+            android.util.Log.w("InputLogic", "Error extracting context: " + e.getMessage());
         }
         return "";
     }
@@ -948,44 +949,184 @@ public final class InputLogic {
      * Handles suggestion selection from the suggestion strip.
      */
     public void onSuggestionSelected(String suggestion) {
+        // Check if this is a special suggestion type (clipboard, calculator, emoji)
+        boolean isSpecialSuggestion = isSpecialSuggestion(suggestion);
+        
+        // For clipboard suggestions, get the full clipboard content instead of the truncated display text
+        String actualText;
+        if (suggestion != null && suggestion.startsWith("📋 ")) {
+            // Get full clipboard content for pasting (not the truncated preview)
+            actualText = getFullClipboardText();
+            if (actualText == null) {
+                // Fallback to stripped suggestion if clipboard is no longer available
+                actualText = stripSuggestionPrefix(suggestion);
+            }
+        } else {
+            // Strip special prefixes from suggestions (calculator, etc.)
+            actualText = stripSuggestionPrefix(suggestion);
+        }
+        
         // First check if we're replacing a word at cursor position
         WordAtCursorInfo wordAtCursor = findWordAtCursor();
         
         if (wordAtCursor != null) {
             // Replace word at cursor position
-            replaceWordAtCursor(wordAtCursor, suggestion);
+            replaceWordAtCursor(wordAtCursor, actualText);
         } else if (mCurrentWord.length() > 0) {
             // Replace current word with suggestion (existing behavior)
             mConnection.deleteTextBeforeCursor(mCurrentWord.length());
-            mConnection.commitText(suggestion, 1);
+            mConnection.commitText(actualText, 1);
             
-            // Learn from the selected suggestion
-            LocalLearningEngine learningEngine = getLearningEngine();
-            if (learningEngine != null) {
-                learningEngine.learnWord(suggestion);
-                String previousContext = getPreviousContext();
-                if (!TextUtils.isEmpty(previousContext)) {
-                    learningEngine.learnFromInput(previousContext + " " + suggestion);
+            // Learn from the selected suggestion (only if not special)
+            if (!isSpecialSuggestion) {
+                LocalLearningEngine learningEngine = getLearningEngine();
+                if (learningEngine != null) {
+                    learningEngine.learnWord(actualText);
+                    String previousContext = getPreviousContext();
+                    if (!TextUtils.isEmpty(previousContext)) {
+                        learningEngine.learnFromInput(previousContext + " " + actualText);
+                    }
                 }
             }
             
             mCurrentWord.setLength(0);
         } else {
             // Just insert the suggestion
-            mConnection.commitText(suggestion, 1);
-            LocalLearningEngine learningEngine = getLearningEngine();
-            if (learningEngine != null) {
-                learningEngine.learnWord(suggestion);
+            mConnection.commitText(actualText, 1);
+            
+            // Learn from the selected suggestion (only if not special)
+            if (!isSpecialSuggestion) {
+                LocalLearningEngine learningEngine = getLearningEngine();
+                if (learningEngine != null) {
+                    learningEngine.learnWord(actualText);
+                }
             }
         }
         
-        // Add space after suggestion if it's a word
-        if (suggestion.matches("\\w+")) {
+        // Add space after suggestion only if it's a regular word (not special suggestions)
+        // Special suggestions (emoji, calculator, clipboard) should not auto-add space
+        if (!isSpecialSuggestion && shouldAddSpaceAfter(actualText)) {
             mConnection.commitText(" ", 1);
         }
         
         // Update suggestions after selection
         updateContextualSuggestions();
+    }
+    
+    /**
+     * Gets the full clipboard text without any truncation.
+     * This is used when pasting clipboard suggestions to ensure the complete content is inserted.
+     */
+    private String getFullClipboardText() {
+        if (mLatinIME == null) {
+            return null;
+        }
+        
+        android.content.ClipboardManager clipboardManager = 
+            (android.content.ClipboardManager) mLatinIME.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+        
+        if (clipboardManager == null || !clipboardManager.hasPrimaryClip()) {
+            return null;
+        }
+        
+        android.content.ClipData clipData = clipboardManager.getPrimaryClip();
+        if (clipData == null || clipData.getItemCount() == 0) {
+            return null;
+        }
+        
+        android.content.ClipData.Item item = clipData.getItemAt(0);
+        CharSequence text = item.getText();
+        
+        if (TextUtils.isEmpty(text)) {
+            return null;
+        }
+        
+        // Return the FULL text without any truncation
+        return text.toString();
+    }
+    
+    /**
+     * Checks if a suggestion is a special type (clipboard, calculator, emoji).
+     * Special suggestions should not trigger learning or auto-spacing.
+     */
+    private boolean isSpecialSuggestion(String suggestion) {
+        if (suggestion == null) {
+            return false;
+        }
+        
+        // Check for clipboard prefix
+        if (suggestion.startsWith("📋 ")) {
+            return true;
+        }
+        
+        // Check for calculator prefix
+        if (suggestion.startsWith("= ")) {
+            return true;
+        }
+        
+        // Check if it's an emoji
+        if (rkr.simplekeyboard.inputmethod.latin.utils.EmojiUtils.isEmoji(suggestion)) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Determines if a space should be added after the inserted text.
+     * Only adds space after regular words, not after numbers, URLs, or punctuation.
+     */
+    private boolean shouldAddSpaceAfter(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        
+        // Don't add space after emojis
+        if (rkr.simplekeyboard.inputmethod.latin.utils.EmojiUtils.containsEmoji(text)) {
+            return false;
+        }
+        
+        // Don't add space after pure numbers (including decimals)
+        if (text.matches("^[0-9]+(\\.[0-9]+)?$")) {
+            return false;
+        }
+        
+        // Don't add space after punctuation
+        if (text.matches("^[.,!?;:]+$")) {
+            return false;
+        }
+        
+        // Don't add space if text ends with punctuation
+        if (text.matches(".*[.,!?;:]$")) {
+            return false;
+        }
+        
+        // Add space after regular words (letters only or mixed with numbers)
+        // But text should contain at least one letter
+        return text.matches(".*[a-zA-Z\\u0600-\\u06FF]+.*");
+    }
+    
+    /**
+     * Strips special prefixes from suggestions (e.g., clipboard icon, calculator equals sign).
+     * This ensures that when users select these suggestions, only the actual content is inserted.
+     */
+    private String stripSuggestionPrefix(String suggestion) {
+        if (suggestion == null) {
+            return "";
+        }
+        
+        // Strip clipboard prefix "📋 "
+        if (suggestion.startsWith("📋 ")) {
+            return suggestion.substring(2).trim();
+        }
+        
+        // Strip calculator prefix "= "
+        if (suggestion.startsWith("= ")) {
+            return suggestion.substring(2).trim();
+        }
+        
+        // Return original if no prefix found
+        return suggestion;
     }
     
     /**
