@@ -35,7 +35,7 @@ public final class ViewLayoutUtils {
     public static MarginLayoutParams newLayoutParam(final ViewGroup placer, final int width,
             final int height) {
         if (placer == null) {
-            throw new NullPointerException("placer is null");
+            throw new IllegalArgumentException("placer is null");
         } else if (placer instanceof FrameLayout) {
             return new FrameLayout.LayoutParams(width, height);
         } else if (placer instanceof RelativeLayout) {

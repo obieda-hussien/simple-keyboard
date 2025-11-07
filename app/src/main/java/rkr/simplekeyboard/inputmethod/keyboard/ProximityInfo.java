@@ -17,6 +17,7 @@
 package rkr.simplekeyboard.inputmethod.keyboard;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -63,9 +64,7 @@ public class ProximityInfo {
         // Guard against division by zero
         if (mCellWidth == 0 || mCellHeight == 0) {
             // Initialize with empty lists if cell dimensions are invalid
-            for (int i = 0; i < gridSize; i++) {
-                mGridNeighbors[i] = EMPTY_KEY_LIST;
-            }
+            Arrays.fill(mGridNeighbors, EMPTY_KEY_LIST);
             return;
         }
 
