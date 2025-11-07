@@ -58,6 +58,7 @@
     <color name="key_functional_text_color_m3_expressive_dark">#CCD0BCFF</color>
     <color name="key_text_inactive_color_m3_expressive_dark">#80E6E0E9</color>
     <color name="key_hint_letter_color_m3_expressive_dark">#80CCC2DC</color>
+    <color name="language_on_spacebar_text_color_m3_expressive_dark">#B3E6E0E9</color>
     <color name="sliding_key_input_preview_color_m3_expressive_dark">#B3D0BCFF</color>
     <color name="key_background_normal_m3_expressive_dark">#4A4458</color>
     <color name="key_background_pressed_m3_expressive_dark">#6750A4</color>
