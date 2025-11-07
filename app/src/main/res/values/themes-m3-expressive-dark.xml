@@ -31,7 +31,6 @@
         name="InputView.M3_Expressive_Dark"
         parent="InputView"
     >
-        <item name="android:background">@color/background_m3_expressive_dark</item>
     </style>
     <style
         name="Keyboard.M3_Expressive_Dark"

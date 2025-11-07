@@ -31,7 +31,6 @@
         name="InputView.Universal"
         parent="InputView"
     >
-        <item name="android:background">@color/background_universal</item>
     </style>
     <style
         name="Keyboard.Universal"
