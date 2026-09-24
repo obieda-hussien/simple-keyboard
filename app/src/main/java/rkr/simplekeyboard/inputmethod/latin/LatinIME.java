@@ -106,6 +106,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     private boolean mForcedToolbarMode = false;
     private boolean mShowingAutofill = false;
     private int mAutofillGeneration = 0;
+    private int mEditorGeneration = 0;
     private android.widget.LinearLayout mInlineAutofillBar;
 
     private RichInputMethodManager mRichImm;
@@ -485,6 +486,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     void onStartInputInternal(final EditorInfo editorInfo, final boolean restarting) {
         super.onStartInput(editorInfo, restarting);
+        mEditorGeneration++;
         mAutofillGeneration++;
         mShowingAutofill = false;
         mForcedToolbarMode = false;
@@ -609,6 +611,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     void onFinishInputInternal() {
         if (mInputLogic != null) mInputLogic.finishInput();
         super.onFinishInput();
+        mEditorGeneration++;
         mAutofillGeneration++;
         mShowingAutofill = false;
         if (mInlineAutofillBar != null) mInlineAutofillBar.removeAllViews();
@@ -636,12 +639,18 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         final MainKeyboardView keyboardView = mKeyboardSwitcher.getMainKeyboardView();
         if (keyboardView != null && keyboardView.isInCursorMove()) return;
         if (mInputLogic != null) {
-            mInputLogic.reloadTextCache();
             mInputLogic.onUpdateSelection(newSelStart, newSelEnd);
-            if (isInputViewShown()) {
-                mKeyboardSwitcher.requestUpdatingShiftState(getCurrentAutoCapsState(),
-                        getCurrentRecapitalizeState());
-            }
+            final int editorGeneration = mEditorGeneration;
+            mInputLogic.reloadTextCache(() -> {
+                if (editorGeneration != mEditorGeneration || mInputLogic == null) return;
+                if (mInputLogic.mConnection.getExpectedSelectionStart() != newSelStart
+                        || mInputLogic.mConnection.getExpectedSelectionEnd() != newSelEnd) return;
+                mInputLogic.refreshCursorSuggestions();
+                if (isInputViewShown()) {
+                    mKeyboardSwitcher.requestUpdatingShiftState(getCurrentAutoCapsState(),
+                            getCurrentRecapitalizeState());
+                }
+            });
         }
     }
 
