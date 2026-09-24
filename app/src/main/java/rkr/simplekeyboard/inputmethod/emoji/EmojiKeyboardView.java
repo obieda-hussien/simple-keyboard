@@ -84,8 +84,6 @@ public class EmojiKeyboardView extends LinearLayout {
     }
     
     private void init() {
-        Log.d(TAG, "EmojiKeyboardView.init() called");
-        
         themeManager = ThemeManager.getInstance(getContext());
         LayoutInflater.from(getContext()).inflate(R.layout.emoji_keyboard, this, true);
         
@@ -95,21 +93,14 @@ public class EmojiKeyboardView extends LinearLayout {
         categoryTabsLayout = findViewById(R.id.emoji_category_tabs);
         
         // DEBUG: Check if views were found
-        Log.d(TAG, "emojiRecyclerView: " + (emojiRecyclerView != null ? "found" : "null"));
-        Log.d(TAG, "searchEditText: " + (searchEditText != null ? "found" : "null"));
-        Log.d(TAG, "searchClearButton: " + (searchClearButton != null ? "found" : "null"));
-        Log.d(TAG, "categoryTabsLayout: " + (categoryTabsLayout != null ? "found" : "null"));
-        
         applyTheme();
         setupRecyclerView();
         setupSearchFunctionality();
         setupCategoryTabs();
         
         // Load initial emojis
-        Log.d(TAG, "Loading initial emojis for category: " + selectedCategory);
         loadEmojisByCategory(selectedCategory);
         
-        Log.d(TAG, "EmojiKeyboardView.init() completed");
     }
     
     /**
@@ -150,10 +141,6 @@ public class EmojiKeyboardView extends LinearLayout {
         emojiRecyclerView.setAdapter(emojiAdapter);
         
         // Debug logging for RecyclerView setup
-        Log.d(TAG, "RecyclerView setup completed");
-        Log.d(TAG, "GridLayoutManager span count: " + gridLayoutManager.getSpanCount());
-        Log.d(TAG, "RecyclerView visibility: " + emojiRecyclerView.getVisibility());
-        Log.d(TAG, "RecyclerView width: " + emojiRecyclerView.getWidth() + ", height: " + emojiRecyclerView.getHeight());
     }
     
     private void setupSearchFunctionality() {
@@ -232,9 +219,7 @@ public class EmojiKeyboardView extends LinearLayout {
         List<EmojiItem> emojis = EmojiData.getEmojisByCategory(category);
         
         // DEBUG: Log the data source
-        Log.d(TAG, "loadEmojisByCategory: " + category + ", emoji count: " + emojis.size());
         if (emojis.size() > 0) {
-            Log.d(TAG, "First emoji: " + emojis.get(0).getEmoji() + " (" + emojis.get(0).getDescription() + ")");
         }
         
         updateEmojiList(emojis);
@@ -244,28 +229,18 @@ public class EmojiKeyboardView extends LinearLayout {
         List<EmojiItem> emojis = EmojiData.searchEmojis(query);
         
         // DEBUG: Log search results
-        Log.d(TAG, "searchEmojis: query='" + query + "', results: " + emojis.size());
-        
         updateEmojiList(emojis);
     }
     
     private void updateEmojiList(List<EmojiItem> emojis) {
         // DEBUG: Log before updating
-        Log.d(TAG, "updateEmojiList: incoming emoji count: " + emojis.size());
-        Log.d(TAG, "updateEmojiList: current list size before update: " + currentEmojis.size());
-        
         currentEmojis.clear();
         currentEmojis.addAll(emojis);
         
         // DEBUG: Log after updating
-        Log.d(TAG, "updateEmojiList: current list size after update: " + currentEmojis.size());
-        
         if (emojiAdapter != null) {
             emojiAdapter.notifyDataSetChanged();
-            Log.d(TAG, "updateEmojiList: notifyDataSetChanged() called");
-            
             // Log adapter state
-            Log.d(TAG, "updateEmojiList: adapter item count: " + emojiAdapter.getItemCount());
         } else {
             Log.e(TAG, "updateEmojiList: emojiAdapter is null!");
         }
@@ -304,11 +279,8 @@ public class EmojiKeyboardView extends LinearLayout {
         
         @Override
         public void onBindViewHolder(EmojiViewHolder holder, int position) {
-            Log.d(TAG, "EmojiAdapter.onBindViewHolder(): position " + position);
-            
             if (position >= 0 && position < emojis.size()) {
                 EmojiItem emoji = emojis.get(position);
-                Log.d(TAG, "EmojiAdapter.onBindViewHolder(): binding emoji '" + emoji.getEmoji() + "' at position " + position);
                 holder.bind(emoji);
             } else {
                 Log.e(TAG, "EmojiAdapter.onBindViewHolder(): Invalid position " + position + ", list size: " + emojis.size());
@@ -318,7 +290,6 @@ public class EmojiKeyboardView extends LinearLayout {
         @Override
         public int getItemCount() {
             int count = emojis.size();
-            Log.d(TAG, "EmojiAdapter.getItemCount(): " + count);
             return count;
         }
         
@@ -330,16 +301,11 @@ public class EmojiKeyboardView extends LinearLayout {
                 emojiTextView = (TextView) itemView;
                 
                 // DEBUG: Check TextView properties after creation
-                Log.d(TAG, "EmojiViewHolder created, TextView: " + (emojiTextView != null ? "found" : "null"));
                 if (emojiTextView != null) {
-                    Log.d(TAG, "EmojiViewHolder: TextView class = " + emojiTextView.getClass().getSimpleName());
-                    Log.d(TAG, "EmojiViewHolder: TextView initial visibility = " + emojiTextView.getVisibility());
                 }
             }
             
             public void bind(EmojiItem emoji) {
-                Log.d(TAG, "EmojiViewHolder.bind(): setting text '" + emoji.getEmoji() + "'");
-                
                 emojiTextView.setText(emoji.getEmoji());
                 
                 // DEBUG: Check TextView properties
@@ -350,7 +316,6 @@ public class EmojiKeyboardView extends LinearLayout {
                           ", textSize=" + emojiTextView.getTextSize());
                 
                 emojiTextView.setOnClickListener(v -> {
-                    Log.d(TAG, "EmojiViewHolder: emoji clicked: " + emoji.getEmoji());
                     if (emojiClickListener != null) {
                         emojiClickListener.onEmojiClicked(emoji.getEmoji());
                     }
