@@ -427,10 +427,13 @@ public class LocalLearningEngine {
         return words.toArray(new String[0]);
     }
 
-    private boolean isValidWord(String word) {
-        if (TextUtils.isEmpty(word)) return false;
+    static boolean isValidWord(String word) {
+        if (word == null || word.isEmpty()) return false;
         
         word = word.trim();
+        // Keep addresses, URLs and pasted long tokens out of the personal vocabulary.
+        if (word.length() > 48 || word.indexOf('@') >= 0 || word.indexOf('/') >= 0
+                || word.indexOf('\\') >= 0 || word.indexOf('.') >= 0) return false;
         
         // Accept emojis as valid tokens
         if (EmojiUtils.isEmoji(word)) {
@@ -438,8 +441,7 @@ public class LocalLearningEngine {
         }
         
         // Updated to accept single-letter words like "a" in English or "و" in Arabic
-        return word.length() >= 1 && 
-               word.matches(".*[a-zA-Z\\u0600-\\u06FF].*"); // Contains at least one letter (Latin or Arabic)
+        return word.matches("[\\p{L}][\\p{L}\\p{M}\\p{N}'-]*");
     }
 
     /**

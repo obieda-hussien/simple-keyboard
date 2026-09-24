@@ -46,4 +46,15 @@ public class SuggestionRegressionTest {
         model.deserializeTrigramData(followers.toString());
         assertTrue(model.serializeTrigramData().split(";;;").length <= 16);
     }
+
+    @Test
+    public void personalVocabularyRejectsAddressesAndLongTokens() {
+        assertTrue(LocalLearningEngine.isValidWord("دلوقتي"));
+        assertTrue(LocalLearningEngine.isValidWord("can't"));
+        assertFalse(LocalLearningEngine.isValidWord("person@example.com"));
+        assertFalse(LocalLearningEngine.isValidWord("https://example.com"));
+        char[] longToken = new char[49];
+        Arrays.fill(longToken, 'x');
+        assertFalse(LocalLearningEngine.isValidWord(new String(longToken)));
+    }
 }

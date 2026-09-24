@@ -59,8 +59,8 @@ public final class InputLogic {
         thread.setPriority(Thread.MIN_PRIORITY);
         return thread;
     });
-    private int suggestionGeneration;
-    private boolean learningClosed;
+    private volatile int suggestionGeneration;
+    private volatile boolean learningClosed;
     private final android.os.Handler suggestionHandler =
             new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable suggestionUpdate = this::computeSuggestions;
@@ -774,6 +774,7 @@ public final class InputLogic {
             final EditorInfo editor = getCurrentInputEditorInfo();
             final String word = wordAtCursor.word;
             learningWorker.execute(() -> {
+                if (learningClosed || generation != suggestionGeneration) return;
                 LocalLearningEngine engine = getLearningEngine();
                 List<String> suggestions = engine == null ? java.util.Collections.emptyList()
                         : engine.getCorrectionsAndCompletions(word);
@@ -834,6 +835,7 @@ public final class InputLogic {
         
         // Fall back to regular learning-based suggestions
         learningWorker.execute(() -> {
+            if (learningClosed || generation != suggestionGeneration) return;
             LocalLearningEngine engine = getLearningEngine();
             List<String> suggestions = engine == null ? java.util.Collections.emptyList()
                     : engine.getSuggestions(currentWord, previousContext);
