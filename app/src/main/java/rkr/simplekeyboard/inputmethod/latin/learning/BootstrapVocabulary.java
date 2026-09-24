@@ -131,6 +131,11 @@ public class BootstrapVocabulary {
     
     // Comprehensive Arabic dictionary for initial suggestions (1000+ words)
     private static final String[] COMMON_ARABIC_WORDS = {
+        // Everyday Egyptian Arabic, kept as the user wrote it.
+        "إزاي", "ازاي", "دلوقتي", "عايز", "عايزة", "عايزين", "معلش",
+        "كده", "ليه", "فين", "إمتى", "امتى", "لسه", "تمام", "ماشي",
+        "حاضر", "بكرة", "النهارده", "امبارح", "عشان", "مش", "أوي",
+        "اوي", "هعمل", "هنعمل", "شوية", "برضه", "برده",
         // Single-letter words and short conjunctions that are important
         "و", "أ", "ب", "ل", "ف", "ك", "س",
         
