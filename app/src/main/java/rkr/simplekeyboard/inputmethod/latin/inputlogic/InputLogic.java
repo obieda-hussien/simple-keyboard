@@ -50,6 +50,9 @@ public final class InputLogic {
     
     // Learning engine for intelligent suggestions - initialized lazily
     private LocalLearningEngine mLearningEngine;
+    private final android.os.Handler suggestionHandler =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable suggestionUpdate = this::computeSuggestions;
     
     // Email suggestion provider for proactive email completion - initialized lazily
     private EmailSuggestionProvider mEmailSuggestionProvider;
@@ -128,6 +131,7 @@ public final class InputLogic {
      * Call this when input starts or restarts in some editor (typically, in onStartInputView).
      */
     public void startInput() {
+        suggestionHandler.removeCallbacks(suggestionUpdate);
         mRecapitalizeStatus.disable(); // Do not perform recapitalize until the cursor is moved once
         mCurrentlyPressedHardwareKeys.clear();
         mCurrentWord.setLength(0); // Clear current word tracking
@@ -139,6 +143,11 @@ public final class InputLogic {
      */
     public void onSubtypeChanged() {
         startInput();
+    }
+
+    public void finishInput() {
+        suggestionHandler.removeCallbacks(suggestionUpdate);
+        mCurrentWord.setLength(0);
     }
 
     /**
@@ -779,6 +788,15 @@ public final class InputLogic {
      * Updates suggestions based on current input context.
      */
     private void updateSuggestions() {
+        suggestionHandler.removeCallbacks(suggestionUpdate);
+        if (isPrivateField()) {
+            mLatinIME.updateSuggestionStrip(java.util.Collections.emptyList());
+            return;
+        }
+        suggestionHandler.postDelayed(suggestionUpdate, 24);
+    }
+
+    private void computeSuggestions() {
         if (isPrivateField()) {
             mLatinIME.updateSuggestionStrip(java.util.Collections.emptyList());
             return;
