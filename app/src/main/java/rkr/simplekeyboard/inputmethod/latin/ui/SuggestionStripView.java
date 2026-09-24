@@ -86,7 +86,9 @@ public class SuggestionStripView extends LinearLayout {
      */
     private void createToggleButton() {
         toggleButton = new android.widget.ImageButton(getContext());
-        toggleButton.setImageResource(android.R.drawable.ic_menu_more); // Use system chevron right icon
+        toggleButton.setImageResource(android.R.drawable.ic_menu_more);
+        toggleButton.setContentDescription(getContext().getString(
+                rkr.simplekeyboard.inputmethod.R.string.show_keyboard_tools)); // Use system chevron right icon
         toggleButton.setBackground(null); // Remove default button background
         toggleButton.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
         
@@ -151,7 +153,9 @@ public class SuggestionStripView extends LinearLayout {
      * Updates the suggestion strip with new suggestions.
      */
     public void setSuggestions(List<String> suggestions) {
-        int count = suggestions == null ? 0 : Math.min(suggestions.size(), MAX_SUGGESTIONS);
+        int maxVisible = getResources().getConfiguration().smallestScreenWidthDp >= 600
+                ? MAX_SUGGESTIONS : 3;
+        int count = suggestions == null ? 0 : Math.min(suggestions.size(), maxVisible);
         for (int i = 0; i < MAX_SUGGESTIONS; i++) {
             if (i >= count) {
                 if (suggestionViews[i] != null) suggestionViews[i].setVisibility(View.GONE);
