@@ -131,4 +131,7 @@
     <string name="change_keyboard">Change keyboard</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="license">License</string>
+    <string name="clear_learning_data">Clear learned words</string>
+    <string name="clear_learning_data_summary">Remove the words and phrases learned on this device</string>
+    <string name="clear_learning_data_confirm">Delete all learned words and phrases?</string>
 </resources>
