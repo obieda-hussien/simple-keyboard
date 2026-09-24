@@ -123,7 +123,7 @@ public class NGramModel {
         
         // Step 3: Insert spaces around punctuation marks to separate them (but domains are now protected)
         processed = processed
-            .replaceAll("([.!?;:,])", " $1 ")  // Add spaces around punctuation
+            .replaceAll("([.!?;:,؟،؛])", " $1 ")  // Add spaces around punctuation
             .replaceAll("\\s+", " ")           // Normalize whitespace
             .trim();
         
