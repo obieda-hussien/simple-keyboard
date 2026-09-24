@@ -104,6 +104,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     // View state management for Gboard model
     private boolean mShowingSuggestions = false;
     private boolean mForcedToolbarMode = false;
+    private boolean mShowingAutofill = false;
+    private int mAutofillGeneration = 0;
+    private android.widget.LinearLayout mInlineAutofillBar;
 
     private RichInputMethodManager mRichImm;
     final KeyboardSwitcher mKeyboardSwitcher;
@@ -365,6 +368,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         if (view != null) {
             mTopContainer = view.findViewById(R.id.top_container);
             mSuggestionStrip = view.findViewById(R.id.suggestion_strip);
+            mInlineAutofillBar = view.findViewById(R.id.inline_autofill_bar);
             mTopBar = view.findViewById(R.id.keyboard_top_bar);
             
             // Apply dynamic theming to UI components
@@ -479,6 +483,10 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     void onStartInputInternal(final EditorInfo editorInfo, final boolean restarting) {
         super.onStartInput(editorInfo, restarting);
+        mAutofillGeneration++;
+        mShowingAutofill = false;
+        if (mInlineAutofillBar != null) mInlineAutofillBar.removeAllViews();
+        if (mSuggestionStrip != null) mSuggestionStrip.clearSuggestions();
 
         // If the primary hint language does not match the current subtype language, then try
         // to switch to the primary hint language.
@@ -597,6 +605,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     void onFinishInputInternal() {
         super.onFinishInput();
+        mAutofillGeneration++;
+        mShowingAutofill = false;
+        if (mInlineAutofillBar != null) mInlineAutofillBar.removeAllViews();
 
         final MainKeyboardView mainKeyboardView = mKeyboardSwitcher.getMainKeyboardView();
         if (mainKeyboardView != null) {
@@ -1110,10 +1121,76 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     public void updateSuggestionStrip(java.util.List<String> suggestions) {
         if (mSuggestionStrip == null || mTopContainer == null) return;
         mSuggestionStrip.setSuggestions(suggestions);
-        if (!mForcedToolbarMode) {
+        if (!mForcedToolbarMode && !mShowingAutofill) {
             if (mSuggestionStrip.hasSuggestions()) showSuggestionsView();
             else showToolbarView();
         }
+    }
+
+    @Override
+    @android.annotation.TargetApi(30)
+    public android.view.inputmethod.InlineSuggestionsRequest onCreateInlineSuggestionsRequest(
+            android.os.Bundle uiExtras) {
+        if (android.os.Build.VERSION.SDK_INT < 30 || uiExtras == null
+                || !androidx.autofill.inline.UiVersions.getVersions(uiExtras)
+                .contains(androidx.autofill.inline.UiVersions.INLINE_UI_VERSION_1)) {
+            return null;
+        }
+        android.os.Bundle style = androidx.autofill.inline.UiVersions.newStylesBuilder()
+                .addStyle(androidx.autofill.inline.v1.InlineSuggestionUi.newStyleBuilder().build())
+                .build();
+        int height = Math.round(40 * getResources().getDisplayMetrics().density);
+        int minWidth = Math.round(48 * getResources().getDisplayMetrics().density);
+        int maxWidth = getResources().getDisplayMetrics().widthPixels;
+        android.widget.inline.InlinePresentationSpec spec =
+                new android.widget.inline.InlinePresentationSpec.Builder(
+                        new android.util.Size(minWidth, height),
+                        new android.util.Size(maxWidth, height))
+                        .setStyle(style).build();
+        return new android.view.inputmethod.InlineSuggestionsRequest.Builder(
+                java.util.Collections.singletonList(spec))
+                .setMaxSuggestionCount(3).build();
+    }
+
+    @Override
+    @android.annotation.TargetApi(30)
+    public boolean onInlineSuggestionsResponse(
+            android.view.inputmethod.InlineSuggestionsResponse response) {
+        if (android.os.Build.VERSION.SDK_INT < 30 || mInlineAutofillBar == null || mTopContainer == null) {
+            return false;
+        }
+        final int generation = ++mAutofillGeneration;
+        mInlineAutofillBar.removeAllViews();
+        java.util.List<android.view.inputmethod.InlineSuggestion> suggestions =
+                response.getInlineSuggestions();
+        if (suggestions.isEmpty()) {
+            mShowingAutofill = false;
+            updateSuggestionStrip(java.util.Collections.emptyList());
+            return true;
+        }
+        mShowingAutofill = true;
+        mTopContainer.setDisplayedChild(2);
+        final int limit = Math.min(suggestions.size(), 3);
+        final int height = Math.round(40 * getResources().getDisplayMetrics().density);
+        for (int i = 0; i < limit; i++) {
+            final android.widget.FrameLayout slot = new android.widget.FrameLayout(this);
+            mInlineAutofillBar.addView(slot, new android.widget.LinearLayout.LayoutParams(
+                    0, height, 1.0f));
+            try {
+                suggestions.get(i).inflate(this,
+                        new android.util.Size(android.view.ViewGroup.LayoutParams.WRAP_CONTENT, height),
+                        getMainExecutor(),
+                        view -> {
+                            if (generation != mAutofillGeneration || !mShowingAutofill
+                                    || mInlineAutofillBar == null || view == null) return;
+                            slot.removeAllViews();
+                            slot.addView(view);
+                        });
+            } catch (IllegalArgumentException | IllegalStateException ignored) {
+                // Preserve keyboard input if an autofill provider returns an invalid presentation.
+            }
+        }
+        return true;
     }
 
     public void launchSettings() {
