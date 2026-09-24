@@ -46,16 +46,9 @@ public class LocalStorage {
      * Saves word frequencies to local storage.
      */
     public void saveWordFrequencies(WordTrie wordTrie) {
-        // This is a simplified implementation
-        // In a real implementation, you'd serialize the trie structure
-        // For now, we'll save frequently used words
-        Set<String> userWords = new HashSet<>();
-        // This would need to be implemented to extract words from trie
-        // userWords = extractWordsFromTrie(wordTrie);
-        
-        preferences.edit()
-                .putStringSet(KEY_USER_WORDS, userWords)
-                .apply();
+        // User words are persisted when they are learned via addUserWord().
+        // Never overwrite them with an empty snapshot of the trie.
+
     }
 
     /**
