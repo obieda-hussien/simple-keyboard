@@ -311,6 +311,8 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     @Override
     public void onDestroy() {
+        if (mInputLogic != null) mInputLogic.finishInput();
+        mAutofillGeneration++;
         // Dismiss any open dialogs to prevent leaks
         if (mOptionsDialog != null && mOptionsDialog.isShowing()) {
             mOptionsDialog.dismiss();
@@ -485,6 +487,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         super.onStartInput(editorInfo, restarting);
         mAutofillGeneration++;
         mShowingAutofill = false;
+        mForcedToolbarMode = false;
         if (mInlineAutofillBar != null) mInlineAutofillBar.removeAllViews();
         if (mSuggestionStrip != null) mSuggestionStrip.clearSuggestions();
 
@@ -604,6 +607,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     }
 
     void onFinishInputInternal() {
+        if (mInputLogic != null) mInputLogic.finishInput();
         super.onFinishInput();
         mAutofillGeneration++;
         mShowingAutofill = false;
