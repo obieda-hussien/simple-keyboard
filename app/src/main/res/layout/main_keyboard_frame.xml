@@ -44,6 +44,13 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
+        <LinearLayout
+            android:id="@+id/inline_autofill_bar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingHorizontal="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal" />
     </ViewFlipper>
 
     <!-- Container for switching between keyboards -->
