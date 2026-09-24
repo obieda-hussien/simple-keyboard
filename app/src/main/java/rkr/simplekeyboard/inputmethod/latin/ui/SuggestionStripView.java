@@ -43,6 +43,8 @@ public class SuggestionStripView extends LinearLayout {
     private OnSuggestionClickListener suggestionClickListener;
     private OnToggleClickListener toggleClickListener;
     private android.widget.ImageButton toggleButton;
+    private final TextView[] suggestionViews = new TextView[MAX_SUGGESTIONS];
+    private int visibleSuggestions;
     
     public interface OnSuggestionClickListener {
         void onSuggestionClicked(String suggestion);
@@ -149,76 +151,45 @@ public class SuggestionStripView extends LinearLayout {
      * Updates the suggestion strip with new suggestions.
      */
     public void setSuggestions(List<String> suggestions) {
-        android.util.Log.d("CursorDebug", "SuggestionStripView.setSuggestions() called with: " + suggestions);
-        android.util.Log.d("CursorDebug", "Current child count before removal: " + getChildCount());
-        
-        // Remove all views except the toggle button
-        while (getChildCount() > 1) {
-            removeViewAt(1);
+        int count = suggestions == null ? 0 : Math.min(suggestions.size(), MAX_SUGGESTIONS);
+        for (int i = 0; i < MAX_SUGGESTIONS; i++) {
+            if (i >= count) {
+                if (suggestionViews[i] != null) suggestionViews[i].setVisibility(View.GONE);
+                continue;
+            }
+            if (suggestionViews[i] == null) {
+                suggestionViews[i] = addSuggestionView(i == 0);
+            }
+            TextView view = suggestionViews[i];
+            String value = suggestions.get(i);
+            if (!value.contentEquals(view.getText())) view.setText(value);
+            view.setVisibility(View.VISIBLE);
         }
-        
-        android.util.Log.d("CursorDebug", "Child count after removal: " + getChildCount());
-        
-        if (suggestions == null || suggestions.isEmpty()) {
-            android.util.Log.d("CursorDebug", "No suggestions to display - returning early");
-            // Don't change visibility - stay within the fixed container
-            return;
-        }
-        
-        int suggestionCount = Math.min(suggestions.size(), MAX_SUGGESTIONS);
-        android.util.Log.d("CursorDebug", "Adding " + suggestionCount + " suggestion views");
-        
-        for (int i = 0; i < suggestionCount; i++) {
-            String suggestion = suggestions.get(i);
-            android.util.Log.d("CursorDebug", "Adding suggestion " + i + ": '" + suggestion + "' (isPrimary: " + (i == 0) + ")");
-            addSuggestionView(suggestion, i == 0); // First suggestion is primary
-        }
-        
-        android.util.Log.d("CursorDebug", "Final child count: " + getChildCount());
-        android.util.Log.d("CursorDebug", "Forcing invalidate and requestLayout on SuggestionStripView");
-        
-        // Force immediate UI refresh
-        invalidate();
-        requestLayout();
+        visibleSuggestions = count;
     }
-    
-    private void addSuggestionView(String suggestion, boolean isPrimary) {
+
+    private TextView addSuggestionView(boolean isPrimary) {
         TextView suggestionView = new TextView(getContext());
-        suggestionView.setText(suggestion);
-        
-        // Apply theme styling
         applySuggestionTheme(suggestionView, isPrimary);
-        
-        // Set padding
         int paddingPx = dpToPx(SUGGESTION_PADDING_DP);
         suggestionView.setPadding(paddingPx, paddingPx / 2, paddingPx, paddingPx / 2);
-        
-        // Set click behavior
+        suggestionView.setSingleLine(true);
+        suggestionView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         suggestionView.setClickable(true);
-        suggestionView.setFocusable(true);
-        
-        // Add ripple effect for modern Android versions
         TypedValue outValue = new TypedValue();
         getContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackground, outValue, true);
         suggestionView.setBackgroundResource(outValue.resourceId);
-        
-        suggestionView.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (suggestionClickListener != null) {
-                    suggestionClickListener.onSuggestionClicked(suggestion);
-                }
+        suggestionView.setOnClickListener(v -> {
+            if (suggestionClickListener != null) {
+                suggestionClickListener.onSuggestionClicked(suggestionView.getText().toString());
             }
         });
-        
-        // Set layout parameters
-        LayoutParams layoutParams = new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1.0f);
-        suggestionView.setLayoutParams(layoutParams);
+        suggestionView.setLayoutParams(new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1.0f));
         suggestionView.setGravity(Gravity.CENTER);
-        
         addView(suggestionView);
+        return suggestionView;
     }
-    
+
     /**
      * Apply theme styling to a suggestion TextView.
      */
@@ -252,13 +223,9 @@ public class SuggestionStripView extends LinearLayout {
      * Clears all suggestions.
      */
     public void clearSuggestions() {
-        // Remove all views except the toggle button
-        while (getChildCount() > 1) {
-            removeViewAt(1);
-        }
-        // Don't change visibility - stay within the fixed container
+        setSuggestions(null);
     }
-    
+
     private int dpToPx(int dp) {
         float density = getContext().getResources().getDisplayMetrics().density;
         return Math.round(dp * density);
@@ -268,6 +235,6 @@ public class SuggestionStripView extends LinearLayout {
      * Returns true if there are suggestions to display.
      */
     public boolean hasSuggestions() {
-        return getChildCount() > 1; // More than just the toggle button
+        return visibleSuggestions > 0;
     }
 }
