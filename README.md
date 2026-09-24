@@ -15,14 +15,15 @@ Features:
 - Swipe space to move pointer
 - Delete swipe
 - Custom theme colors
-- Minimal permissions (only Vibrate)
+- No INTERNET permission; optional account-based email suggestions request GET_ACCOUNTS
 - Ads-free
 
-Feature it doesn't have and probably will never have:
-- Emojis
-- GIFs
-- Spell checker
-- Swipe typing
+Additional features in this fork:
+- Emoji picker and emoji suggestions
+- Local word completion and contextual suggestions
+- Local learning controls in Preferences
+
+Gesture word input, GIF insertion, and a complete spell-checker are not yet implemented.
 
 ## Downloads
 
