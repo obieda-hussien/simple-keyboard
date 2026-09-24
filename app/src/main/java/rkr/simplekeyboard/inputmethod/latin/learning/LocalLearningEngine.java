@@ -44,6 +44,7 @@ public class LocalLearningEngine {
     private final java.util.Map<String, Integer> wordFrequency;
     private final java.util.Map<String, Long> recentUsage;
     private final java.util.List<String> dictionaryWords;
+    private final Set<String> userWords;
     
     private static final int MAX_SUGGESTIONS = 5;
     private static final int MAX_TYPO_SUGGESTIONS = 3;
@@ -65,6 +66,7 @@ public class LocalLearningEngine {
         this.wordFrequency = new java.util.HashMap<>();
         this.recentUsage = new java.util.HashMap<>();
         this.dictionaryWords = new java.util.ArrayList<>();
+        this.userWords = new HashSet<>();
         
         // Initialize with bootstrap vocabulary
         initializeBootstrapData();
@@ -203,7 +205,9 @@ public class LocalLearningEngine {
         for (String word : words) {
             if (isValidWord(word)) {
                 wordTrie.insert(word);
-                localStorage.addUserWord(word);
+                if (userWords.add(word.toLowerCase(java.util.Locale.ROOT))) {
+                    localStorage.addUserWord(word);
+                }
             }
         }
         
@@ -224,7 +228,9 @@ public class LocalLearningEngine {
     public void learnWord(String word) {
         if (isValidWord(word)) {
             wordTrie.insert(word);
-            localStorage.addUserWord(word);
+            if (userWords.add(word.toLowerCase(java.util.Locale.ROOT))) {
+                    localStorage.addUserWord(word);
+                }
             
             // Update frequency count
             wordFrequency.put(word, wordFrequency.getOrDefault(word, 0) + 1);
@@ -269,7 +275,9 @@ public class LocalLearningEngine {
      */
     public void addToUserDictionary(String word) {
         if (isValidWord(word)) {
-            localStorage.addUserWord(word);
+            if (userWords.add(word.toLowerCase(java.util.Locale.ROOT))) {
+                    localStorage.addUserWord(word);
+                }
             wordTrie.insert(word);
             // Give user words extra frequency boost
             for (int i = 0; i < 5; i++) {
@@ -285,7 +293,7 @@ public class LocalLearningEngine {
      */
     public boolean isInUserDictionary(String word) {
         if (TextUtils.isEmpty(word)) return false;
-        return localStorage.getUserWords().contains(word.toLowerCase().trim());
+        return userWords.contains(word.toLowerCase(java.util.Locale.ROOT).trim());
     }
 
     /**
@@ -293,7 +301,6 @@ public class LocalLearningEngine {
      */
     private List<String> getUserWordSuggestions(String prefix) {
         List<String> userSuggestions = new ArrayList<>();
-        Set<String> userWords = localStorage.getUserWords();
         
         String lowerPrefix = prefix.toLowerCase();
         for (String userWord : userWords) {
@@ -320,7 +327,7 @@ public class LocalLearningEngine {
      * Gets statistics about the learning system.
      */
     public LearningStats getStats() {
-        return new LearningStats(localStorage.getUserWordCount());
+        return new LearningStats(userWords.size());
     }
 
     /**
@@ -344,12 +351,13 @@ public class LocalLearningEngine {
     }
 
     private void loadLearningData() {
-        localStorage.loadWordFrequencies(wordTrie);
+        userWords.clear();
+        userWords.addAll(localStorage.getUserWords());
+        for (String word : userWords) wordTrie.insert(word);
         localStorage.loadNGramData(ngramModel);
     }
 
     private void saveLearningData() {
-        localStorage.saveWordFrequencies(wordTrie);
         localStorage.saveNGramData(ngramModel);
     }
     
@@ -485,7 +493,6 @@ public class LocalLearningEngine {
         }
         
         // Search in user dictionary first (higher priority)
-        Set<String> userWords = localStorage.getUserWords();
         for (String userWord : userWords) {
             if (userWord.toLowerCase().startsWith(partialWord) && 
                 !userWord.toLowerCase().equals(partialWord)) {
@@ -516,7 +523,6 @@ public class LocalLearningEngine {
         }
         
         // Check user dictionary first
-        Set<String> userWords = localStorage.getUserWords();
         for (String userWord : userWords) {
             if (isSpellingCandidate(word, userWord)) {
                 corrections.add(userWord);
