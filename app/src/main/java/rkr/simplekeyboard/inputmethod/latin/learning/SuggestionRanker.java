@@ -279,39 +279,24 @@ public class SuggestionRanker {
      * Enhanced with specialized typo detection for common mistakes.
      */
     public static List<String> generateTypoSuggestions(
-            String currentWord,
-            List<String> dictionary,
-            int maxDistance) {
-        
-        List<String> typoSuggestions = new ArrayList<>();
-        
-        if (currentWord == null || currentWord.isEmpty() || dictionary == null) {
-            return typoSuggestions;
+            String currentWord, List<String> dictionary, int maxResults) {
+        List<String> matches = new ArrayList<>();
+        if (currentWord == null || currentWord.length() < 2 || dictionary == null || maxResults <= 0) {
+            return matches;
         }
-        
-        // First, try quick specialized typo corrections
-        typoSuggestions.addAll(generateTranspositionSuggestions(currentWord, dictionary));
-        typoSuggestions.addAll(generateMissingCharSuggestions(currentWord, dictionary));
-        typoSuggestions.addAll(generateExtraCharSuggestions(currentWord, dictionary));
-        typoSuggestions.addAll(generateKeyboardProximitySuggestions(currentWord, dictionary));
-        
-        // Then add general edit distance matches that aren't already included
+        String query = currentWord.toLowerCase(java.util.Locale.ROOT);
         for (String word : dictionary) {
-            if (!typoSuggestions.contains(word)) {
-                int distance = calculateLevenshteinDistance(
-                    currentWord.toLowerCase(),
-                    word.toLowerCase()
-                );
-                
-                if (distance > 0 && distance <= maxDistance) {
-                    typoSuggestions.add(word);
-                }
+            if (word == null || Math.abs(word.length() - query.length()) > 2) continue;
+            if (word.equalsIgnoreCase(currentWord) || matches.contains(word)) continue;
+            int distance = calculateLevenshteinDistance(query, word.toLowerCase(java.util.Locale.ROOT));
+            if (distance > 0 && distance <= 2) {
+                matches.add(word);
+                if (matches.size() == maxResults) break;
             }
         }
-        
-        return typoSuggestions;
+        return matches;
     }
-    
+
     /**
      * Detects transposition errors (adjacent characters swapped).
      * Example: "teh" → "the"
