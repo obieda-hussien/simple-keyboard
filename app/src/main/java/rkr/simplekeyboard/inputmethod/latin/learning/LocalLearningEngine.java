@@ -92,7 +92,7 @@ public class LocalLearningEngine {
      * Gets suggestions for the current input context.
      * Enhanced with advanced ranking, typo tolerance, and context awareness.
      */
-    public List<String> getSuggestions(String currentWord, String previousContext) {
+    public synchronized List<String> getSuggestions(String currentWord, String previousContext) {
         List<String> candidateSuggestions = new ArrayList<>();
         String fullText = (previousContext != null ? previousContext + " " : "") + (currentWord != null ? currentWord : "");
         
@@ -191,7 +191,7 @@ public class LocalLearningEngine {
     /**
      * Learns from user input to improve future suggestions.
      */
-    public void learnFromInput(String text) {
+    public synchronized void learnFromInput(String text) {
         if (TextUtils.isEmpty(text)) return;
         
         // Learn individual words
@@ -219,7 +219,7 @@ public class LocalLearningEngine {
     /**
      * Learns from a completed word with frequency and recency tracking.
      */
-    public void learnWord(String word) {
+    public synchronized void learnWord(String word) {
         if (isValidWord(word)) {
             wordTrie.insert(word);
             if (userWords.add(word.toLowerCase(java.util.Locale.ROOT))) {
@@ -249,7 +249,7 @@ public class LocalLearningEngine {
     /**
      * Learns from a completed sentence.
      */
-    public void learnSentence(String sentence) {
+    public synchronized void learnSentence(String sentence) {
         if (!TextUtils.isEmpty(sentence)) {
             ngramModel.learnFromSentence(sentence);
             
@@ -267,7 +267,7 @@ public class LocalLearningEngine {
     /**
      * Adds a word to the user dictionary for high-priority suggestions.
      */
-    public void addToUserDictionary(String word) {
+    public synchronized void addToUserDictionary(String word) {
         if (isValidWord(word)) {
             if (userWords.add(word.toLowerCase(java.util.Locale.ROOT))) {
                     localStorage.addUserWord(word);
@@ -285,7 +285,7 @@ public class LocalLearningEngine {
     /**
      * Checks if a word is in the user dictionary.
      */
-    public boolean isInUserDictionary(String word) {
+    public synchronized boolean isInUserDictionary(String word) {
         if (TextUtils.isEmpty(word)) return false;
         return userWords.contains(word.toLowerCase(java.util.Locale.ROOT).trim());
     }
@@ -310,7 +310,7 @@ public class LocalLearningEngine {
     /**
      * Removes a word from suggestions.
      */
-    public void removeWord(String word) {
+    public synchronized void removeWord(String word) {
         localStorage.removeUserWord(word);
         wordFrequency.remove(word);
         recentUsage.remove(word);
@@ -320,14 +320,14 @@ public class LocalLearningEngine {
     /**
      * Gets statistics about the learning system.
      */
-    public LearningStats getStats() {
+    public synchronized LearningStats getStats() {
         return new LearningStats(userWords.size());
     }
 
     /**
      * Clears all learning data.
      */
-    public void clearAllData() {
+    public synchronized void clearAllData() {
         localStorage.clearAllData();
         wordFrequency.clear();
         recentUsage.clear();
@@ -448,7 +448,7 @@ public class LocalLearningEngine {
      * @param word The word to provide corrections and completions for
      * @return List of suggested corrections and completions
      */
-    public List<String> getCorrectionsAndCompletions(String word) {
+    public synchronized List<String> getCorrectionsAndCompletions(String word) {
         List<String> suggestions = new ArrayList<>();
         
         if (TextUtils.isEmpty(word)) {

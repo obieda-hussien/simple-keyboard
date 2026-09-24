@@ -312,7 +312,10 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     @Override
     public void onDestroy() {
-        if (mInputLogic != null) mInputLogic.finishInput();
+        if (mInputLogic != null) {
+            mInputLogic.finishInput();
+            mInputLogic.closeLearningWorker();
+        }
         mAutofillGeneration++;
         // Dismiss any open dialogs to prevent leaks
         if (mOptionsDialog != null && mOptionsDialog.isShowing()) {
