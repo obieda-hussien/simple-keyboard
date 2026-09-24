@@ -43,6 +43,17 @@ public final class PreferencesSettingsFragment extends SubScreenFragment {
     public void onCreate(final Bundle icicle) {
         super.onCreate(icicle);
         addPreferencesFromResource(R.xml.prefs_screen_preferences);
+        findPreference("pref_clear_learning").setOnPreferenceClickListener(preference -> {
+            new android.app.AlertDialog.Builder(getActivity())
+                    .setTitle(R.string.clear_learning_data)
+                    .setMessage(R.string.clear_learning_data_confirm)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(android.R.string.ok, (dialog, which) ->
+                            rkr.simplekeyboard.inputmethod.latin.learning.LocalLearningEngine
+                                    .getInstance(getActivity()).clearAllData())
+                    .show();
+            return true;
+        });
 
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.KITKAT) {
             removePreference(Settings.PREF_ENABLE_IME_SWITCH);
