@@ -510,9 +510,6 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             return;
         }
         if (DebugFlags.DEBUG_ENABLED) {
-            Log.d(TAG, "onStartInputView: editorInfo:"
-                    + String.format("inputType=0x%08x imeOptions=0x%08x",
-                            editorInfo.inputType, editorInfo.imeOptions));
             Log.d(TAG, "All caps = "
                     + ((editorInfo.inputType & InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS) != 0)
                     + ", sentence caps = "
@@ -622,84 +619,15 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd,
                 composingSpanStart, composingSpanEnd);
         final MainKeyboardView keyboardView = mKeyboardSwitcher.getMainKeyboardView();
-        if (keyboardView != null && keyboardView.isInCursorMove()) {
-            return;
-        }
-
-        // === FORENSIC DEBUGGING START ===
-        Log.d("CursorDebug", "---------- onUpdateSelection TRIGGERED ----------");
-        Log.d("CursorDebug", "New Cursor Position: " + newSelStart);
-
-        final android.view.inputmethod.InputConnection ic = getCurrentInputConnection();
-        if (ic == null) {
-            Log.e("CursorDebug", "InputConnection is NULL. Aborting.");
-            return;
-        }
-
-        // Step A: Log the surrounding text
-        final CharSequence before = ic.getTextBeforeCursor(50, 0);
-        final CharSequence after = ic.getTextAfterCursor(50, 0);
-        Log.d("CursorDebug", "Context Text -> BEFORE: '" + before + "' | AFTER: '" + after + "'");
-
-        // Step B: Log the identified word (we'll implement this by calling the helper from InputLogic)
-        String wordAtCursor = "";
+        if (keyboardView != null && keyboardView.isInCursorMove()) return;
         if (mInputLogic != null) {
-            // Get word at cursor through InputLogic's method
-            try {
-                java.lang.reflect.Method findWordMethod = mInputLogic.getClass().getDeclaredMethod("findWordAtCursor");
-                findWordMethod.setAccessible(true);
-                Object wordInfo = findWordMethod.invoke(mInputLogic);
-                if (wordInfo != null) {
-                    java.lang.reflect.Field wordField = wordInfo.getClass().getDeclaredField("word");
-                    wordField.setAccessible(true);
-                    wordAtCursor = (String) wordField.get(wordInfo);
-                }
-            } catch (Exception e) {
-                // If reflection fails, extract word manually
-                String beforeText = before != null ? before.toString() : "";
-                String afterText = after != null ? after.toString() : "";
-                wordAtCursor = extractWordAtCursor(beforeText, afterText);
-            }
-        }
-        Log.d("CursorDebug", "PARSED WORD at cursor: '" + wordAtCursor + "'");
-
-        // Step C: Continue with normal logic and log suggestions
-        Log.i(TAG, "Update Selection. Cursor position = " + newSelStart + "," + newSelEnd);
-
-        if (mInputLogic != null) {
-            // First update the input logic with new cursor position
+            mInputLogic.reloadTextCache();
             mInputLogic.onUpdateSelection(newSelStart, newSelEnd);
-            
             if (isInputViewShown()) {
-                // Reload text cache for accurate context analysis
-                mInputLogic.reloadTextCache();
-
-                // Update shift state based on new cursor position
                 mKeyboardSwitcher.requestUpdatingShiftState(getCurrentAutoCapsState(),
                         getCurrentRecapitalizeState());
-                
-                // Step D: Log the attempt to update UI and force refresh
-                Log.d("CursorDebug", "ATTEMPTING TO UPDATE suggestion strip UI...");
-                if (mSuggestionStrip != null) {
-                    // Check current suggestions before invalidate
-                    Log.d("CursorDebug", "SuggestionStrip exists, forcing invalidate and requestLayout");
-                    mSuggestionStrip.invalidate();
-                    mSuggestionStrip.requestLayout();
-                    
-                    // Also force a post-delayed refresh to ensure UI updates
-                    mSuggestionStrip.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            Log.d("CursorDebug", "POST-DELAYED UI refresh executed");
-                            mSuggestionStrip.invalidate();
-                        }
-                    });
-                } else {
-                    Log.e("CursorDebug", "SuggestionStrip is NULL - cannot update UI!");
-                }
             }
         }
-        // === FORENSIC DEBUGGING END ===
     }
 
     /**
@@ -1180,41 +1108,11 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
      * Updates the suggestion strip with new suggestions following Gboard model.
      */
     public void updateSuggestionStrip(java.util.List<String> suggestions) {
-        android.util.Log.d("CursorDebug", "updateSuggestionStrip() called with suggestions: " + suggestions);
-        
-        if (mSuggestionStrip != null && mTopContainer != null) {
-            android.util.Log.d("CursorDebug", "SuggestionStrip and TopContainer are available - proceeding with update");
-            
-            mSuggestionStrip.setSuggestions(suggestions);
-            android.util.Log.d("CursorDebug", "Called setSuggestions() on suggestion strip");
-            
-            boolean hasSuggestions = suggestions != null && !suggestions.isEmpty() && mSuggestionStrip.hasSuggestions();
-            android.util.Log.d("CursorDebug", "Has suggestions check: " + hasSuggestions + " (suggestions != null: " + (suggestions != null) + ", !isEmpty: " + (suggestions != null && !suggestions.isEmpty()) + ", strip.hasSuggestions: " + (mSuggestionStrip.hasSuggestions()) + ")");
-            
-            // Gboard model logic: Auto-switch to suggestions if we have them and not in forced toolbar mode
-            if (hasSuggestions && !mForcedToolbarMode) {
-                android.util.Log.d("CursorDebug", "Showing suggestions view (has suggestions and not forced toolbar)");
-                showSuggestionsView();
-            } else if (!hasSuggestions && !mForcedToolbarMode) {
-                android.util.Log.d("CursorDebug", "Showing toolbar view (no suggestions and not forced toolbar)");
-                // No suggestions available, show toolbar by default
-                showToolbarView();
-            } else {
-                android.util.Log.d("CursorDebug", "Forced toolbar mode active - not auto-switching");
-            }
-            // If in forced toolbar mode, don't auto-switch
-            
-            // Force immediate UI refresh
-            android.util.Log.d("CursorDebug", "Forcing immediate UI refresh on suggestion strip");
-            mSuggestionStrip.invalidate();
-            mSuggestionStrip.requestLayout();
-            
-            // Also refresh the top container
-            mTopContainer.invalidate();
-            mTopContainer.requestLayout();
-            
-        } else {
-            android.util.Log.e("CursorDebug", "Cannot update suggestion strip - mSuggestionStrip: " + (mSuggestionStrip != null) + ", mTopContainer: " + (mTopContainer != null));
+        if (mSuggestionStrip == null || mTopContainer == null) return;
+        mSuggestionStrip.setSuggestions(suggestions);
+        if (!mForcedToolbarMode) {
+            if (mSuggestionStrip.hasSuggestions()) showSuggestionsView();
+            else showToolbarView();
         }
     }
 
