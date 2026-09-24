@@ -140,7 +140,7 @@ public final class RichInputConnection {
      * Reload the cached text from the InputConnection.
      */
     public void reloadTextCache() {
-        reloadTextCache(null);
+        reloadTextCache((Runnable) null);
     }
 
     public void reloadTextCache(final Runnable onReady) {
