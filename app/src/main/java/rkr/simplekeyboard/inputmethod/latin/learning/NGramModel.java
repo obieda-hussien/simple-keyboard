@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import rkr.simplekeyboard.inputmethod.latin.utils.EmojiUtils;
@@ -32,10 +33,41 @@ public class NGramModel {
     private final Map<String, Map<String, Integer>> bigramModel;
     private final Map<String, Map<String, Integer>> trigramModel;
     private static final int MAX_PREDICTIONS = 3;
+    private static final int MAX_CONTEXTS = 4000;
+    private static final int MAX_FOLLOWERS_PER_CONTEXT = 16;
 
     public NGramModel() {
-        this.bigramModel = new HashMap<>();
-        this.trigramModel = new HashMap<>();
+        this.bigramModel = newBoundedModel();
+        this.trigramModel = newBoundedModel();
+    }
+
+    private static Map<String, Map<String, Integer>> newBoundedModel() {
+        return new LinkedHashMap<String, Map<String, Integer>>(128, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, Map<String, Integer>> eldest) {
+                return size() > MAX_CONTEXTS;
+            }
+        };
+    }
+
+    private static void record(Map<String, Map<String, Integer>> model,
+            String context, String follower, int frequency) {
+        Map<String, Integer> followers = model.get(context);
+        if (followers == null) {
+            followers = new HashMap<>();
+            model.put(context, followers);
+        }
+        if (!followers.containsKey(follower) && followers.size() >= MAX_FOLLOWERS_PER_CONTEXT) {
+            String leastFrequent = null;
+            for (Map.Entry<String, Integer> entry : followers.entrySet()) {
+                if (leastFrequent == null || entry.getValue() < followers.get(leastFrequent)) {
+                    leastFrequent = entry.getKey();
+                }
+            }
+            if (leastFrequent != null) followers.remove(leastFrequent);
+        }
+        followers.put(follower, Math.min(1_000_000,
+                followers.getOrDefault(follower, 0) + Math.max(1, frequency)));
     }
 
     /**
@@ -318,13 +350,11 @@ public class NGramModel {
     }
 
     private void addBigram(String word1, String word2) {
-        bigramModel.computeIfAbsent(word1, k -> new HashMap<>())
-                   .merge(word2, 1, Integer::sum);
+        record(bigramModel, word1, word2, 1);
     }
 
     private void addTrigram(String context, String word) {
-        trigramModel.computeIfAbsent(context, k -> new HashMap<>())
-                    .merge(word, 1, Integer::sum);
+        record(trigramModel, context, word, 1);
     }
 
     private List<String> getPredictions(Map<String, Map<String, Integer>> model, String key) {
@@ -421,7 +451,7 @@ public class NGramModel {
                 String value = parts[1];
                 try {
                     int frequency = Integer.parseInt(parts[2]);
-                    bigramModel.computeIfAbsent(key, k -> new HashMap<>()).put(value, frequency);
+                    if (frequency > 0) record(bigramModel, key, value, frequency);
                 } catch (NumberFormatException e) {
                     // Skip invalid entries
                 }
@@ -445,7 +475,7 @@ public class NGramModel {
                 String value = parts[1];
                 try {
                     int frequency = Integer.parseInt(parts[2]);
-                    trigramModel.computeIfAbsent(key, k -> new HashMap<>()).put(value, frequency);
+                    if (frequency > 0) record(trigramModel, key, value, frequency);
                 } catch (NumberFormatException e) {
                     // Skip invalid entries
                 }

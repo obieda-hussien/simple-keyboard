@@ -27,4 +27,23 @@ public class SuggestionRegressionTest {
         List<String> result = dictionary.getSuggestions("دلو");
         assertEquals(Arrays.asList("دلوقتي"), result);
     }
+
+    @Test
+    public void restoredLanguageModelRemainsBounded() {
+        NGramModel model = new NGramModel();
+        StringBuilder contexts = new StringBuilder();
+        for (int i = 0; i < 4100; i++) {
+            contexts.append("context").append(i).append("|||next|||1;;;");
+        }
+        model.deserializeBigramData(contexts.toString());
+        assertTrue(model.serializeBigramData().split(";;;").length <= 4000);
+        assertFalse(model.serializeBigramData().contains("context0|||"));
+
+        StringBuilder followers = new StringBuilder();
+        for (int i = 0; i < 30; i++) {
+            followers.append("same|||word").append(i).append("|||1;;;");
+        }
+        model.deserializeTrigramData(followers.toString());
+        assertTrue(model.serializeTrigramData().split(";;;").length <= 16);
+    }
 }

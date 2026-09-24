@@ -441,7 +441,8 @@ public final class InputLogic {
     private void handleBackspaceEvent(final Event event, final InputTransaction inputTransaction) {
         // Update current word tracking
         if (mCurrentWord.length() > 0) {
-            mCurrentWord.setLength(mCurrentWord.length() - 1);
+            int start = Character.offsetByCodePoints(mCurrentWord, mCurrentWord.length(), -1);
+            mCurrentWord.delete(start, mCurrentWord.length());
             updateSuggestions();
         }
         
