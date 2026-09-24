@@ -35,8 +35,8 @@ import rkr.simplekeyboard.inputmethod.latin.utils.ClipboardUtils;
 public class LocalLearningEngine {
     private static LocalLearningEngine instance;
     
-    private final WordTrie wordTrie;
-    private final NGramModel ngramModel;
+    private WordTrie wordTrie;
+    private NGramModel ngramModel;
     private final LocalStorage localStorage;
     private final Context context;
     
@@ -212,7 +212,7 @@ public class LocalLearningEngine {
         
         // Force save more frequently for learning data (every 5th call instead of 10%)
         saveLearningCounter++;
-        if (saveLearningCounter >= 5) {
+        if (saveLearningCounter >= 50) {
             saveLearningData();
             saveLearningCounter = 0;
         }
@@ -237,9 +237,9 @@ public class LocalLearningEngine {
                 dictionaryWords.add(word);
             }
             
-            // Force save every 10 words learned
+            // Persist context periodically; individual words are saved by addUserWord.
             wordLearningCounter++;
-            if (wordLearningCounter >= 10) {
+            if (wordLearningCounter >= 50) {
                 saveLearningData();
                 wordLearningCounter = 0;
             }
@@ -311,8 +311,9 @@ public class LocalLearningEngine {
      */
     public void removeWord(String word) {
         localStorage.removeUserWord(word);
-        // Note: For simplicity, we don't remove from trie as it would require
-        // rebuilding the entire structure
+        wordFrequency.remove(word);
+        recentUsage.remove(word);
+        rebuildModels();
     }
 
     /**
@@ -327,8 +328,19 @@ public class LocalLearningEngine {
      */
     public void clearAllData() {
         localStorage.clearAllData();
-        // Reinitialize components
-        // wordTrie and ngramModel would need to be reset
+        wordFrequency.clear();
+        recentUsage.clear();
+        wordLearningCounter = 0;
+        saveLearningCounter = 0;
+        rebuildModels();
+    }
+
+    private void rebuildModels() {
+        wordTrie = new WordTrie();
+        ngramModel = new NGramModel();
+        dictionaryWords.clear();
+        initializeBootstrapData();
+        loadLearningData();
     }
 
     private void loadLearningData() {
@@ -384,7 +396,7 @@ public class LocalLearningEngine {
         }
         
         processed = processed
-                  .replaceAll("([.!?;:,])", " $1 ")  // Add spaces around punctuation
+                  .replaceAll("([.!?;:,؟،؛])", " $1 ")  // Add spaces around punctuation
                   .replaceAll("\\s+", " ")           // Normalize whitespace
                   .trim();
         
