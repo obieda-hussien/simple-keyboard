@@ -134,4 +134,5 @@
     <string name="clear_learning_data">Clear learned words</string>
     <string name="clear_learning_data_summary">Remove the words and phrases learned on this device</string>
     <string name="clear_learning_data_confirm">Delete all learned words and phrases?</string>
+    <string name="show_keyboard_tools">Show keyboard tools</string>
 </resources>
