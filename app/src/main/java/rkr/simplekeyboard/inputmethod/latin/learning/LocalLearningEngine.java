@@ -107,15 +107,9 @@ public class LocalLearningEngine {
             }
         }
         
-        // Add clipboard suggestion if available and no current word
-        if (TextUtils.isEmpty(currentWord) && ClipboardUtils.hasClipboardText(context)) {
-            String clipboardText = ClipboardUtils.getClipboardText(context);
-            String clipboardSuggestion = ClipboardUtils.createClipboardSuggestion(clipboardText);
-            if (clipboardSuggestion != null && !candidateSuggestions.contains(clipboardSuggestion)) {
-                candidateSuggestions.add(clipboardSuggestion);
-            }
-        }
-        
+        // Clipboard content is inserted only from the explicit toolbar action.
+        // Do not inspect or preview a copied secret as a word suggestion.
+
         // Add emoji suggestions based on keywords
         if (!TextUtils.isEmpty(currentWord)) {
             List<String> emojiSuggestions = EmojiSuggestionProvider.getEmojiSuggestions(currentWord);
