@@ -440,7 +440,19 @@ public final class InputLogic {
             if (codePointBeforeCursor == Constants.NOT_A_CODE) {
                 sendDownUpKeyEvent(KeyEvent.KEYCODE_DEL);
             } else {
-                final int numChars = Character.isSupplementaryCodePoint(codePointBeforeCursor) ? 2 : 1;
+                int numChars = Character.isSupplementaryCodePoint(codePointBeforeCursor) ? 2 : 1;
+                if (android.os.Build.VERSION.SDK_INT >= 24) {
+                    String before = mConnection.getTextBeforeCursor();
+                    if (before != null && !before.isEmpty()) {
+                        android.icu.text.BreakIterator boundaries =
+                                android.icu.text.BreakIterator.getCharacterInstance();
+                        boundaries.setText(before);
+                        int start = boundaries.preceding(before.length());
+                        if (start != android.icu.text.BreakIterator.DONE) {
+                            numChars = before.length() - start;
+                        }
+                    }
+                }
                 mConnection.deleteTextBeforeCursor(numChars);
             }
         }
@@ -1181,8 +1193,9 @@ public final class InputLogic {
      * Learns from the current sentence when user presses enter or finishes a sentence.
      */
     private void learnFromCurrentSentence() {
+        if (!shouldLearn()) return;
         String textBeforeCursor = mConnection.getTextBeforeCursor();
-        if (shouldLearn() && !TextUtils.isEmpty(textBeforeCursor)) {
+        if (!TextUtils.isEmpty(textBeforeCursor)) {
             LocalLearningEngine learningEngine = getLearningEngine();
             if (learningEngine != null && shouldLearn()) {
                 // Find the current sentence by looking for sentence boundaries
