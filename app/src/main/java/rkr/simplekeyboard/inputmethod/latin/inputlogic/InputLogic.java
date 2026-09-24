@@ -185,16 +185,22 @@ public final class InputLogic {
         if (cursorMoved && !isPrivateField()) {
             // Reset current word tracking when cursor moves
             mCurrentWord.setLength(0);
-            // Trigger contextual suggestions based on new cursor position
-            updateContextualSuggestions();
+            // Surrounding text is loaded asynchronously; LatinIME requests suggestions when ready.
         }
     }
 
     public void reloadTextCache() {
-        mConnection.reloadTextCache();
+        reloadTextCache(null);
+    }
 
+    public void reloadTextCache(Runnable onReady) {
+        mConnection.reloadTextCache(onReady);
         mRecapitalizeStatus.enable();
         mRecapitalizeStatus.stop();
+    }
+
+    public void refreshCursorSuggestions() {
+        updateContextualSuggestions();
     }
 
     /**
