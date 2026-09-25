@@ -17,8 +17,8 @@
 package rkr.simplekeyboard.inputmethod.latin.ui;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.Typeface;
+import android.view.HapticFeedbackConstants;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -27,8 +27,11 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.util.List;
+import java.util.Locale;
 
+import rkr.simplekeyboard.inputmethod.latin.settings.ThemeEngine;
 import rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager;
+import rkr.simplekeyboard.inputmethod.latin.settings.ThemePalette;
 
 /**
  * Suggestion strip view that displays word suggestions above the keyboard.
@@ -41,6 +44,8 @@ public class SuggestionStripView extends LinearLayout {
     
     private ThemeManager themeManager;
     private OnSuggestionClickListener suggestionClickListener;
+    private OnSuggestionLongClickListener suggestionLongClickListener;
+    private Locale languageLocale;
     private OnToggleClickListener toggleClickListener;
     private android.widget.ImageButton toggleButton;
     private final TextView[] suggestionViews = new TextView[MAX_SUGGESTIONS];
@@ -48,6 +53,10 @@ public class SuggestionStripView extends LinearLayout {
     
     public interface OnSuggestionClickListener {
         void onSuggestionClicked(String suggestion);
+    }
+
+    public interface OnSuggestionLongClickListener {
+        void onSuggestionLongClicked(String suggestion);
     }
     
     public interface OnToggleClickListener {
@@ -123,13 +132,18 @@ public class SuggestionStripView extends LinearLayout {
      * Apply dynamic theme colors to the suggestion strip.
      */
     private void applyTheme() {
-        int topBarBgColor = themeManager.getTopBarBackgroundColor();
+        final int topBarBgColor = themeManager.getTopBarBackgroundColor();
         setBackgroundColor(topBarBgColor);
-        
-        // Apply theme to toggle button
+
         if (toggleButton != null) {
-            int iconTintColor = themeManager.getIconTintColor();
+            final int iconTintColor = themeManager.getIconTintColor();
             toggleButton.setColorFilter(iconTintColor);
+            if (ThemeEngine.isEnabled(getContext())) {
+                final ThemePalette palette = ThemeEngine.palette(getContext());
+                toggleButton.setBackground(ImeUiKit.roundedBackground(
+                        getContext(), palette.getFunctionalSurface(), 20.0f,
+                        palette.getBorder(), 0.7f));
+            }
         }
     }
     
@@ -166,7 +180,14 @@ public class SuggestionStripView extends LinearLayout {
             }
             TextView view = suggestionViews[i];
             String value = suggestions.get(i);
-            if (!value.contentEquals(view.getText())) view.setText(value);
+            if (!value.contentEquals(view.getText())) {
+                view.setText(value);
+                ImeUiKit.applyTextDirection(view, value, languageLocale);
+                view.setTranslationY(dpToPx(4));
+                view.setAlpha(0.0f);
+                view.animate().translationY(0.0f).alpha(1.0f).setDuration(120L).start();
+            }
+            applySuggestionTheme(view, i == 0);
             view.setVisibility(View.VISIBLE);
         }
         visibleSuggestions = count;
@@ -180,15 +201,24 @@ public class SuggestionStripView extends LinearLayout {
         suggestionView.setSingleLine(true);
         suggestionView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         suggestionView.setClickable(true);
-        TypedValue outValue = new TypedValue();
-        getContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackground, outValue, true);
-        suggestionView.setBackgroundResource(outValue.resourceId);
+        suggestionView.setFocusable(true);
+        ImeUiKit.applyPressMotion(suggestionView);
         suggestionView.setOnClickListener(v -> {
             if (suggestionClickListener != null) {
                 suggestionClickListener.onSuggestionClicked(suggestionView.getText().toString());
             }
         });
-        suggestionView.setLayoutParams(new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1.0f));
+        suggestionView.setOnLongClickListener(v -> {
+            if (suggestionLongClickListener == null) return false;
+            v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+            suggestionLongClickListener.onSuggestionLongClicked(
+                    suggestionView.getText().toString());
+            return true;
+        });
+        LayoutParams params = new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1.0f);
+        final int margin = dpToPx(3);
+        params.setMargins(margin, 0, margin, 0);
+        suggestionView.setLayoutParams(params);
         suggestionView.setGravity(Gravity.CENTER);
         addView(suggestionView);
         return suggestionView;
@@ -199,8 +229,17 @@ public class SuggestionStripView extends LinearLayout {
      */
     private void applySuggestionTheme(TextView suggestionView, boolean isPrimary) {
         suggestionView.setTextSize(TypedValue.COMPLEX_UNIT_SP, SUGGESTION_TEXT_SIZE_SP);
-        
-        if (isPrimary) {
+
+        if (ThemeEngine.isEnabled(getContext())) {
+            final ThemePalette palette = ThemeEngine.palette(getContext());
+            final int fill = isPrimary
+                    ? palette.getFunctionalSurface() : palette.getKeySurface();
+            final int stroke = isPrimary ? palette.getAccent() : palette.getBorder();
+            suggestionView.setBackground(ImeUiKit.roundedBackground(
+                    getContext(), fill, 18.0f, stroke, isPrimary ? 1.1f : 0.7f));
+            suggestionView.setTextColor(isPrimary ? palette.getAccent() : palette.getOnKey());
+            suggestionView.setTypeface(null, isPrimary ? Typeface.BOLD : Typeface.NORMAL);
+        } else if (isPrimary) {
             suggestionView.setTextColor(themeManager.getAccentColor());
             suggestionView.setTypeface(null, Typeface.BOLD);
         } else {
@@ -214,6 +253,18 @@ public class SuggestionStripView extends LinearLayout {
      */
     public void setOnSuggestionClickListener(OnSuggestionClickListener listener) {
         this.suggestionClickListener = listener;
+    }
+
+    public void setOnSuggestionLongClickListener(OnSuggestionLongClickListener listener) {
+        this.suggestionLongClickListener = listener;
+    }
+
+    public void setLanguageLocale(Locale locale) {
+        languageLocale = locale;
+        setLayoutDirection(ImeUiKit.layoutDirection(locale));
+        for (TextView view : suggestionViews) {
+            if (view != null) ImeUiKit.applyTextDirection(view, view.getText(), locale);
+        }
     }
     
     /**
