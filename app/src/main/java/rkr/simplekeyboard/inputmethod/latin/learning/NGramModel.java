@@ -207,9 +207,10 @@ public class NGramModel {
      * Checks if a token is punctuation.
      */
     private boolean isPunctuation(String token) {
-        return token.length() == 1 && 
-               (token.equals(".") || token.equals("!") || token.equals("?") || 
-                token.equals(",") || token.equals(";") || token.equals(":"));
+        return token.length() == 1 &&
+               (token.equals(".") || token.equals("!") || token.equals("?") ||
+                token.equals(",") || token.equals(";") || token.equals(":") ||
+                token.equals("؟") || token.equals("،") || token.equals("؛"));
     }
 
     /**
@@ -256,6 +257,56 @@ public class NGramModel {
         // Limit results
         return predictions.size() > MAX_PREDICTIONS ? 
                predictions.subList(0, MAX_PREDICTIONS) : predictions;
+    }
+
+    /**
+     * Returns normalized context probabilities for a candidate list. Trigram evidence gets the
+     * larger weight, with bigram backoff when the exact two-word context is sparse.
+     */
+    public Map<String, Double> getContextScores(String context, List<String> candidates) {
+        Map<String, Double> result = new HashMap<>();
+        if (context == null || context.trim().isEmpty() || candidates == null
+                || candidates.isEmpty()) {
+            return result;
+        }
+
+        String[] words = context.trim().split("\\s+");
+        String bigramKey = normalizeWord(words[words.length - 1]);
+        String trigramKey = null;
+        if (words.length >= 2) {
+            trigramKey = normalizeWord(words[words.length - 2]) + " " + bigramKey;
+        }
+
+        for (String candidate : candidates) {
+            if (candidate == null || candidate.trim().isEmpty()) continue;
+            String firstWord = candidate.trim().split("\\s+")[0];
+            String normalizedCandidate = normalizeWord(firstWord);
+            if (normalizedCandidate.isEmpty()) continue;
+
+            double bigram = probability(bigramModel.get(bigramKey), normalizedCandidate);
+            double trigram = trigramKey == null ? 0.0
+                    : probability(trigramModel.get(trigramKey), normalizedCandidate);
+            double score = trigram > 0.0 ? (0.78 * trigram + 0.22 * bigram) : (0.62 * bigram);
+            if (score > 0.0) {
+                result.put(candidate, Math.min(1.0, score));
+                result.put(normalizedCandidate, Math.min(1.0, score));
+            }
+        }
+        return result;
+    }
+
+    private static double probability(Map<String, Integer> followers, String candidate) {
+        if (followers == null || followers.isEmpty()) return 0.0;
+        int total = 0;
+        int value = 0;
+        for (Map.Entry<String, Integer> entry : followers.entrySet()) {
+            int frequency = Math.max(0, entry.getValue());
+            total += frequency;
+            if (entry.getKey().equals(candidate)) value = frequency;
+        }
+        if (total <= 0 || value <= 0) return 0.0;
+        // Additive smoothing only across the bounded follower set keeps rare learned phrases alive.
+        return (value + 0.35) / (total + 0.35 * (followers.size() + 1));
     }
 
     /**
@@ -441,7 +492,7 @@ public class NGramModel {
     public void deserializeBigramData(String data) {
         if (data == null || data.isEmpty()) return;
         
-        bigramModel.clear();
+        // Merge persisted personal evidence on top of bootstrap language knowledge.
         String[] entries = data.split(";;;");
         for (String entry : entries) {
             if (entry.trim().isEmpty()) continue;
@@ -465,7 +516,7 @@ public class NGramModel {
     public void deserializeTrigramData(String data) {
         if (data == null || data.isEmpty()) return;
         
-        trigramModel.clear();
+        // Merge persisted personal evidence on top of bootstrap language knowledge.
         String[] entries = data.split(";;;");
         for (String entry : entries) {
             if (entry.trim().isEmpty()) continue;
