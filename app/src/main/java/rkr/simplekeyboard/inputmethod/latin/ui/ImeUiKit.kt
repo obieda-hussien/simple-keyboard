@@ -4,10 +4,10 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
-import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.widget.TextView
+import rkr.simplekeyboard.inputmethod.latin.AudioAndHapticFeedbackManager
 import java.util.Locale
 
 /** Small allocation-conscious helpers shared by IME utility surfaces. */
@@ -44,7 +44,7 @@ object ImeUiKit {
                     v.animate()
                         .scaleX(0.965f).scaleY(0.965f).alpha(0.88f)
                         .setDuration(65L).start()
-                    v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    haptic(v)
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.animate().cancel()
@@ -55,6 +55,11 @@ object ImeUiKit {
             }
             false
         }
+    }
+
+    @JvmStatic
+    fun haptic(view: View) {
+        AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(view)
     }
 
     @JvmStatic
