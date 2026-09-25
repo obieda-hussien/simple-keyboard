@@ -389,20 +389,9 @@ public class LocalLearningEngine {
      * Populates the dictionary list with bootstrap vocabulary for typo suggestions.
      */
     private void populateDictionaryFromBootstrap() {
-        // Add common prefixes to generate comprehensive dictionary
-        String[] commonPrefixes = {"", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
-                                   "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
-                                   "th", "wh", "ch", "sh", "ph",
-                                   "و", "أ", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز",
-                                   "س", "ش", "ص", "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك",
-                                   "ل", "م", "ن", "ه", "ي", "ال"};
-        
-        Set<String> uniqueWords = new HashSet<>();
-        for (String prefix : commonPrefixes) {
-            List<String> words = BootstrapVocabulary.getCommonWordsForPrefix(prefix);
-            uniqueWords.addAll(words);
-        }
-        
+        // Keep the typo dictionary aligned with the full bundled vocabulary. The previous
+        // prefix enumeration silently omitted many valid English and Arabic/Egyptian words.
+        final Set<String> uniqueWords = new HashSet<>(BootstrapVocabulary.getAllWords());
         dictionaryWords.addAll(uniqueWords);
     }
 
