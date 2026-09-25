@@ -18,7 +18,6 @@ package rkr.simplekeyboard.inputmethod.latin.ui;
 
 import android.content.Context;
 import android.graphics.Typeface;
-import android.view.HapticFeedbackConstants;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -210,7 +209,7 @@ public class SuggestionStripView extends LinearLayout {
         });
         suggestionView.setOnLongClickListener(v -> {
             if (suggestionLongClickListener == null) return false;
-            v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+            ImeUiKit.haptic(v);
             suggestionLongClickListener.onSuggestionLongClicked(
                     suggestionView.getText().toString());
             return true;
