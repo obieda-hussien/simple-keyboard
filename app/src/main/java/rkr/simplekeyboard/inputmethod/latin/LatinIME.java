@@ -334,10 +334,13 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         final IntentFilter actionFilter = new IntentFilter();
         actionFilter.addAction(KeyboardActionActivity.ACTION_VOICE_RESULT);
         actionFilter.addAction(KeyboardActionActivity.ACTION_IMAGE_RESULT);
+        final String internalActionPermission =
+                "rkr.simplekeyboard.inputmethod.permission.INTERNAL_KEYBOARD_ACTION";
         if (Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(mKeyboardActionReceiver, actionFilter, Context.RECEIVER_NOT_EXPORTED);
+            registerReceiver(mKeyboardActionReceiver, actionFilter, internalActionPermission,
+                    null, Context.RECEIVER_NOT_EXPORTED);
         } else {
-            registerReceiver(mKeyboardActionReceiver, actionFilter);
+            registerReceiver(mKeyboardActionReceiver, actionFilter, internalActionPermission, null);
         }
     }
 
