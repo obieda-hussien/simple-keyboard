@@ -300,9 +300,9 @@ public class LocalLearningEngine {
         
         String lowerPrefix = prefix.toLowerCase();
         for (String userWord : userWords) {
-            if (userWord.toLowerCase().startsWith(lowerPrefix)) {
+            if (userWord.toLowerCase(java.util.Locale.ROOT).startsWith(lowerPrefix)) {
                 userSuggestions.add(userWord);
-                if (userSuggestions.size() >= 3) break; // Limit user suggestions
+                if (userSuggestions.size() >= 20) break;
             }
         }
         
@@ -391,7 +391,8 @@ public class LocalLearningEngine {
     private void populateDictionaryFromBootstrap() {
         // Keep the typo dictionary aligned with the full bundled vocabulary. The previous
         // prefix enumeration silently omitted many valid English and Arabic/Egyptian words.
-        final Set<String> uniqueWords = new HashSet<>(BootstrapVocabulary.getAllWords());
+        final Set<String> uniqueWords =
+                new java.util.LinkedHashSet<>(BootstrapVocabulary.getAllWords());
         dictionaryWords.addAll(uniqueWords);
     }
 
@@ -500,10 +501,11 @@ public class LocalLearningEngine {
         
         // Search in user dictionary first (higher priority)
         for (String userWord : userWords) {
-            if (userWord.toLowerCase().startsWith(partialWord) && 
-                !userWord.toLowerCase().equals(partialWord)) {
+            final String normalizedUserWord = userWord.toLowerCase(java.util.Locale.ROOT);
+            if (normalizedUserWord.startsWith(partialWord)
+                    && !normalizedUserWord.equals(partialWord)) {
                 completions.add(userWord);
-                if (completions.size() >= 3) break; // Limit user completions
+                if (completions.size() >= 12) break;
             }
         }
         
