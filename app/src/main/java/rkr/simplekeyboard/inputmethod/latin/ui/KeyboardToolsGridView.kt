@@ -38,7 +38,8 @@ class KeyboardToolsGridView @JvmOverloads constructor(
     private data class ToolCard(
         val view: LinearLayout,
         val icon: ImageView,
-        val label: TextView
+        val label: TextView,
+        val labelRes: Int
     )
 
     private val grid = GridLayout(context)
@@ -81,7 +82,12 @@ class KeyboardToolsGridView @JvmOverloads constructor(
     fun setLanguageLocale(locale: Locale?) {
         // Positions are physical and stable; only text direction changes inside each card.
         layoutDirection = View.LAYOUT_DIRECTION_LTR
-        cards.forEach { ImeUiKit.applyTextDirection(it.label, it.label.text, locale) }
+        cards.forEach {
+            val label = ImeUiKit.string(context, locale, it.labelRes)
+            it.label.text = label
+            it.view.contentDescription = label
+            ImeUiKit.applyTextDirection(it.label, label, locale)
+        }
     }
 
     fun refreshTheme() {
@@ -148,6 +154,6 @@ class KeyboardToolsGridView @JvmOverloads constructor(
                 ImeUiKit.dp(context, 4f)
             )
         })
-        cards += ToolCard(card, icon, label)
+        cards += ToolCard(card, icon, label, labelRes)
     }
 }
