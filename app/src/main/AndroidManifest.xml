@@ -42,6 +42,13 @@
         </service>
 
         <activity
+            android:name=".latin.KeyboardActionActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <activity
             android:name=".latin.settings.SettingsActivity"
             android:label="@string/english_ime_name"
             android:exported="true"
