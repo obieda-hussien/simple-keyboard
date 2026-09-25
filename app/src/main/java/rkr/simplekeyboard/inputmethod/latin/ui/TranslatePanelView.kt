@@ -37,6 +37,7 @@ class TranslatePanelView @JvmOverloads constructor(
     private val insertButton = TextView(context)
     private var listener: Listener? = null
     private var locale: Locale? = null
+    private var canReplaceSource = false
     private var palette: ThemePalette = ThemeEngine.palette(context)
 
     init {
@@ -143,6 +144,11 @@ class TranslatePanelView @JvmOverloads constructor(
         ImeUiKit.applyTextDirection(targetLanguage, targetLanguage.text, value)
     }
 
+    fun setCanReplaceSource(value: Boolean) {
+        canReplaceSource = value
+        updateResultActions()
+    }
+
     fun setSourceText(value: CharSequence?) {
         source.text = value?.takeIf { it.isNotBlank() }
             ?: context.getString(R.string.translate_source_hint)
@@ -154,11 +160,17 @@ class TranslatePanelView @JvmOverloads constructor(
         result.text = value?.takeIf { it.isNotBlank() }
             ?: context.getString(R.string.translate_result_hint)
         ImeUiKit.applyTextDirection(result, result.text, locale)
-        val enabled = !value.isNullOrBlank()
-        replaceButton.isEnabled = enabled
-        insertButton.isEnabled = enabled
-        replaceButton.alpha = if (enabled) 1f else 0.36f
-        insertButton.alpha = if (enabled) 1f else 0.36f
+        updateResultActions()
+    }
+
+    private fun updateResultActions() {
+        val hasResult = result.text?.toString()?.let {
+            it.isNotBlank() && it != context.getString(R.string.translate_result_hint)
+        } == true
+        replaceButton.isEnabled = hasResult && canReplaceSource
+        insertButton.isEnabled = hasResult
+        replaceButton.alpha = if (replaceButton.isEnabled) 1f else 0.36f
+        insertButton.alpha = if (insertButton.isEnabled) 1f else 0.36f
     }
 
     fun refreshTheme() {
