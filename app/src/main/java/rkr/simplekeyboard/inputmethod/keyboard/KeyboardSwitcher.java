@@ -127,19 +127,35 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         final int fullWidth = mLatinIME.getMaxWidth();
         SharedPreferences prefs = PreferenceManagerCompat.getDeviceSharedPreferences(mLatinIME);
         String oneHandedMode = prefs.getString(Settings.PREF_ONE_HANDED_MODE, "off");
-        boolean oneHanded = res.getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT
-                && res.getConfiguration().smallestScreenWidthDp < 600
+        final boolean phonePortrait = res.getConfiguration().orientation
+                == Configuration.ORIENTATION_PORTRAIT
+                && res.getConfiguration().smallestScreenWidthDp < 600;
+        final boolean oneHanded = phonePortrait
                 && ("left".equals(oneHandedMode) || "right".equals(oneHandedMode));
-        mOneHanded = oneHanded;
-        int minWidth = (int) (280 * res.getDisplayMetrics().density + 0.5f);
-        final int keyboardWidth = oneHanded
-                ? Math.min(fullWidth, Math.max(minWidth, Math.round(fullWidth * 0.78f)))
+        final boolean floating = "floating".equals(oneHandedMode);
+        final boolean compact = oneHanded || floating;
+        mOneHanded = compact;
+        final float density = res.getDisplayMetrics().density;
+        final int minWidth = (int) (280 * density + 0.5f);
+        final int maxFloatingWidth = (int) (720 * density + 0.5f);
+        final float floatingRatio = res.getConfiguration().smallestScreenWidthDp >= 600
+                ? 0.68f : 0.82f;
+        final int compactWidth = floating
+                ? Math.min(maxFloatingWidth, Math.round(fullWidth * floatingRatio))
+                : Math.round(fullWidth * 0.78f);
+        final int keyboardWidth = compact
+                ? Math.min(fullWidth, Math.max(minWidth, compactWidth))
                 : fullWidth;
         if (mKeyboardView != null) {
             FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) mKeyboardView.getLayoutParams();
             params.width = keyboardWidth;
-            params.gravity = "right".equals(oneHandedMode) && oneHanded
-                    ? Gravity.RIGHT : Gravity.LEFT;
+            if (floating) {
+                params.gravity = Gravity.CENTER_HORIZONTAL;
+            } else if ("right".equals(oneHandedMode) && oneHanded) {
+                params.gravity = Gravity.RIGHT;
+            } else {
+                params.gravity = Gravity.LEFT;
+            }
             mKeyboardView.setLayoutParams(params);
         }
         updateTopContainerWidth(false);
