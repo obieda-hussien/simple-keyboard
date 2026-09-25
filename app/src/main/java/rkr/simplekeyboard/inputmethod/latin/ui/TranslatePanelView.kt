@@ -138,7 +138,7 @@ class TranslatePanelView @JvmOverloads constructor(
         locale = value
         // Structural controls stay in fixed positions; source/result text independently follows bidi.
         layoutDirection = android.view.View.LAYOUT_DIRECTION_LTR
-        sourceLanguage.text = value?.getDisplayLanguage(value)?.takeIf { it.isNotBlank() }
+        sourceLanguage.text = value?.let { it.getDisplayLanguage(it) }?.takeIf { it.isNotBlank() }
             ?: ImeUiKit.string(context, value, R.string.translate_auto)
         targetLanguage.text = ImeUiKit.string(context, value, R.string.translate_external_app)
         close.contentDescription = ImeUiKit.string(context, value, R.string.close_panel)
