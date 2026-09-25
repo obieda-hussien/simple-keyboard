@@ -584,7 +584,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             return;
         }
         if (mTopBar != null) {
-            mTopBar.setMediaActionsEnabled(!isPasswordEditor(editorInfo));
+            final boolean password = isPasswordEditor(editorInfo);
+            mTopBar.setMediaActionsEnabled(!password && supportsImageContent(editorInfo),
+                    !password);
         }
         if (DebugFlags.DEBUG_ENABLED) {
             Log.d(TAG, "All caps = "
@@ -1504,6 +1506,18 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     private boolean isPasswordEditor(EditorInfo editorInfo) {
         return editorInfo != null && new InputAttributes(editorInfo, false).mIsPasswordField;
+    }
+
+    private boolean supportsImageContent(EditorInfo editorInfo) {
+        if (Build.VERSION.SDK_INT < 25 || editorInfo == null || editorInfo.contentMimeTypes == null) {
+            return false;
+        }
+        for (String mime : editorInfo.contentMimeTypes) {
+            if (mime != null && android.content.ClipDescription.compareMimeTypes(mime, "image/*")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void launchVoiceInput() {
