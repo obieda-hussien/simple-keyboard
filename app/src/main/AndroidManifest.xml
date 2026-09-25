@@ -18,6 +18,10 @@
 
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+    <permission
+        android:name="rkr.simplekeyboard.inputmethod.permission.INTERNAL_KEYBOARD_ACTION"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="rkr.simplekeyboard.inputmethod.permission.INTERNAL_KEYBOARD_ACTION" />
 
     <application
         android:allowBackup="false"
