@@ -91,6 +91,9 @@ class ClipboardPanelView @JvmOverloads constructor(
     fun setLanguageLocale(value: Locale?) {
         locale = value
         layoutDirection = View.LAYOUT_DIRECTION_LTR
+        title.text = ImeUiKit.string(context, value, R.string.clipboard_panel_title)
+        clear.text = ImeUiKit.string(context, value, R.string.clipboard_history_clear)
+        close.contentDescription = ImeUiKit.string(context, value, R.string.clipboard_history_close)
         ImeUiKit.applyTextDirection(title, title.text, value)
         title.gravity = if (ImeUiKit.layoutDirection(value) == View.LAYOUT_DIRECTION_RTL)
             Gravity.RIGHT or Gravity.CENTER_VERTICAL else Gravity.LEFT or Gravity.CENTER_VERTICAL
@@ -102,7 +105,7 @@ class ClipboardPanelView @JvmOverloads constructor(
         val safeEntries = entries.orEmpty()
         if (safeEntries.isEmpty()) {
             val empty = TextView(context).apply {
-                setText(R.string.clipboard_history_empty)
+                text = ImeUiKit.string(context, locale, R.string.clipboard_history_empty)
                 textSize = 15f
                 gravity = Gravity.CENTER
                 setPadding(16, 32, 16, 32)
@@ -163,7 +166,7 @@ class ClipboardPanelView @JvmOverloads constructor(
                 ImeUiKit.dp(context, 13f),
                 ImeUiKit.dp(context, 9f)
             )
-            contentDescription = context.getString(R.string.clipboard_history_paste) + ": " + text
+            contentDescription = ImeUiKit.string(context, locale, R.string.clipboard_history_paste) + ": " + text
             setOnClickListener { listener?.onPasteClipboardItem(text) }
             setOnLongClickListener {
                 ImeUiKit.haptic(this)
@@ -182,7 +185,11 @@ class ClipboardPanelView @JvmOverloads constructor(
             ImeUiKit.applyTextDirection(this, this.text, locale)
         }
         val state = TextView(context).apply {
-            setText(if (isPinned) R.string.clipboard_pinned else R.string.clipboard_long_press_pin)
+            text = ImeUiKit.string(
+                context,
+                locale,
+                if (isPinned) R.string.clipboard_pinned else R.string.clipboard_long_press_pin
+            )
             textSize = 10.5f
             maxLines = 1
             gravity = Gravity.START
