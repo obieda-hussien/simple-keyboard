@@ -1,6 +1,7 @@
 package rkr.simplekeyboard.inputmethod.latin;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -11,12 +12,18 @@ import android.widget.Toast;
 import java.util.ArrayList;
 
 import rkr.simplekeyboard.inputmethod.R;
+import rkr.simplekeyboard.inputmethod.latin.settings.UiLocaleManager;
 
 /**
  * Tiny no-history bridge activity used by the IME for system-owned pickers that return a result.
  * It never stores media or speech text; results are immediately sent back to the running IME.
  */
 public final class KeyboardActionActivity extends Activity {
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(UiLocaleManager.wrap(newBase));
+    }
+
     public static final String EXTRA_MODE = "mode";
     public static final String EXTRA_LANGUAGE = "language";
     public static final String EXTRA_TEXT = "text";
