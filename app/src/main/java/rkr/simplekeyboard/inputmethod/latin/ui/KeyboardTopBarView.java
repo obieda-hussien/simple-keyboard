@@ -19,7 +19,6 @@ package rkr.simplekeyboard.inputmethod.latin.ui;
 import android.content.Context;
 import android.graphics.PorterDuff;
 import android.util.AttributeSet;
-import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ImageButton;
@@ -140,7 +139,7 @@ public class KeyboardTopBarView extends LinearLayout {
         });
         clipboardButton.setOnLongClickListener(v -> {
             if (actionListener == null) return false;
-            v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+            ImeUiKit.haptic(v);
             actionListener.onClipboardHistoryRequested();
             return true;
         });
