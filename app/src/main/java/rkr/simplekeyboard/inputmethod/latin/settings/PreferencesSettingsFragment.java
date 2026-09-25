@@ -17,11 +17,14 @@
 package rkr.simplekeyboard.inputmethod.latin.settings;
 
 import android.content.SharedPreferences;
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
 import android.preference.Preference;
 import android.preference.SwitchPreference;
+import android.preference.TwoStatePreference;
 
 import rkr.simplekeyboard.inputmethod.R;
 import rkr.simplekeyboard.inputmethod.keyboard.KeyboardLayoutSet;
@@ -39,6 +42,7 @@ import rkr.simplekeyboard.inputmethod.keyboard.KeyboardLayoutSet;
  * - Delete swipe
  */
 public final class PreferencesSettingsFragment extends SubScreenFragment {
+    private static final int REQUEST_ACCOUNTS = 411;
     @Override
     public void onCreate(final Bundle icicle) {
         super.onCreate(icicle);
@@ -54,6 +58,16 @@ public final class PreferencesSettingsFragment extends SubScreenFragment {
                     .show();
             return true;
         });
+        Preference accountPreference = findPreference(Settings.PREF_ACCOUNT_EMAIL_SUGGESTIONS);
+        accountPreference.setOnPreferenceChangeListener((preference, value) -> {
+            if (Boolean.TRUE.equals(value) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                    && getActivity().checkSelfPermission(Manifest.permission.GET_ACCOUNTS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.GET_ACCOUNTS}, REQUEST_ACCOUNTS);
+                return false;
+            }
+            return true;
+        });
 
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.KITKAT) {
             removePreference(Settings.PREF_ENABLE_IME_SWITCH);
@@ -62,6 +76,28 @@ public final class PreferencesSettingsFragment extends SubScreenFragment {
         }
         if (Build.VERSION.SDK_INT < 34) {
             removePreference(Settings.PREF_USE_ON_SCREEN);
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && getActivity().checkSelfPermission(Manifest.permission.GET_ACCOUNTS)
+                != PackageManager.PERMISSION_GRANTED) {
+            ((TwoStatePreference) findPreference(Settings.PREF_ACCOUNT_EMAIL_SUGGESTIONS))
+                    .setChecked(false);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_ACCOUNTS && grantResults.length > 0
+                && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            ((TwoStatePreference) findPreference(Settings.PREF_ACCOUNT_EMAIL_SUGGESTIONS))
+                    .setChecked(true);
         }
     }
 
