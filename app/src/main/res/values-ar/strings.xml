@@ -30,6 +30,12 @@
     <string name="one_handed_off">إيقاف</string>
     <string name="one_handed_left">اليسار</string>
     <string name="one_handed_right">اليمين</string>
+    <string name="one_handed_floating">عائمة</string>
+    <string name="voice_input">الكتابة بالصوت</string>
+    <string name="voice_input_unavailable">لا توجد خدمة متاحة للتعرف على الكلام</string>
+    <string name="image_picker">إدراج صورة</string>
+    <string name="image_picker_unavailable">لا يوجد منتقي صور متاح</string>
+    <string name="image_picker_unsupported">هذا الحقل لا يدعم الصورة المختارة</string>
     <string name="auto_correction_title">تصحيح تلقائي محافظ</string>
     <string name="auto_correction_summary">تصحيح الأخطاء الواضحة عند المسافة؛ اضغط الحذف لاسترجاع كلمتك</string>
     <string name="clipboard_history_hint">اضغط مطولًا على الحافظة لعرض ما لُصق مؤخرًا</string>
