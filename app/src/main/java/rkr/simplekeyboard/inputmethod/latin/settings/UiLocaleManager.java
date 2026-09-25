@@ -9,6 +9,7 @@ import android.text.TextUtils;
 import java.util.Locale;
 
 import rkr.simplekeyboard.inputmethod.compat.PreferenceManagerCompat;
+import rkr.simplekeyboard.inputmethod.latin.utils.LocaleResourceUtils;
 
 /**
  * Keeps settings/options language aligned with the keyboard language the user is currently using.
@@ -22,6 +23,8 @@ public final class UiLocaleManager {
 
     public static void remember(Context context, Locale locale) {
         if (context == null || locale == null) return;
+        LocaleResourceUtils.init(context);
+        LocaleResourceUtils.setDisplayLocale(locale);
         PreferenceManagerCompat.getDeviceSharedPreferences(context)
                 .edit()
                 .putString(PREF_ACTIVE_UI_LOCALE, locale.toLanguageTag())
@@ -34,7 +37,10 @@ public final class UiLocaleManager {
         String tag = prefs.getString(PREF_ACTIVE_UI_LOCALE, "");
         if (TextUtils.isEmpty(tag)) return Locale.getDefault();
         Locale locale = Locale.forLanguageTag(tag);
-        return TextUtils.isEmpty(locale.getLanguage()) ? Locale.getDefault() : locale;
+        Locale resolved = TextUtils.isEmpty(locale.getLanguage()) ? Locale.getDefault() : locale;
+        LocaleResourceUtils.init(context);
+        LocaleResourceUtils.setDisplayLocale(resolved);
+        return resolved;
     }
 
     public static Context wrap(Context base) {
