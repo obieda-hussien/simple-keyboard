@@ -118,6 +118,29 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     private AlertDialog mOptionsDialog;
 
+    private final BroadcastReceiver mKeyboardActionReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null || isPasswordEditor(getCurrentInputEditorInfo())) return;
+            final String action = intent.getAction();
+            if (KeyboardActionActivity.ACTION_VOICE_RESULT.equals(action)) {
+                final String text = intent.getStringExtra(KeyboardActionActivity.EXTRA_TEXT);
+                if (!TextUtils.isEmpty(text) && mInputLogic != null) {
+                    mInputLogic.commitText(text);
+                }
+            } else if (KeyboardActionActivity.ACTION_IMAGE_RESULT.equals(action)) {
+                final String uriValue = intent.getStringExtra(KeyboardActionActivity.EXTRA_URI);
+                final String mime = intent.getStringExtra(KeyboardActionActivity.EXTRA_MIME);
+                if (TextUtils.isEmpty(uriValue)
+                        || !commitPickedImage(android.net.Uri.parse(uriValue), mime)) {
+                    android.widget.Toast.makeText(LatinIME.this,
+                            R.string.image_picker_unsupported, android.widget.Toast.LENGTH_SHORT)
+                            .show();
+                }
+            }
+        }
+    };
+
     public final UIHandler mHandler = new UIHandler(this);
 
     public static final class UIHandler extends LeakGuardHandlerWrapper<LatinIME> {
@@ -303,6 +326,15 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         final IntentFilter filter = new IntentFilter();
         filter.addAction(AudioManager.RINGER_MODE_CHANGED_ACTION);
         registerReceiver(mRingerModeChangeReceiver, filter);
+
+        final IntentFilter actionFilter = new IntentFilter();
+        actionFilter.addAction(KeyboardActionActivity.ACTION_VOICE_RESULT);
+        actionFilter.addAction(KeyboardActionActivity.ACTION_IMAGE_RESULT);
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(mKeyboardActionReceiver, actionFilter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(mKeyboardActionReceiver, actionFilter);
+        }
     }
 
     private void loadSettings() {
@@ -329,6 +361,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         }
         mSettings.onDestroy();
         unregisterReceiver(mRingerModeChangeReceiver);
+        unregisterReceiver(mKeyboardActionReceiver);
         super.onDestroy();
     }
 
@@ -421,6 +454,16 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                     @Override
                     public void onClipboardHistoryRequested() {
                         showClipboardHistory();
+                    }
+
+                    @Override
+                    public void onImageButtonClicked() {
+                        launchImagePicker();
+                    }
+
+                    @Override
+                    public void onVoiceButtonClicked() {
+                        launchVoiceInput();
                     }
                     
                     @Override
@@ -539,6 +582,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                 throw new NullPointerException("Null EditorInfo in onStartInputView()");
             }
             return;
+        }
+        if (mTopBar != null) {
+            mTopBar.setMediaActionsEnabled(!isPasswordEditor(editorInfo));
         }
         if (DebugFlags.DEBUG_ENABLED) {
             Log.d(TAG, "All caps = "
@@ -1413,26 +1459,70 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     }
 
     private boolean commitClipboardImage(android.content.ClipData clipData) {
-        if (Build.VERSION.SDK_INT < 25) return false;
+        if (clipData == null || clipData.getItemCount() == 0) return false;
+        final android.net.Uri uri = clipData.getItemAt(0).getUri();
+        final android.content.ClipDescription description = clipData.getDescription();
+        if (uri == null || description == null) return false;
+        String mime = null;
+        for (int i = 0; i < description.getMimeTypeCount(); i++) {
+            final String candidate = description.getMimeType(i);
+            if (candidate != null && candidate.startsWith("image/")) {
+                mime = candidate;
+                break;
+            }
+        }
+        return commitPickedImage(uri, mime);
+    }
+
+    private boolean commitPickedImage(android.net.Uri uri, String mime) {
+        if (Build.VERSION.SDK_INT < 25 || uri == null
+                || !"content".equals(uri.getScheme()) || isPasswordEditor(getCurrentInputEditorInfo())) {
+            return false;
+        }
         final EditorInfo editor = getCurrentInputEditorInfo();
         final android.view.inputmethod.InputConnection connection = getCurrentInputConnection();
         if (editor == null || editor.contentMimeTypes == null || connection == null) return false;
-        final android.net.Uri uri = clipData.getItemAt(0).getUri();
-        if (uri == null || !"content".equals(uri.getScheme())) return false;
-        final android.content.ClipDescription description = clipData.getDescription();
+        if (TextUtils.isEmpty(mime)) mime = "image/*";
+
         boolean compatible = false;
-        for (String mimeType : editor.contentMimeTypes) {
-            if (mimeType != null && mimeType.startsWith("image/")
-                    && description.hasMimeType(mimeType)) {
+        for (String editorMime : editor.contentMimeTypes) {
+            if (editorMime != null && android.content.ClipDescription.compareMimeTypes(
+                    editorMime, mime)) {
                 compatible = true;
                 break;
             }
         }
         if (!compatible) return false;
+
+        final android.content.ClipDescription description =
+                new android.content.ClipDescription("Keyboard image", new String[]{mime});
         return connection.commitContent(
                 new android.view.inputmethod.InputContentInfo(uri, description, null),
                 android.view.inputmethod.InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION,
                 null);
+    }
+
+    private boolean isPasswordEditor(EditorInfo editorInfo) {
+        return editorInfo != null && new InputAttributes(editorInfo, false).mIsPasswordField;
+    }
+
+    private void launchVoiceInput() {
+        if (isPasswordEditor(getCurrentInputEditorInfo())) return;
+        final Intent intent = new Intent(this, KeyboardActionActivity.class);
+        intent.putExtra(KeyboardActionActivity.EXTRA_MODE, KeyboardActionActivity.MODE_VOICE);
+        if (mLocale != null) {
+            intent.putExtra(KeyboardActionActivity.EXTRA_LANGUAGE, mLocale.toLanguageTag());
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivity(intent);
+    }
+
+    private void launchImagePicker() {
+        if (isPasswordEditor(getCurrentInputEditorInfo())) return;
+        final Intent intent = new Intent(this, KeyboardActionActivity.class);
+        intent.putExtra(KeyboardActionActivity.EXTRA_MODE, KeyboardActionActivity.MODE_IMAGE);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivity(intent);
     }
 
     private boolean isClipboardHistoryAllowed(EditorInfo editorInfo) {
