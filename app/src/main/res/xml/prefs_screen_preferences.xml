@@ -61,6 +61,12 @@
         android:title="@string/email_suggestions"
         android:summary="@string/email_suggestions_summary"
         android:defaultValue="false" />
+    <CheckBoxPreference
+        android:key="pref_account_email_suggestions"
+        android:title="@string/account_email_suggestions"
+        android:summary="@string/account_email_suggestions_summary"
+        android:dependency="pref_email_suggestions"
+        android:defaultValue="false" />
     <Preference
         android:key="pref_clear_learning"
         android:title="@string/clear_learning_data"

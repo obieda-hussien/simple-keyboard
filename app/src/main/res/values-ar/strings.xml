@@ -30,6 +30,9 @@
     <string name="one_handed_off">إيقاف</string>
     <string name="one_handed_left">اليسار</string>
     <string name="one_handed_right">اليمين</string>
+    <string name="email_suggestions_summary">إكمال نطاقات البريد الشائعة في حقول البريد</string>
+    <string name="account_email_suggestions">اقتراح عناوين حسابات الجهاز</string>
+    <string name="account_email_suggestions_summary">قراءة عناوين حسابات هذا الجهاز عند تعبئة البريد؛ يتطلب صلاحية الحسابات</string>
     <string name="vibrate_on_keypress">"اهتزاز عند ضغط مفتاح"</string>
     <string name="sound_on_keypress">"صوت عند الضغط على مفتاح"</string>
     <string name="popup_on_keypress">"انبثاق عند ضغط مفتاح"</string>

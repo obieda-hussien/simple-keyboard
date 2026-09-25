@@ -132,7 +132,9 @@
     
     <!-- Email suggestion preferences -->
     <string name="email_suggestions">Email suggestions</string>
-    <string name="email_suggestions_summary">Show email addresses from contacts when typing in email fields</string>
+    <string name="email_suggestions_summary">Complete common email domains in email fields</string>
+    <string name="account_email_suggestions">Suggest device account addresses</string>
+    <string name="account_email_suggestions_summary">Read account addresses on this device when filling email fields; requires account access</string>
     
     <string name="setup_message">Simple Keyboard is not enabled. Click OK to open Languages &amp; Input settings. You will need to select Simple Keyboard in your current keyboard to use it.</string>
     <string name="user_languages">Enabled keyboard languages</string>

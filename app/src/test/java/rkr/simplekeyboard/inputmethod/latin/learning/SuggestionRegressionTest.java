@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.Test;
+import rkr.simplekeyboard.inputmethod.latin.utils.EmailSuggestionProvider;
 
 public class SuggestionRegressionTest {
     @Test
@@ -56,5 +57,13 @@ public class SuggestionRegressionTest {
         char[] longToken = new char[49];
         Arrays.fill(longToken, 'x');
         assertFalse(LocalLearningEngine.isValidWord(new String(longToken)));
+    }
+
+    @Test
+    public void domainCompletionOnlyOffersMatchingUnfinishedAddresses() {
+        EmailSuggestionProvider provider = new EmailSuggestionProvider(null);
+        List<String> suggestions = provider.getDomainCompletions("oba", "gm");
+        assertEquals(Arrays.asList("oba@gmail.com"), suggestions);
+        assertTrue(provider.getDomainCompletions("oba", "gmail.com").isEmpty());
     }
 }

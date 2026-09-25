@@ -761,6 +761,10 @@ public final class InputLogic {
     private void updateContextualSuggestions() {
         suggestionGeneration++;
         suggestionHandler.removeCallbacks(suggestionUpdate);
+        if (isEmailSuggestionField()) {
+            updateSuggestions();
+            return;
+        }
         // Respect the editor's request before reading surrounding text or the clipboard.
         if (isPrivateField()) {
             mLatinIME.updateSuggestionStrip(java.util.Collections.emptyList());
@@ -807,7 +811,7 @@ public final class InputLogic {
     private void updateSuggestions() {
         suggestionHandler.removeCallbacks(suggestionUpdate);
         suggestionGeneration++;
-        if (isPrivateField()) {
+        if (isPrivateField() && !isEmailSuggestionField()) {
             mLatinIME.updateSuggestionStrip(java.util.Collections.emptyList());
             return;
         }
@@ -815,23 +819,26 @@ public final class InputLogic {
     }
 
     private void computeSuggestions() {
+        final int generation = suggestionGeneration;
+        final EditorInfo editor = getCurrentInputEditorInfo();
+        if (isEmailSuggestionField()) {
+            String text = mConnection.getTextBeforeCursor();
+            boolean includeAccounts = rkr.simplekeyboard.inputmethod.compat.PreferenceManagerCompat
+                    .getDeviceSharedPreferences(mLatinIME)
+                    .getBoolean(rkr.simplekeyboard.inputmethod.latin.settings.Settings
+                            .PREF_ACCOUNT_EMAIL_SUGGESTIONS, false);
+            learningWorker.execute(() -> {
+                if (learningClosed || generation != suggestionGeneration) return;
+                deliverSuggestions(generation, editor, getEmailSuggestions(text, includeAccounts));
+            });
+            return;
+        }
         if (isPrivateField()) {
             mLatinIME.updateSuggestionStrip(java.util.Collections.emptyList());
             return;
         }
-        final int generation = suggestionGeneration;
-        final EditorInfo editor = getCurrentInputEditorInfo();
         final String currentWord = mCurrentWord.toString();
         final String previousContext = getPreviousContext();
-        // Check if we're in an email field and email suggestions are enabled
-        EditorInfo editorInfo = mLatinIME.getCurrentInputEditorInfo();
-        if (editorInfo != null && isEmailInputField(editorInfo) && isEmailSuggestionsEnabled()) {
-            java.util.List<String> emailSuggestions = getEmailSuggestions(currentWord, previousContext);
-            if (!emailSuggestions.isEmpty()) {
-                mLatinIME.updateSuggestionStrip(emailSuggestions);
-                return;
-            }
-        }
         
         // Fall back to regular learning-based suggestions
         learningWorker.execute(() -> {
@@ -846,7 +853,8 @@ public final class InputLogic {
     private void deliverSuggestions(int generation, EditorInfo editor, List<String> suggestions) {
         suggestionHandler.post(() -> {
             if (!learningClosed && generation == suggestionGeneration
-                    && editor == getCurrentInputEditorInfo() && !isPrivateField()) {
+                    && editor == getCurrentInputEditorInfo()
+                    && (!isPrivateField() || isEmailSuggestionField())) {
                 mLatinIME.updateSuggestionStrip(suggestions);
             }
         });
@@ -878,7 +886,7 @@ public final class InputLogic {
         try {
             return mLatinIME.getSettingsValues().mEmailSuggestionsEnabled;
         } catch (Exception e) {
-            return true; // Default to enabled if we can't read settings
+            return false;
         }
     }
 
@@ -892,15 +900,22 @@ public final class InputLogic {
         return InputTypeUtils.isEmailVariation(variation);
     }
 
+    private boolean isEmailSuggestionField() {
+        EditorInfo info = getCurrentInputEditorInfo();
+        return info != null && isEmailInputField(info) && isEmailSuggestionsEnabled()
+                && (info.inputType & android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) == 0
+                && (info.imeOptions & EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) == 0;
+    }
+
     /**
      * Gets email-specific suggestions based on current input.
      */
-    private java.util.List<String> getEmailSuggestions(String currentWord, String previousContext) {
+    private java.util.List<String> getEmailSuggestions(String textBeforeCursor,
+            boolean includeAccounts) {
         java.util.List<String> suggestions = new java.util.ArrayList<>();
         EmailSuggestionProvider emailProvider = getEmailSuggestionProvider();
         
         try {
-            String textBeforeCursor = mConnection.getTextBeforeCursor();
             if (textBeforeCursor != null) {
                 // Check for domain completion pattern: (text)@
                 int atIndex = textBeforeCursor.lastIndexOf('@');
@@ -915,18 +930,17 @@ public final class InputLogic {
                         String emailPrefix = beforeAt.substring(emailStart);
                         
                         if (!emailPrefix.isEmpty() && isValidEmailPrefix(emailPrefix)) {
-                            java.util.List<String> domainSuggestions = emailProvider.getDomainCompletions(emailPrefix);
+                            java.util.List<String> domainSuggestions = emailProvider
+                                    .getDomainCompletions(emailPrefix, textAfterAt);
                             suggestions.addAll(domainSuggestions);
                         }
                     }
                 } else {
                     // We're typing an email address from the beginning
-                    if (currentWord.isEmpty()) {
-                        // Show contact emails when field is empty or starting
-                        suggestions.addAll(emailProvider.getContactEmails());
-                    } else {
-                        // Filter contact emails by current input
-                        suggestions.addAll(emailProvider.getFilteredContactEmails(currentWord));
+                    if (includeAccounts) {
+                        String prefix = textBeforeCursor.substring(Math.max(
+                                textBeforeCursor.lastIndexOf(' '), textBeforeCursor.lastIndexOf('\n')) + 1);
+                        suggestions.addAll(emailProvider.getFilteredContactEmails(prefix));
                     }
                 }
             }
@@ -1013,6 +1027,21 @@ public final class InputLogic {
      * Handles suggestion selection from the suggestion strip.
      */
     public void onSuggestionSelected(String suggestion) {
+        if (isEmailSuggestionField() && suggestion != null && suggestion.contains("@")) {
+            String before = mConnection.getTextBeforeCursor();
+            if (before != null) {
+                String token = before.substring(Math.max(before.lastIndexOf(' '),
+                        before.lastIndexOf('\n')) + 1);
+                if (suggestion.regionMatches(true, 0, token, 0, token.length())
+                        && !suggestion.equalsIgnoreCase(token)) {
+                    mConnection.deleteTextBeforeCursor(token.length());
+                    mConnection.commitText(suggestion, 1);
+                    mCurrentWord.setLength(0);
+                    updateSuggestions();
+                }
+            }
+            return;
+        }
         // Check if this is a special suggestion type (clipboard, calculator, emoji)
         boolean isSpecialSuggestion = isSpecialSuggestion(suggestion);
         

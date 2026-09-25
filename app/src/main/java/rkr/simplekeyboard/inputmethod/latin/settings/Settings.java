@@ -56,6 +56,7 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final String PREF_SPACE_SWIPE = "pref_space_swipe";
     public static final String PREF_DELETE_SWIPE = "pref_delete_swipe";
     public static final String PREF_EMAIL_SUGGESTIONS = "pref_email_suggestions";
+    public static final String PREF_ACCOUNT_EMAIL_SUGGESTIONS = "pref_account_email_suggestions";
 
     private static final float UNDEFINED_PREFERENCE_VALUE_FLOAT = -1.0f;
     private static final int UNDEFINED_PREFERENCE_VALUE_INT = -1;
@@ -165,7 +166,7 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     }
 
     public static boolean readEmailSuggestionsEnabled(final SharedPreferences prefs) {
-        return prefs.getBoolean(PREF_EMAIL_SUGGESTIONS, true);
+        return prefs.getBoolean(PREF_EMAIL_SUGGESTIONS, false);
     }
 
     public static String readPrefSubtypes(final SharedPreferences prefs) {
