@@ -162,4 +162,31 @@
     <string name="clear_learning_data_summary">Remove the words and phrases learned on this device</string>
     <string name="clear_learning_data_confirm">Delete all learned words and phrases?</string>
     <string name="show_keyboard_tools">Show keyboard tools</string>
+
+    <!-- Advanced keyboard visual editor -->
+    <string name="theme_studio_title">Theme Studio</string>
+    <string name="theme_studio_summary">Customize colors, key shape, spacing, type scale, contrast, and system color with a live preview</string>
+    <string name="theme_studio_back">Back</string>
+    <string name="theme_studio_preview">Live keyboard preview</string>
+    <string name="theme_studio_presets">Presets</string>
+    <string name="theme_studio_hue">Accent hue</string>
+    <string name="theme_studio_saturation">Accent saturation</string>
+    <string name="theme_studio_surface_tone">Background tone</string>
+    <string name="theme_studio_corner_radius">Key corner radius</string>
+    <string name="theme_studio_key_spacing">Key spacing</string>
+    <string name="theme_studio_font_scale">Key text size</string>
+    <string name="theme_studio_border">Border strength</string>
+    <string name="theme_studio_dynamic_color">Use system dynamic color</string>
+    <string name="theme_studio_dynamic_color_summary">Follow the device Material You accent on Android 12 and newer</string>
+    <string name="theme_studio_high_contrast">High contrast</string>
+    <string name="theme_studio_high_contrast_summary">Prefer stronger foreground contrast for key labels and icons</string>
+    <string name="theme_studio_reset">Reset Theme Studio</string>
+    <string name="theme_preset_graphite">Graphite</string>
+    <string name="theme_preset_violet">Violet</string>
+    <string name="theme_preset_ocean">Ocean</string>
+    <string name="theme_preset_emerald">Emerald</string>
+    <string name="theme_preset_rose">Rose</string>
+    <string name="theme_preset_amoled">AMOLED</string>
+    <string name="theme_preset_light">Light</string>
+
 </resources>
