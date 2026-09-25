@@ -124,7 +124,7 @@
     <string name="a11y_key_symbols">Symbols</string>
     <string name="a11y_key_language">Switch language</string>
     <string name="one_handed_mode">One-handed keyboard</string>
-    <string name="one_handed_mode_summary">Keep the keys close to the left or right edge in portrait</string>
+    <string name="one_handed_mode_summary">Use full width, one-handed left/right, or a centered floating layout</string>
     <string name="one_handed_off">Off</string>
     <string name="one_handed_left">Left</string>
     <string name="one_handed_right">Right</string>
