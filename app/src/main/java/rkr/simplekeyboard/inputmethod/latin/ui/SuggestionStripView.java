@@ -261,7 +261,8 @@ public class SuggestionStripView extends LinearLayout {
 
     public void setLanguageLocale(Locale locale) {
         languageLocale = locale;
-        setLayoutDirection(ImeUiKit.layoutDirection(locale));
+        // Keep the tools/toggle slot physically stable; each chip handles its own bidi text.
+        setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         for (TextView view : suggestionViews) {
             if (view != null) ImeUiKit.applyTextDirection(view, view.getText(), locale);
         }
