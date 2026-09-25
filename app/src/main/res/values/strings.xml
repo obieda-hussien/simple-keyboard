@@ -128,6 +128,12 @@
     <string name="one_handed_off">Off</string>
     <string name="one_handed_left">Left</string>
     <string name="one_handed_right">Right</string>
+    <string name="one_handed_floating">Floating</string>
+    <string name="voice_input">Voice typing</string>
+    <string name="voice_input_unavailable">No speech recognition service is available</string>
+    <string name="image_picker">Insert image</string>
+    <string name="image_picker_unavailable">No image picker is available</string>
+    <string name="image_picker_unsupported">This field cannot accept the selected image</string>
     <string name="auto_correction_title">Conservative autocorrect</string>
     <string name="auto_correction_summary">Correct clear typos on space; press Backspace to restore the original</string>
     <string name="clipboard_history_hint">Long press Clipboard to show recent pastes</string>
