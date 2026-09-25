@@ -25,6 +25,11 @@
     <string name="a11y_key_enter">إدخال</string>
     <string name="a11y_key_symbols">الرموز</string>
     <string name="a11y_key_language">تغيير اللغة</string>
+    <string name="one_handed_mode">لوحة بيد واحدة</string>
+    <string name="one_handed_mode_summary">تقريب المفاتيح من اليمين أو اليسار عند الوضع الرأسي</string>
+    <string name="one_handed_off">إيقاف</string>
+    <string name="one_handed_left">اليسار</string>
+    <string name="one_handed_right">اليمين</string>
     <string name="vibrate_on_keypress">"اهتزاز عند ضغط مفتاح"</string>
     <string name="sound_on_keypress">"صوت عند الضغط على مفتاح"</string>
     <string name="popup_on_keypress">"انبثاق عند ضغط مفتاح"</string>

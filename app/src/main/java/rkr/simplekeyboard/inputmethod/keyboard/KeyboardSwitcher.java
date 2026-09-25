@@ -17,17 +17,22 @@
 package rkr.simplekeyboard.inputmethod.keyboard;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Insets;
 import android.os.Build;
 import android.util.Log;
 import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
+import android.view.Gravity;
 import android.view.View;
+import android.widget.FrameLayout;
 import android.view.WindowInsets;
 import android.view.inputmethod.EditorInfo;
 
 import rkr.simplekeyboard.inputmethod.R;
+import rkr.simplekeyboard.inputmethod.compat.PreferenceManagerCompat;
 import rkr.simplekeyboard.inputmethod.event.Event;
 import rkr.simplekeyboard.inputmethod.keyboard.KeyboardLayoutSet.KeyboardLayoutSetException;
 import rkr.simplekeyboard.inputmethod.keyboard.internal.KeyboardState;
@@ -117,7 +122,23 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         final KeyboardLayoutSet.Builder builder = new KeyboardLayoutSet.Builder(
                 mThemeContext, editorInfo);
         final Resources res = mThemeContext.getResources();
-        final int keyboardWidth = mLatinIME.getMaxWidth();
+        final int fullWidth = mLatinIME.getMaxWidth();
+        SharedPreferences prefs = PreferenceManagerCompat.getDeviceSharedPreferences(mLatinIME);
+        String oneHandedMode = prefs.getString(Settings.PREF_ONE_HANDED_MODE, "off");
+        boolean oneHanded = res.getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT
+                && res.getConfiguration().smallestScreenWidthDp < 600
+                && ("left".equals(oneHandedMode) || "right".equals(oneHandedMode));
+        int minWidth = (int) (280 * res.getDisplayMetrics().density + 0.5f);
+        final int keyboardWidth = oneHanded
+                ? Math.min(fullWidth, Math.max(minWidth, Math.round(fullWidth * 0.78f)))
+                : fullWidth;
+        if (mKeyboardView != null) {
+            FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) mKeyboardView.getLayoutParams();
+            params.width = keyboardWidth;
+            params.gravity = "right".equals(oneHandedMode) && oneHanded
+                    ? Gravity.RIGHT : Gravity.LEFT;
+            mKeyboardView.setLayoutParams(params);
+        }
         final int keyboardHeight = ResourceUtils.getKeyboardHeight(res, settingsValues);
         final int keyboardBottomOffset = ResourceUtils.getKeyboardBottomOffset(res, settingsValues);
         builder.setKeyboardTheme(mKeyboardTheme.mThemeId);

@@ -57,6 +57,7 @@
     <FrameLayout
         android:id="@+id/keyboard_container"
         android:layout_width="match_parent"
+        android:background="?android:attr/colorBackground"
         android:layout_height="wrap_content" >
 
         <!-- To ensure that key preview popup is correctly placed when the current system locale is
