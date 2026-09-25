@@ -1502,6 +1502,10 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             panel.setLayoutParams(params);
         }
 
+        mAutofillGeneration++;
+        mShowingAutofill = false;
+        if (mInlineAutofillBar != null) mInlineAutofillBar.removeAllViews();
+
         mMainKeyboard.setVisibility(View.GONE);
         mEmojiKeyboard.setVisibility(View.GONE);
         mIsEmojiMode = false;
@@ -1603,8 +1607,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     private void updateEditingPanelState() {
         if (mTextEditingPanel == null) return;
         final android.view.inputmethod.InputConnection connection = getCurrentInputConnection();
+        final boolean sensitiveEditor = isPasswordEditor(getCurrentInputEditorInfo());
         boolean hasSelection = false;
-        if (connection != null) {
+        if (connection != null && !sensitiveEditor) {
             try {
                 hasSelection = !TextUtils.isEmpty(connection.getSelectedText(0));
             } catch (RuntimeException ignored) {
@@ -1625,6 +1630,12 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     private void performEditingAction(int action, boolean extendSelection) {
         final android.view.inputmethod.InputConnection connection = getCurrentInputConnection();
         if (connection == null) return;
+        final boolean sensitiveEditor = isPasswordEditor(getCurrentInputEditorInfo());
+        if (sensitiveEditor && (action ==
+                rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_COPY
+                || action == rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_CUT)) {
+            return;
+        }
         final int shift = extendSelection ? KeyEvent.META_SHIFT_ON : 0;
 
         switch (action) {
@@ -1812,6 +1823,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             hideUtilityPanelViews();
             mActiveUtilityPanel = null;
             mShowingClipboardHistory = false;
+            mAutofillGeneration++;
+            mShowingAutofill = false;
+            if (mInlineAutofillBar != null) mInlineAutofillBar.removeAllViews();
             mKeyboardSwitcher.updateTopContainerWidth(true);
             mMainKeyboard.setVisibility(View.GONE);
             mEmojiKeyboard.setVisibility(View.VISIBLE);
