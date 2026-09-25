@@ -122,6 +122,10 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         @Override
         public void onReceive(Context context, Intent intent) {
             if (intent == null || isPasswordEditor(getCurrentInputEditorInfo())) return;
+            if (intent.getIntExtra(KeyboardActionActivity.EXTRA_EDITOR_GENERATION, -1)
+                    != mEditorGeneration) {
+                return;
+            }
             final String action = intent.getAction();
             if (KeyboardActionActivity.ACTION_VOICE_RESULT.equals(action)) {
                 final String text = intent.getStringExtra(KeyboardActionActivity.EXTRA_TEXT);
@@ -1524,6 +1528,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         if (isPasswordEditor(getCurrentInputEditorInfo())) return;
         final Intent intent = new Intent(this, KeyboardActionActivity.class);
         intent.putExtra(KeyboardActionActivity.EXTRA_MODE, KeyboardActionActivity.MODE_VOICE);
+        intent.putExtra(KeyboardActionActivity.EXTRA_EDITOR_GENERATION, mEditorGeneration);
         if (mLocale != null) {
             intent.putExtra(KeyboardActionActivity.EXTRA_LANGUAGE, mLocale.toLanguageTag());
         }
@@ -1535,6 +1540,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         if (isPasswordEditor(getCurrentInputEditorInfo())) return;
         final Intent intent = new Intent(this, KeyboardActionActivity.class);
         intent.putExtra(KeyboardActionActivity.EXTRA_MODE, KeyboardActionActivity.MODE_IMAGE);
+        intent.putExtra(KeyboardActionActivity.EXTRA_EDITOR_GENERATION, mEditorGeneration);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
         startActivity(intent);
     }
