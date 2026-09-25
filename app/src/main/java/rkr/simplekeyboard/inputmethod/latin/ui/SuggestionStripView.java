@@ -80,8 +80,9 @@ public class SuggestionStripView extends LinearLayout {
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
         
-        int paddingPx = dpToPx(8);
-        setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
+        // The strip itself owns the full 50dp top-container bounds. Spacing belongs to chips,
+        // not the parent, otherwise the suggestion state looks visibly narrower than the toolbar.
+        setPadding(0, 0, 0, 0);
         
         // Create toggle button for Gboard-style switching
         createToggleButton();
@@ -94,10 +95,10 @@ public class SuggestionStripView extends LinearLayout {
      */
     private void createToggleButton() {
         toggleButton = new android.widget.ImageButton(getContext());
-        toggleButton.setImageResource(android.R.drawable.ic_menu_more);
+        toggleButton.setImageResource(rkr.simplekeyboard.inputmethod.R.drawable.ic_expand_more);
         toggleButton.setContentDescription(getContext().getString(
                 rkr.simplekeyboard.inputmethod.R.string.show_keyboard_tools)); // Use system chevron right icon
-        toggleButton.setBackground(null); // Remove default button background
+        toggleButton.setBackground(null);
         toggleButton.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
         
         // Set size and padding
@@ -105,8 +106,9 @@ public class SuggestionStripView extends LinearLayout {
         int buttonPadding = dpToPx(8);
         toggleButton.setPadding(buttonPadding, buttonPadding, buttonPadding, buttonPadding);
         
-        LayoutParams toggleParams = new LayoutParams(buttonSize, buttonSize);
+        LayoutParams toggleParams = new LayoutParams(buttonSize, LayoutParams.MATCH_PARENT);
         toggleParams.gravity = Gravity.CENTER_VERTICAL;
+        toggleParams.setMargins(0, 0, dpToPx(2), 0);
         toggleButton.setLayoutParams(toggleParams);
         
         // Set click listener
@@ -195,8 +197,8 @@ public class SuggestionStripView extends LinearLayout {
     private TextView addSuggestionView(boolean isPrimary) {
         TextView suggestionView = new TextView(getContext());
         applySuggestionTheme(suggestionView, isPrimary);
-        int paddingPx = dpToPx(SUGGESTION_PADDING_DP);
-        suggestionView.setPadding(paddingPx, paddingPx / 2, paddingPx, paddingPx / 2);
+        int paddingPx = dpToPx(12);
+        suggestionView.setPadding(paddingPx, 0, paddingPx, 0);
         suggestionView.setSingleLine(true);
         suggestionView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         suggestionView.setClickable(true);
@@ -214,9 +216,10 @@ public class SuggestionStripView extends LinearLayout {
                     suggestionView.getText().toString());
             return true;
         });
-        LayoutParams params = new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1.0f);
-        final int margin = dpToPx(3);
-        params.setMargins(margin, 0, margin, 0);
+        LayoutParams params = new LayoutParams(0, LayoutParams.MATCH_PARENT, 1.0f);
+        final int horizontalGap = dpToPx(2);
+        final int verticalGap = dpToPx(3);
+        params.setMargins(horizontalGap, verticalGap, horizontalGap, verticalGap);
         suggestionView.setLayoutParams(params);
         suggestionView.setGravity(Gravity.CENTER);
         addView(suggestionView);
