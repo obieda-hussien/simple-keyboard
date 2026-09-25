@@ -1425,18 +1425,21 @@ public final class InputLogic {
     }
     
     /**
-     * Commits text directly to the input connection.
-     * Used for emoji insertion and clipboard content.
+     * Commits explicit external text such as emoji or voice recognition output.
+     * Learning is always gated by the current editor privacy contract and the user's setting.
      */
     public void commitText(String text) {
-        if (!TextUtils.isEmpty(text)) {
-            mConnection.commitText(text, 1);
-            
-            // Learn from committed text if it's a word
-            if (text.trim().matches("\\w+")) {
-                final String word = text.trim();
-                learnOnWorker(engine -> engine.learnWord(word));
-            }
+        if (TextUtils.isEmpty(text)) return;
+        mConnection.commitText(text, 1);
+
+        if (!shouldLearn()) return;
+        final String trimmed = text.trim();
+        if (trimmed.isEmpty() || trimmed.length() > 500) return;
+        if (trimmed.matches("[\\p{L}][\\p{L}\\p{M}\\p{N}'-]*")) {
+            learnOnWorker(engine -> engine.learnWord(trimmed));
+        } else if (trimmed.matches("[\\p{L}\\p{M}\\p{N}'\\- ]+")
+                && trimmed.split("\\s+").length <= 30) {
+            learnOnWorker(engine -> engine.learnFromInput(trimmed));
         }
     }
 }
