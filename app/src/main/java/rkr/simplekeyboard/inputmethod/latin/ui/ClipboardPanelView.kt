@@ -7,6 +7,7 @@ import android.util.AttributeSet
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -76,9 +77,9 @@ class ClipboardPanelView @JvmOverloads constructor(
         grid.columnCount = 2
         grid.alignmentMode = GridLayout.ALIGN_BOUNDS
         scroll.isFillViewport = true
-        scroll.addView(grid, ScrollView.LayoutParams(
-            ScrollView.LayoutParams.MATCH_PARENT,
-            ScrollView.LayoutParams.WRAP_CONTENT
+        scroll.addView(grid, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
         ))
         addView(scroll, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
         refreshTheme()
