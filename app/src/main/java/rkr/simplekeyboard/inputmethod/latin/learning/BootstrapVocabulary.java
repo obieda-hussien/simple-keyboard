@@ -130,6 +130,37 @@ public class BootstrapVocabulary {
         "hello", "hi", "hey", "goodbye", "bye", "welcome", "congratulations"
     };
     
+
+    // Additional everyday and modern English terms kept separate so the bootstrap remains easy
+    // to audit and extend without introducing a heavyweight external dictionary.
+    private static final String[] COMMON_ENGLISH_EXTRA_WORDS = {
+        "actually", "basically", "definitely", "probably", "possibly", "exactly", "seriously",
+        "awesome", "amazing", "perfect", "cool", "interesting", "important", "available",
+        "busy", "done", "ready", "later", "earlier", "around", "already", "yet", "else",
+        "someone", "anyone", "everyone", "something", "anything", "everything", "nothing",
+        "message", "messages", "chat", "reply", "send", "sent", "receive", "received",
+        "photo", "photos", "image", "images", "video", "videos", "camera", "gallery",
+        "voice", "audio", "record", "recording", "microphone", "speaker", "call", "calls",
+        "contact", "contacts", "notification", "notifications", "settings", "permission",
+        "permissions", "privacy", "secure", "security", "update", "updates", "version",
+        "install", "installed", "uninstall", "build", "release", "debug", "test", "tests",
+        "project", "projects", "code", "coding", "developer", "development", "repository",
+        "branch", "commit", "merge", "request", "issue", "error", "errors", "warning",
+        "success", "failed", "failure", "fix", "fixed", "problem", "solution", "feature",
+        "features", "design", "layout", "button", "buttons", "menu", "toolbar", "screen",
+        "performance", "fast", "faster", "smooth", "battery", "memory", "storage", "network",
+        "wifi", "mobile", "android", "phone", "tablet", "computer", "laptop", "keyboard",
+        "language", "english", "arabic", "typing", "suggestion", "suggestions", "dictionary",
+        "correct", "correction", "autocorrect", "predict", "prediction", "context", "word",
+        "words", "sentence", "text", "paste", "copy", "clipboard", "select", "selected",
+        "open", "close", "save", "saved", "delete", "deleted", "clear", "reset", "change",
+        "switch", "enable", "enabled", "disable", "disabled", "allow", "allowed", "block",
+        "today", "tomorrow", "yesterday", "morning", "afternoon", "evening", "weekend",
+        "minute", "minutes", "hour", "hours", "meeting", "appointment", "schedule", "plan",
+        "location", "address", "street", "home", "office", "work", "school", "university",
+        "coffee", "water", "breakfast", "lunch", "dinner", "food", "money", "price", "order"
+    };
+
     // Comprehensive Arabic dictionary for initial suggestions (1000+ words)
     private static final String[] COMMON_ARABIC_WORDS = {
         // Everyday Egyptian Arabic, kept as the user wrote it.
@@ -256,8 +287,8 @@ public class BootstrapVocabulary {
         "ده", "دي", "دول", "كده", "كدا", "هنا", "هناك", "هناك", "عندك", "عندي",
         "دلوقتي", "النهارده", "النهاردة", "امبارح", "بكرة", "بدري", "متأخر",
         "لسه", "خلاص", "تمام", "ماشي", "حاضر", "طيب", "طب", "بص", "بصي",
-        "معلش", "آسف", "اسف", "حقك", "حقك عليا", "شكرا", "تسلم", "تسلمي",
-        "ربنا", "يخليك", "يكرمك", "الحمدلله", "إن شاء الله", "ان شاء الله",
+        "معلش", "آسف", "اسف", "حقك", "عليا", "شكرا", "تسلم", "تسلمي",
+        "ربنا", "يخليك", "يكرمك", "الحمدلله", "انشاءالله",
         "مش", "مفيش", "فيه", "فيها", "فيهم", "معايا", "معاك", "معاكي", "معانا",
         "عايز", "عايزة", "عايزين", "عاوز", "عاوزة", "عاوزين",
         "محتاج", "محتاجة", "محتاجين", "ممكن", "ينفع", "مينفعش", "لازم",
@@ -279,7 +310,7 @@ public class BootstrapVocabulary {
         "بخلص", "ببدأ", "بعرف", "بفهم", "بحب", "بكره", "بحاول", "بفكر",
         "روح", "تعالى", "تعالي", "تعال", "هات", "خد", "خدي", "شوف", "قولي",
         "قول", "ابعت", "ابعتي", "كلمني", "استنى", "استني", "خلي", "سيب",
-        "موبايل", "تليفون", "كمبيوتر", "لاب", "لابتوب", "نت", "واي فاي",
+        "موبايل", "تليفون", "كمبيوتر", "لاب", "لابتوب", "نت", "واي", "فاي",
         "ابلكيشن", "تطبيق", "برنامج", "لينك", "ملف", "فولدر", "صورة", "فيديو",
         "رسالة", "شات", "مكالمة", "رقم", "باسورد", "اكونت", "حساب",
         "شغل", "شغلي", "الشغل", "جامعة", "كلية", "مدرسة", "محاضرة", "امتحان",
@@ -305,6 +336,10 @@ public class BootstrapVocabulary {
             wordTrie.insert(word);
         }
         
+        for (String word : COMMON_ENGLISH_EXTRA_WORDS) {
+            wordTrie.insert(word);
+        }
+
         // Add common Arabic words
         for (String word : COMMON_ARABIC_WORDS) {
             wordTrie.insert(word);
@@ -614,9 +649,10 @@ public class BootstrapVocabulary {
     /** Returns every bundled word so typo correction is not limited to hand-written prefixes. */
     public static List<String> getAllWords() {
         final ArrayList<String> words = new ArrayList<>(
-                COMMON_ENGLISH_WORDS.length + COMMON_ARABIC_WORDS.length
-                        + COMMON_EGYPTIAN_ARABIC_WORDS.length);
+                COMMON_ENGLISH_WORDS.length + COMMON_ENGLISH_EXTRA_WORDS.length
+                        + COMMON_ARABIC_WORDS.length + COMMON_EGYPTIAN_ARABIC_WORDS.length);
         words.addAll(Arrays.asList(COMMON_ENGLISH_WORDS));
+        words.addAll(Arrays.asList(COMMON_ENGLISH_EXTRA_WORDS));
         words.addAll(Arrays.asList(COMMON_ARABIC_WORDS));
         words.addAll(Arrays.asList(COMMON_EGYPTIAN_ARABIC_WORDS));
         return words;
