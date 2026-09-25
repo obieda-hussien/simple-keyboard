@@ -124,6 +124,7 @@ public class KeyboardView extends View {
     private ThemePalette mThemePalette;
     private float mThemeCornerRadiusPx;
     private float mThemeKeyInsetPx;
+    private float mThemePressInsetPx;
     private float mThemeFontScale = 1.0f;
     private float mThemeBorderStrength;
 
@@ -195,6 +196,7 @@ public class KeyboardView extends View {
             final float density = getResources().getDisplayMetrics().density;
             mThemeCornerRadiusPx = profile.getCornerRadiusDp() * density;
             mThemeKeyInsetPx = profile.getKeyInsetDp() * density;
+            mThemePressInsetPx = 1.1f * density;
             mThemeFontScale = profile.getFontScale();
             mThemeBorderStrength = profile.getBorderStrength();
             setBackgroundColor(mThemePalette.getBackground());
@@ -378,7 +380,8 @@ public class KeyboardView extends View {
     }
 
     private void drawThemeStudioKeyBackground(final Key key, final Canvas canvas) {
-        final float inset = Math.min(mThemeKeyInsetPx,
+        final float baseInset = mThemeKeyInsetPx + (key.isPressed() ? mThemePressInsetPx : 0.0f);
+        final float inset = Math.min(baseInset,
                 Math.min(key.getWidth(), key.getHeight()) * 0.18f);
         mThemeKeyRect.set(inset, inset, key.getWidth() - inset, key.getHeight() - inset);
 
