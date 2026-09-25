@@ -90,7 +90,10 @@ class ClipboardPanelView @JvmOverloads constructor(
 
     fun setLanguageLocale(value: Locale?) {
         locale = value
-        layoutDirection = ImeUiKit.layoutDirection(value)
+        layoutDirection = View.LAYOUT_DIRECTION_LTR
+        ImeUiKit.applyTextDirection(title, title.text, value)
+        title.gravity = if (ImeUiKit.layoutDirection(value) == View.LAYOUT_DIRECTION_RTL)
+            Gravity.RIGHT or Gravity.CENTER_VERTICAL else Gravity.LEFT or Gravity.CENTER_VERTICAL
     }
 
     fun setEntries(entries: List<String>?, pinned: Set<String>?) {
