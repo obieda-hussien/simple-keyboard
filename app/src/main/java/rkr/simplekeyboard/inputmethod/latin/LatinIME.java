@@ -113,6 +113,15 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     private final ClipboardHistory mClipboardHistory = new ClipboardHistory();
     private boolean mShowingClipboardHistory;
 
+    // Full-height utility surfaces. They intentionally remain classic Views/Kotlin on the IME
+    // hot path; Compose is reserved for Theme Studio to keep input latency predictable.
+    private rkr.simplekeyboard.inputmethod.latin.ui.KeyboardToolsGridView mToolsGrid;
+    private rkr.simplekeyboard.inputmethod.latin.ui.ClipboardPanelView mClipboardPanel;
+    private rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView mTextEditingPanel;
+    private rkr.simplekeyboard.inputmethod.latin.ui.TranslatePanelView mTranslatePanel;
+    private View mActiveUtilityPanel;
+    private boolean mTranslateSourceWasSelection;
+
     private RichInputMethodManager mRichImm;
     final KeyboardSwitcher mKeyboardSwitcher;
 
@@ -140,6 +149,13 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                     android.widget.Toast.makeText(LatinIME.this,
                             R.string.image_picker_unsupported, android.widget.Toast.LENGTH_SHORT)
                             .show();
+                }
+            } else if (KeyboardActionActivity.ACTION_TRANSLATE_RESULT.equals(action)) {
+                final String translated =
+                        intent.getStringExtra(KeyboardActionActivity.EXTRA_TEXT);
+                if (!TextUtils.isEmpty(translated) && mTranslatePanel != null) {
+                    mTranslatePanel.setResultText(translated);
+                    showUtilityPanel(mTranslatePanel);
                 }
             }
         }
@@ -334,6 +350,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         final IntentFilter actionFilter = new IntentFilter();
         actionFilter.addAction(KeyboardActionActivity.ACTION_VOICE_RESULT);
         actionFilter.addAction(KeyboardActionActivity.ACTION_IMAGE_RESULT);
+        actionFilter.addAction(KeyboardActionActivity.ACTION_TRANSLATE_RESULT);
         final String internalActionPermission =
                 "rkr.simplekeyboard.inputmethod.permission.INTERNAL_KEYBOARD_ACTION";
         if (Build.VERSION.SDK_INT >= 33) {
@@ -422,7 +439,12 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             mInlineAutofillBar = view.findViewById(R.id.inline_autofill_bar);
             mClipboardHistoryBar = view.findViewById(R.id.clipboard_history_bar);
             mTopBar = view.findViewById(R.id.keyboard_top_bar);
-            
+            mToolsGrid = view.findViewById(R.id.keyboard_tools_grid);
+            mClipboardPanel = view.findViewById(R.id.clipboard_panel);
+            mTextEditingPanel = view.findViewById(R.id.text_editing_panel);
+            mTranslatePanel = view.findViewById(R.id.translate_panel);
+            mActiveUtilityPanel = null;
+
             // Apply dynamic theming to UI components
             applyDynamicTheme();
             
@@ -435,6 +457,10 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                         }
                     }
                 });
+                mSuggestionStrip.setOnSuggestionLongClickListener(suggestion -> {
+                    if (mInputLogic != null) mInputLogic.forgetSuggestion(suggestion);
+                });
+                mSuggestionStrip.setLanguageLocale(mLocale);
                 
                 // Set toggle listener for switching back to toolbar
                 mSuggestionStrip.setOnToggleClickListener(new rkr.simplekeyboard.inputmethod.latin.ui.SuggestionStripView.OnToggleClickListener() {
@@ -474,8 +500,8 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                     }
                     
                     @Override
-                    public void onSettingsButtonClicked() {
-                        launchSettings();
+                    public void onToolsButtonClicked() {
+                        toggleToolsGrid();
                     }
                     
                     @Override
@@ -485,6 +511,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                 });
             }
             
+            setupUtilityPanelListeners();
+            updateUtilityLocaleDirection();
+
             // Initialize keyboards
             mMainKeyboard = view.findViewById(R.id.keyboard_view);
             mEmojiKeyboard = view.findViewById(R.id.emoji_keyboard_view);
@@ -554,6 +583,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         mAutofillGeneration++;
         mShowingAutofill = false;
         mShowingClipboardHistory = false;
+        closeUtilityPanel(false);
         if (mClipboardHistoryBar != null) mClipboardHistoryBar.removeAllViews();
         if (!isClipboardHistoryAllowed(editorInfo)) mClipboardHistory.clear();
         showToolbarView();
@@ -1207,7 +1237,8 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     public void updateSuggestionStrip(java.util.List<String> suggestions) {
         if (mSuggestionStrip == null || mTopContainer == null) return;
         mSuggestionStrip.setSuggestions(suggestions);
-        if (!mForcedToolbarMode && !mShowingAutofill && !mShowingClipboardHistory) {
+        if (!mForcedToolbarMode && !mShowingAutofill && !mShowingClipboardHistory
+                && mActiveUtilityPanel == null) {
             if (mSuggestionStrip.hasSuggestions()) showSuggestionsView();
             else showToolbarView();
         }
