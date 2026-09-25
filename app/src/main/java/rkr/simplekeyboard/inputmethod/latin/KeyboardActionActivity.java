@@ -10,6 +10,8 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 
+import rkr.simplekeyboard.inputmethod.R;
+
 /**
  * Tiny no-history bridge activity used by the IME for system-owned pickers that return a result.
  * It never stores media or speech text; results are immediately sent back to the running IME.
