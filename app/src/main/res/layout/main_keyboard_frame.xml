@@ -44,12 +44,28 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
+        <LinearLayout
+            android:id="@+id/inline_autofill_bar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingHorizontal="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal" />
+
+        <LinearLayout
+            android:id="@+id/clipboard_history_bar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="6dp" />
     </ViewFlipper>
 
     <!-- Container for switching between keyboards -->
     <FrameLayout
         android:id="@+id/keyboard_container"
         android:layout_width="match_parent"
+        android:background="?android:attr/colorBackground"
         android:layout_height="wrap_content" >
 
         <!-- To ensure that key preview popup is correctly placed when the current system locale is

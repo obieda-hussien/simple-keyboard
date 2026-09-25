@@ -32,6 +32,13 @@
         latin:minValue="@integer/config_min_keyboar_height"
         latin:maxValue="@integer/config_max_keyboar_height"
         latin:stepValue="@integer/config_keyboar_height_step" />
+    <ListPreference
+        android:key="pref_one_handed_mode"
+        android:title="@string/one_handed_mode"
+        android:summary="@string/one_handed_mode_summary"
+        android:defaultValue="off"
+        android:entries="@array/one_handed_mode_entries"
+        android:entryValues="@array/one_handed_mode_values" />
     <rkr.simplekeyboard.inputmethod.latin.settings.SeekBarDialogPreference
         android:key="pref_bottom_offset_portrait"
         android:title="@string/prefs_bottom_offset_portrait_settings"

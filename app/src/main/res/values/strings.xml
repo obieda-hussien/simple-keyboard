@@ -117,11 +117,38 @@
     <string name="pref_enable_ime_switch">Switch to other keyboards</string>
     <string name="show_number_row">Show separate number row</string>
     <string name="space_swipe">Space swipe cursor move</string>
+    <string name="a11y_key_delete">Delete</string>
+    <string name="a11y_key_space">Space</string>
+    <string name="a11y_key_shift">Shift</string>
+    <string name="a11y_key_enter">Enter</string>
+    <string name="a11y_key_symbols">Symbols</string>
+    <string name="a11y_key_language">Switch language</string>
+    <string name="one_handed_mode">One-handed keyboard</string>
+    <string name="one_handed_mode_summary">Use full width, one-handed left/right, or a centered floating layout</string>
+    <string name="one_handed_off">Off</string>
+    <string name="one_handed_left">Left</string>
+    <string name="one_handed_right">Right</string>
+    <string name="one_handed_floating">Floating</string>
+    <string name="voice_input">Voice typing</string>
+    <string name="voice_input_unavailable">No speech recognition service is available</string>
+    <string name="image_picker">Insert image</string>
+    <string name="image_picker_unavailable">No image picker is available</string>
+    <string name="image_picker_unsupported">This field cannot accept the selected image</string>
+    <string name="auto_correction_title">Conservative autocorrect</string>
+    <string name="auto_correction_summary">Correct clear typos on space; press Backspace to restore the original</string>
+    <string name="clipboard_history_hint">Long press Clipboard to show recent pastes</string>
+    <string name="clipboard_history_close">Close paste history</string>
+    <string name="clipboard_history_clear">Clear paste history</string>
+    <string name="clipboard_history_empty">No recent pastes</string>
+    <string name="clipboard_history_paste">Paste saved text</string>
+    <string name="clipboard_image_unsupported">This field cannot accept the clipboard image</string>
     <string name="delete_swipe">Delete swipe</string>
     
     <!-- Email suggestion preferences -->
     <string name="email_suggestions">Email suggestions</string>
-    <string name="email_suggestions_summary">Show email addresses from contacts when typing in email fields</string>
+    <string name="email_suggestions_summary">Complete common email domains in email fields</string>
+    <string name="account_email_suggestions">Suggest device account addresses</string>
+    <string name="account_email_suggestions_summary">Ask for account access; Android may show only accounts visible to this app</string>
     
     <string name="setup_message">Simple Keyboard is not enabled. Click OK to open Languages &amp; Input settings. You will need to select Simple Keyboard in your current keyboard to use it.</string>
     <string name="user_languages">Enabled keyboard languages</string>
@@ -131,4 +158,8 @@
     <string name="change_keyboard">Change keyboard</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="license">License</string>
+    <string name="clear_learning_data">Clear learned words</string>
+    <string name="clear_learning_data_summary">Remove the words and phrases learned on this device</string>
+    <string name="clear_learning_data_confirm">Delete all learned words and phrases?</string>
+    <string name="show_keyboard_tools">Show keyboard tools</string>
 </resources>

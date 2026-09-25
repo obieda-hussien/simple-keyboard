@@ -117,14 +117,21 @@ public class EmailSuggestionProvider {
      * @return List of complete email suggestions with common domains
      */
     public List<String> getDomainCompletions(String textBeforeAt) {
+        return getDomainCompletions(textBeforeAt, "");
+    }
+
+    public List<String> getDomainCompletions(String textBeforeAt, String typedDomain) {
         if (textBeforeAt == null || textBeforeAt.trim().isEmpty()) {
             return new ArrayList<>();
         }
 
         String cleanText = textBeforeAt.trim();
+        String prefix = typedDomain == null ? "" : typedDomain.toLowerCase(java.util.Locale.ROOT);
         List<String> suggestions = new ArrayList<>();
         
         for (String domain : COMMON_EMAIL_DOMAINS) {
+            String domainName = domain.substring(1);
+            if (!domainName.startsWith(prefix) || domainName.equals(prefix)) continue;
             suggestions.add(cleanText + domain);
             if (suggestions.size() >= MAX_EMAIL_SUGGESTIONS) {
                 break;

@@ -48,6 +48,8 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final String PREF_KEYPRESS_SOUND_VOLUME = "pref_keypress_sound_volume";
     public static final String PREF_KEY_LONGPRESS_TIMEOUT = "pref_key_longpress_timeout";
     public static final String PREF_KEYBOARD_HEIGHT = "pref_keyboard_height";
+    public static final String PREF_ONE_HANDED_MODE = "pref_one_handed_mode";
+    public static final String PREF_AUTO_CORRECTION = "pref_auto_correction";
     public static final String PREF_BOTTOM_OFFSET_PORTRAIT = "pref_bottom_offset_portrait";
     public static final String PREF_KEYBOARD_COLOR = "pref_keyboard_color";
     public static final String PREF_HIDE_SPECIAL_CHARS = "pref_hide_special_chars";
@@ -55,6 +57,7 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final String PREF_SPACE_SWIPE = "pref_space_swipe";
     public static final String PREF_DELETE_SWIPE = "pref_delete_swipe";
     public static final String PREF_EMAIL_SUGGESTIONS = "pref_email_suggestions";
+    public static final String PREF_ACCOUNT_EMAIL_SUGGESTIONS = "pref_account_email_suggestions";
 
     private static final float UNDEFINED_PREFERENCE_VALUE_FLOAT = -1.0f;
     private static final int UNDEFINED_PREFERENCE_VALUE_INT = -1;
@@ -164,7 +167,7 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     }
 
     public static boolean readEmailSuggestionsEnabled(final SharedPreferences prefs) {
-        return prefs.getBoolean(PREF_EMAIL_SUGGESTIONS, true);
+        return prefs.getBoolean(PREF_EMAIL_SUGGESTIONS, false);
     }
 
     public static String readPrefSubtypes(final SharedPreferences prefs) {

@@ -23,6 +23,9 @@ import android.view.KeyEvent;
 import android.view.inputmethod.EditorInfo;
 
 import java.util.TreeSet;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import rkr.simplekeyboard.inputmethod.event.Event;
 import rkr.simplekeyboard.inputmethod.event.InputTransaction;
@@ -31,6 +34,7 @@ import rkr.simplekeyboard.inputmethod.latin.RichInputConnection;
 import rkr.simplekeyboard.inputmethod.latin.common.Constants;
 import rkr.simplekeyboard.inputmethod.latin.common.StringUtils;
 import rkr.simplekeyboard.inputmethod.latin.learning.LocalLearningEngine;
+import rkr.simplekeyboard.inputmethod.latin.settings.Settings;
 import rkr.simplekeyboard.inputmethod.latin.settings.SettingsValues;
 import rkr.simplekeyboard.inputmethod.latin.utils.InputTypeUtils;
 import rkr.simplekeyboard.inputmethod.latin.utils.EmailSuggestionProvider;
@@ -50,12 +54,38 @@ public final class InputLogic {
     
     // Learning engine for intelligent suggestions - initialized lazily
     private LocalLearningEngine mLearningEngine;
+    // A single writer keeps the model ordered with respect to completed words and predictions.
+    private final ExecutorService learningWorker = Executors.newSingleThreadExecutor(r -> {
+        Thread thread = new Thread(r, "KeyboardLearning");
+        thread.setPriority(Thread.MIN_PRIORITY);
+        return thread;
+    });
+    private volatile int suggestionGeneration;
+    private volatile boolean learningClosed;
+    private final android.os.Handler suggestionHandler =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable suggestionUpdate = this::computeSuggestions;
     
     // Email suggestion provider for proactive email completion - initialized lazily
     private EmailSuggestionProvider mEmailSuggestionProvider;
     
     // Current word being typed for suggestion purposes
     private StringBuilder mCurrentWord = new StringBuilder();
+    private String mCorrectionWord;
+    private String mCorrectionCandidate;
+    private PendingCorrection mPendingCorrection;
+
+    private static final class PendingCorrection {
+        final String original;
+        final String replacement;
+        final EditorInfo editor;
+
+        PendingCorrection(String original, String replacement, EditorInfo editor) {
+            this.original = original;
+            this.replacement = replacement;
+            this.editor = editor;
+        }
+    }
 
     public final TreeSet<Long> mCurrentlyPressedHardwareKeys = new TreeSet<>();
 
@@ -73,7 +103,26 @@ public final class InputLogic {
     /**
      * Gets the learning engine, initializing it lazily if needed.
      */
+    private boolean isPrivateField() {
+        EditorInfo info = getCurrentInputEditorInfo();
+        if (info == null) return true;
+        return !new rkr.simplekeyboard.inputmethod.latin.InputAttributes(info, false)
+                .mShouldShowSuggestions
+                || (info.imeOptions & EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0;
+    }
+
+    private boolean shouldLearn() {
+        return !isPrivateField() && rkr.simplekeyboard.inputmethod.compat.PreferenceManagerCompat
+                .getDeviceSharedPreferences(mLatinIME)
+                .getBoolean("pref_personalized_learning", true);
+    }
+
     private LocalLearningEngine getLearningEngine() {
+        if (android.os.Build.VERSION.SDK_INT >= 24) {
+            android.os.UserManager userManager =
+                    (android.os.UserManager) mLatinIME.getSystemService(android.content.Context.USER_SERVICE);
+            if (userManager != null && !userManager.isUserUnlocked()) return null;
+        }
         if (mLearningEngine == null) {
             try {
                 // Ensure we have a valid context before initializing
@@ -108,6 +157,9 @@ public final class InputLogic {
      * Call this when input starts or restarts in some editor (typically, in onStartInputView).
      */
     public void startInput() {
+        suggestionHandler.removeCallbacks(suggestionUpdate);
+        suggestionGeneration++;
+        resetCorrectionState();
         mRecapitalizeStatus.disable(); // Do not perform recapitalize until the cursor is moved once
         mCurrentlyPressedHardwareKeys.clear();
         mCurrentWord.setLength(0); // Clear current word tracking
@@ -121,6 +173,13 @@ public final class InputLogic {
         startInput();
     }
 
+    public void finishInput() {
+        suggestionHandler.removeCallbacks(suggestionUpdate);
+        suggestionGeneration++;
+        resetCorrectionState();
+        mCurrentWord.setLength(0);
+    }
+
     /**
      * React to a string input.
      *
@@ -132,6 +191,7 @@ public final class InputLogic {
      * @return the complete transaction object
      */
     public InputTransaction onTextInput(final SettingsValues settingsValues, final Event event) {
+        mPendingCorrection = null;
         final String rawText = event.getTextToCommit().toString();
         final InputTransaction inputTransaction = new InputTransaction(settingsValues);
         final String text = performSpecificTldProcessingOnTextInput(rawText);
@@ -149,26 +209,31 @@ public final class InputLogic {
      * @param newSelEnd new selection end
      */
     public void onUpdateSelection(final int newSelStart, final int newSelEnd) {
+        boolean cursorMoved = newSelStart != mConnection.getExpectedSelectionStart()
+                || newSelEnd != mConnection.getExpectedSelectionEnd();
         mConnection.updateSelection(newSelStart, newSelEnd);
         
-        // Always trigger contextual suggestions on cursor position change
-        // This ensures suggestions update immediately when user taps or moves cursor
-        boolean cursorMoved = (newSelStart != mConnection.getExpectedSelectionStart() || 
-                              newSelEnd != mConnection.getExpectedSelectionEnd());
-        
         if (cursorMoved) {
-            // Reset current word tracking when cursor moves
+            suggestionGeneration++;
+            suggestionHandler.removeCallbacks(suggestionUpdate);
+            resetCorrectionState();
             mCurrentWord.setLength(0);
-            // Trigger contextual suggestions based on new cursor position
-            updateContextualSuggestions();
+            // Surrounding text is loaded asynchronously; LatinIME requests suggestions when ready.
         }
     }
 
     public void reloadTextCache() {
-        mConnection.reloadTextCache();
+        reloadTextCache(null);
+    }
 
+    public void reloadTextCache(Runnable onReady) {
+        mConnection.reloadTextCache(onReady);
         mRecapitalizeStatus.enable();
         mRecapitalizeStatus.stop();
+    }
+
+    public void refreshCursorSuggestions() {
+        updateContextualSuggestions();
     }
 
     /**
@@ -230,6 +295,7 @@ public final class InputLogic {
      * @param inputTransaction The transaction in progress.
      */
     private void handleFunctionalEvent(final Event event, final InputTransaction inputTransaction) {
+        if (event.mKeyCode != Constants.CODE_DELETE) mPendingCorrection = null;
         switch (event.mKeyCode) {
             case Constants.CODE_DELETE:
                 handleBackspaceEvent(event, inputTransaction);
@@ -344,22 +410,14 @@ public final class InputLogic {
      * @param event The event to handle.
      */
     private void handleNonSeparatorEvent(final Event event) {
+        mPendingCorrection = null;
         final char character = (char) event.mCodePoint;
         
-        // Track current word building for better suggestions
-        if (Character.isLetterOrDigit(character) || character == '\'' || character == '-') {
-            mCurrentWord.append(character);
-            
-            // Update suggestions in real-time as user types
+        // Commit first so suggestions read a consistent editor state.
+        sendKeyCodePoint(event.mCodePoint);
+        if (Character.isLetterOrDigit(event.mCodePoint) || character == '\'' || character == '-') {
+            mCurrentWord.appendCodePoint(event.mCodePoint);
             updateSuggestions();
-        } else {
-            // Handle other non-separator characters
-            sendKeyCodePoint(event.mCodePoint);
-        }
-        
-        // Send the character to the input connection
-        if (Character.isLetterOrDigit(character) || character == '\'' || character == '-') {
-            sendKeyCodePoint(event.mCodePoint);
         }
     }
 
@@ -369,29 +427,50 @@ public final class InputLogic {
      * @param inputTransaction The transaction in progress.
      */
     private void handleSeparatorEvent(final Event event, final InputTransaction inputTransaction) {
-        // Learn from completed word before handling separator
-        if (mCurrentWord.length() > 0) {
-            String completedWord = mCurrentWord.toString();
-            LocalLearningEngine learningEngine = getLearningEngine();
-            if (learningEngine != null) {
-                learningEngine.learnWord(completedWord);
-                
-                // Learn from context if we have previous text
-                String previousContext = getPreviousContext();
-                if (!TextUtils.isEmpty(previousContext)) {
-                    learningEngine.learnFromInput(previousContext + " " + completedWord);
+        final String typedWord = mCurrentWord.toString();
+        final boolean allowLearning = shouldLearn();
+        final String previousContext = allowLearning ? getPreviousContext() : "";
+        final int codePoint = event.mCodePoint;
+        String completedWord = typedWord;
+        mPendingCorrection = null;
+        if (codePoint == Constants.CODE_SPACE && !typedWord.isEmpty()
+                && typedWord.equals(mCorrectionWord) && mCorrectionCandidate != null
+                && canAutoCorrect() && !mConnection.hasSelection()) {
+            String before = mConnection.getTextBeforeCursor();
+            if (before != null && before.endsWith(typedWord)) {
+                mConnection.beginBatchEdit();
+                try {
+                    mConnection.deleteTextBeforeCursor(typedWord.length());
+                    mConnection.commitText(mCorrectionCandidate, 1);
+                } finally {
+                    mConnection.endBatchEdit();
                 }
+                completedWord = mCorrectionCandidate;
+                mPendingCorrection = new PendingCorrection(typedWord, completedWord,
+                        getCurrentInputEditorInfo());
             }
+        }
+        // Learn from completed word before handling separator
+        if (!completedWord.isEmpty() && allowLearning) {
+            final String wordToLearn = completedWord;
+            learnOnWorker(engine -> {
+                engine.learnWord(wordToLearn);
+                if (!TextUtils.isEmpty(previousContext)) {
+                    engine.learnFromInput(previousContext + " " + wordToLearn);
+                }
+            });
             
             mCurrentWord.setLength(0); // Clear current word
         }
         
         // Check if this separator indicates sentence completion
-        int codePoint = event.mCodePoint;
         if (codePoint == '.' || codePoint == '!' || codePoint == '?') {
             learnFromCurrentSentence(); // Learn from the completed sentence
         }
         
+        mCurrentWord.setLength(0);
+        mCorrectionWord = null;
+        mCorrectionCandidate = null;
         sendKeyCodePoint(event.mCodePoint);
         
         // Update suggestions after separator
@@ -406,9 +485,14 @@ public final class InputLogic {
      * @param inputTransaction The transaction in progress.
      */
     private void handleBackspaceEvent(final Event event, final InputTransaction inputTransaction) {
+        if (restoreAutoCorrection()) {
+            inputTransaction.requireShiftUpdate(InputTransaction.SHIFT_UPDATE_NOW);
+            return;
+        }
         // Update current word tracking
         if (mCurrentWord.length() > 0) {
-            mCurrentWord.setLength(mCurrentWord.length() - 1);
+            int start = Character.offsetByCodePoints(mCurrentWord, mCurrentWord.length(), -1);
+            mCurrentWord.delete(start, mCurrentWord.length());
             updateSuggestions();
         }
         
@@ -431,10 +515,66 @@ public final class InputLogic {
             if (codePointBeforeCursor == Constants.NOT_A_CODE) {
                 sendDownUpKeyEvent(KeyEvent.KEYCODE_DEL);
             } else {
-                final int numChars = Character.isSupplementaryCodePoint(codePointBeforeCursor) ? 2 : 1;
+                int numChars = Character.isSupplementaryCodePoint(codePointBeforeCursor) ? 2 : 1;
+                if (android.os.Build.VERSION.SDK_INT >= 24) {
+                    String before = mConnection.getTextBeforeCursor();
+                    if (before != null && !before.isEmpty()) {
+                        android.icu.text.BreakIterator boundaries =
+                                android.icu.text.BreakIterator.getCharacterInstance();
+                        boundaries.setText(before);
+                        int start = boundaries.preceding(before.length());
+                        if (start != android.icu.text.BreakIterator.DONE) {
+                            numChars = before.length() - start;
+                        }
+                    }
+                }
                 mConnection.deleteTextBeforeCursor(numChars);
             }
         }
+    }
+
+    private boolean restoreAutoCorrection() {
+        PendingCorrection pending = mPendingCorrection;
+        mPendingCorrection = null;
+        if (pending == null || pending.editor != getCurrentInputEditorInfo()
+                || mConnection.hasSelection()) return false;
+        String before = mConnection.getTextBeforeCursor();
+        String corrected = pending.replacement + " ";
+        if (before == null || !before.endsWith(corrected)) return false;
+        mConnection.beginBatchEdit();
+        try {
+            mConnection.deleteTextBeforeCursor(corrected.length());
+            mConnection.commitText(pending.original, 1);
+        } finally {
+            mConnection.endBatchEdit();
+        }
+        mCurrentWord.setLength(0);
+        mCurrentWord.append(pending.original);
+        final boolean allowPersonalLearning = shouldLearn();
+        learningWorker.execute(() -> {
+            LocalLearningEngine engine = getLearningEngine();
+            if (engine != null) {
+                engine.rejectAutoCorrection(pending.original, pending.replacement,
+                        allowPersonalLearning);
+            }
+        });
+        updateSuggestions();
+        return true;
+    }
+
+    private boolean canAutoCorrect() {
+        SettingsValues values = mLatinIME.getSettingsValues();
+        return !isPrivateField() && values != null && values.mInputAttributes != null
+                && !values.mInputAttributes.mInputTypeNoAutoCorrect
+                && rkr.simplekeyboard.inputmethod.compat.PreferenceManagerCompat
+                .getDeviceSharedPreferences(mLatinIME)
+                .getBoolean(Settings.PREF_AUTO_CORRECTION, false);
+    }
+
+    private void resetCorrectionState() {
+        mCorrectionWord = null;
+        mCorrectionCandidate = null;
+        mPendingCorrection = null;
     }
 
     /**
@@ -713,30 +853,34 @@ public final class InputLogic {
      * or falls back to next-word predictions.
      */
     private void updateContextualSuggestions() {
-        android.util.Log.d("CursorDebug", "updateContextualSuggestions() called");
-        
-        // Defensive check: don't proceed if learning engine isn't ready
-        LocalLearningEngine learningEngine = getLearningEngine();
-        if (learningEngine == null) {
-            android.util.Log.d("CursorDebug", "Learning engine is NULL - providing empty suggestions");
-            // Learning engine not ready yet, provide empty suggestions
-            java.util.List<String> emptySuggestions = new java.util.ArrayList<String>();
-            android.util.Log.d("CursorDebug", "SUGGESTIONS generated (empty): " + emptySuggestions);
-            mLatinIME.updateSuggestionStrip(emptySuggestions);
+        suggestionGeneration++;
+        suggestionHandler.removeCallbacks(suggestionUpdate);
+        mCorrectionWord = null;
+        mCorrectionCandidate = null;
+        if (isEmailSuggestionField()) {
+            updateSuggestions();
             return;
         }
-        
+        // Respect the editor's request before reading surrounding text or the clipboard.
+        if (isPrivateField()) {
+            mLatinIME.updateSuggestionStrip(java.util.Collections.emptyList());
+            return;
+        }
         // First check if cursor is positioned on a word
         WordAtCursorInfo wordAtCursor = findWordAtCursor();
         
         if (wordAtCursor != null) {
-            android.util.Log.d("CursorDebug", "Found word at cursor: '" + wordAtCursor.word + "'");
-            // Cursor is on a word - provide corrections and completions
-            java.util.List<String> suggestions = learningEngine.getCorrectionsAndCompletions(wordAtCursor.word);
-            android.util.Log.d("CursorDebug", "SUGGESTIONS generated (word-based): " + suggestions);
-            mLatinIME.updateSuggestionStrip(suggestions);
+            final int generation = suggestionGeneration;
+            final EditorInfo editor = getCurrentInputEditorInfo();
+            final String word = wordAtCursor.word;
+            learningWorker.execute(() -> {
+                if (learningClosed || generation != suggestionGeneration) return;
+                LocalLearningEngine engine = getLearningEngine();
+                List<String> suggestions = engine == null ? java.util.Collections.emptyList()
+                        : engine.getCorrectionsAndCompletions(word);
+                deliverSuggestions(generation, editor, suggestions);
+            });
         } else {
-            android.util.Log.d("CursorDebug", "No word at cursor - falling back to next-word suggestions");
             // Cursor is not on a word (e.g., on space) - fall back to regular next-word suggestions
             updateSuggestions();
         }
@@ -761,38 +905,86 @@ public final class InputLogic {
      * Updates suggestions based on current input context.
      */
     private void updateSuggestions() {
-        android.util.Log.d("CursorDebug", "updateSuggestions() fallback called");
-        
-        // Defensive check: don't proceed if learning engine isn't ready
-        LocalLearningEngine learningEngine = getLearningEngine();
-        if (learningEngine == null) {
-            android.util.Log.d("CursorDebug", "Learning engine is NULL in fallback - providing empty suggestions");
-            // Learning engine not ready yet, provide empty suggestions
-            java.util.List<String> emptySuggestions = new java.util.ArrayList<String>();
-            android.util.Log.d("CursorDebug", "SUGGESTIONS generated (fallback empty): " + emptySuggestions);
-            mLatinIME.updateSuggestionStrip(emptySuggestions);
+        suggestionHandler.removeCallbacks(suggestionUpdate);
+        suggestionGeneration++;
+        mCorrectionWord = null;
+        mCorrectionCandidate = null;
+        if (isPrivateField() && !isEmailSuggestionField()) {
+            mLatinIME.updateSuggestionStrip(java.util.Collections.emptyList());
             return;
         }
-        
-        String currentWord = mCurrentWord.toString();
-        String previousContext = getPreviousContext();
-        android.util.Log.d("CursorDebug", "Current word: '" + currentWord + "', Previous context: '" + previousContext + "'");
-        
-        // Check if we're in an email field and email suggestions are enabled
-        EditorInfo editorInfo = mLatinIME.getCurrentInputEditorInfo();
-        if (editorInfo != null && isEmailInputField(editorInfo) && isEmailSuggestionsEnabled()) {
-            java.util.List<String> emailSuggestions = getEmailSuggestions(currentWord, previousContext);
-            android.util.Log.d("CursorDebug", "SUGGESTIONS generated (email): " + emailSuggestions);
-            if (!emailSuggestions.isEmpty()) {
-                mLatinIME.updateSuggestionStrip(emailSuggestions);
-                return;
-            }
+        suggestionHandler.postDelayed(suggestionUpdate, 24);
+    }
+
+    private void computeSuggestions() {
+        final int generation = suggestionGeneration;
+        final EditorInfo editor = getCurrentInputEditorInfo();
+        if (isEmailSuggestionField()) {
+            String text = mConnection.getTextBeforeCursor();
+            boolean includeAccounts = rkr.simplekeyboard.inputmethod.compat.PreferenceManagerCompat
+                    .getDeviceSharedPreferences(mLatinIME)
+                    .getBoolean(rkr.simplekeyboard.inputmethod.latin.settings.Settings
+                            .PREF_ACCOUNT_EMAIL_SUGGESTIONS, false);
+            learningWorker.execute(() -> {
+                if (learningClosed || generation != suggestionGeneration) return;
+                deliverSuggestions(generation, editor, getEmailSuggestions(text, includeAccounts));
+            });
+            return;
         }
+        if (isPrivateField()) {
+            mLatinIME.updateSuggestionStrip(java.util.Collections.emptyList());
+            return;
+        }
+        final String currentWord = mCurrentWord.toString();
+        final String previousContext = getPreviousContext();
+        final boolean allowCorrection = canAutoCorrect();
         
         // Fall back to regular learning-based suggestions
-        java.util.List<String> suggestions = learningEngine.getSuggestions(currentWord, previousContext);
-        android.util.Log.d("CursorDebug", "SUGGESTIONS generated (learning-based): " + suggestions);
-        mLatinIME.updateSuggestionStrip(suggestions);
+        learningWorker.execute(() -> {
+            if (learningClosed || generation != suggestionGeneration) return;
+            LocalLearningEngine engine = getLearningEngine();
+            List<String> suggestions = engine == null ? java.util.Collections.emptyList()
+                    : engine.getSuggestions(currentWord, previousContext);
+            String correction = allowCorrection && engine != null
+                    ? engine.getAutoCorrection(currentWord, suggestions) : null;
+            deliverSuggestions(generation, editor, suggestions, currentWord, correction);
+        });
+    }
+
+    private void deliverSuggestions(int generation, EditorInfo editor, List<String> suggestions) {
+        deliverSuggestions(generation, editor, suggestions, null, null);
+    }
+
+    private void deliverSuggestions(int generation, EditorInfo editor, List<String> suggestions,
+            String word, String correction) {
+        suggestionHandler.post(() -> {
+            if (!learningClosed && generation == suggestionGeneration
+                    && editor == getCurrentInputEditorInfo()
+                    && (!isPrivateField() || isEmailSuggestionField())) {
+                mCorrectionWord = correction == null ? null : word;
+                mCorrectionCandidate = correction;
+                mLatinIME.updateSuggestionStrip(suggestions);
+            }
+        });
+    }
+
+    private interface LearningOperation {
+        void apply(LocalLearningEngine engine);
+    }
+
+    private void learnOnWorker(LearningOperation operation) {
+        if (!shouldLearn() || learningClosed) return;
+        learningWorker.execute(() -> {
+            LocalLearningEngine engine = getLearningEngine();
+            if (engine != null) operation.apply(engine);
+        });
+    }
+
+    public void closeLearningWorker() {
+        learningClosed = true;
+        suggestionGeneration++;
+        suggestionHandler.removeCallbacks(suggestionUpdate);
+        learningWorker.shutdown();
     }
 
     /**
@@ -802,7 +994,7 @@ public final class InputLogic {
         try {
             return mLatinIME.getSettingsValues().mEmailSuggestionsEnabled;
         } catch (Exception e) {
-            return true; // Default to enabled if we can't read settings
+            return false;
         }
     }
 
@@ -816,28 +1008,28 @@ public final class InputLogic {
         return InputTypeUtils.isEmailVariation(variation);
     }
 
+    private boolean isEmailSuggestionField() {
+        EditorInfo info = getCurrentInputEditorInfo();
+        return info != null && isEmailInputField(info) && isEmailSuggestionsEnabled()
+                && (info.inputType & android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) == 0
+                && (info.imeOptions & EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) == 0;
+    }
+
     /**
      * Gets email-specific suggestions based on current input.
      */
-    private java.util.List<String> getEmailSuggestions(String currentWord, String previousContext) {
+    private java.util.List<String> getEmailSuggestions(String textBeforeCursor,
+            boolean includeAccounts) {
         java.util.List<String> suggestions = new java.util.ArrayList<>();
         EmailSuggestionProvider emailProvider = getEmailSuggestionProvider();
         
         try {
-            String textBeforeCursor = mConnection.getTextBeforeCursor();
-            android.util.Log.d("EmailSuggestions", "Text before cursor: '" + textBeforeCursor + "'");
-            android.util.Log.d("EmailSuggestions", "Current word: '" + currentWord + "'");
-            
             if (textBeforeCursor != null) {
                 // Check for domain completion pattern: (text)@
                 int atIndex = textBeforeCursor.lastIndexOf('@');
-                android.util.Log.d("EmailSuggestions", "@ index: " + atIndex);
-                
                 if (atIndex >= 0) {
                     // We found @ - check if we should suggest domains
                     String textAfterAt = textBeforeCursor.substring(atIndex + 1);
-                    android.util.Log.d("EmailSuggestions", "Text after @: '" + textAfterAt + "'");
-                    
                     // Only suggest domains if there's no space after @ (immediate domain completion)
                     if (!textAfterAt.contains(" ") && !textAfterAt.contains("\n")) {
                         String beforeAt = textBeforeCursor.substring(0, atIndex);
@@ -845,31 +1037,25 @@ public final class InputLogic {
                         int emailStart = Math.max(beforeAt.lastIndexOf(' '), beforeAt.lastIndexOf('\n')) + 1;
                         String emailPrefix = beforeAt.substring(emailStart);
                         
-                        android.util.Log.d("EmailSuggestions", "Email prefix: '" + emailPrefix + "'");
-                        
                         if (!emailPrefix.isEmpty() && isValidEmailPrefix(emailPrefix)) {
-                            java.util.List<String> domainSuggestions = emailProvider.getDomainCompletions(emailPrefix);
-                            android.util.Log.d("EmailSuggestions", "Domain suggestions: " + domainSuggestions.size());
+                            java.util.List<String> domainSuggestions = emailProvider
+                                    .getDomainCompletions(emailPrefix, textAfterAt);
                             suggestions.addAll(domainSuggestions);
                         }
                     }
                 } else {
                     // We're typing an email address from the beginning
-                    if (currentWord.isEmpty()) {
-                        // Show contact emails when field is empty or starting
-                        suggestions.addAll(emailProvider.getContactEmails());
-                    } else {
-                        // Filter contact emails by current input
-                        suggestions.addAll(emailProvider.getFilteredContactEmails(currentWord));
+                    if (includeAccounts) {
+                        String prefix = textBeforeCursor.substring(Math.max(
+                                textBeforeCursor.lastIndexOf(' '), textBeforeCursor.lastIndexOf('\n')) + 1);
+                        suggestions.addAll(emailProvider.getFilteredContactEmails(prefix));
                     }
                 }
             }
         } catch (Exception e) {
-            android.util.Log.e("EmailSuggestions", "Error getting email suggestions", e);
             // Return empty suggestions on error
         }
         
-        android.util.Log.d("EmailSuggestions", "Final suggestions count: " + suggestions.size());
         return suggestions;
     }
 
@@ -949,6 +1135,22 @@ public final class InputLogic {
      * Handles suggestion selection from the suggestion strip.
      */
     public void onSuggestionSelected(String suggestion) {
+        mPendingCorrection = null;
+        if (isEmailSuggestionField() && suggestion != null && suggestion.contains("@")) {
+            String before = mConnection.getTextBeforeCursor();
+            if (before != null) {
+                String token = before.substring(Math.max(before.lastIndexOf(' '),
+                        before.lastIndexOf('\n')) + 1);
+                if (suggestion.regionMatches(true, 0, token, 0, token.length())
+                        && !suggestion.equalsIgnoreCase(token)) {
+                    mConnection.deleteTextBeforeCursor(token.length());
+                    mConnection.commitText(suggestion, 1);
+                    mCurrentWord.setLength(0);
+                    updateSuggestions();
+                }
+            }
+            return;
+        }
         // Check if this is a special suggestion type (clipboard, calculator, emoji)
         boolean isSpecialSuggestion = isSpecialSuggestion(suggestion);
         
@@ -979,14 +1181,7 @@ public final class InputLogic {
             
             // Learn from the selected suggestion (only if not special)
             if (!isSpecialSuggestion) {
-                LocalLearningEngine learningEngine = getLearningEngine();
-                if (learningEngine != null) {
-                    learningEngine.learnWord(actualText);
-                    String previousContext = getPreviousContext();
-                    if (!TextUtils.isEmpty(previousContext)) {
-                        learningEngine.learnFromInput(previousContext + " " + actualText);
-                    }
-                }
+                learnCompletedWord(actualText);
             }
             
             mCurrentWord.setLength(0);
@@ -996,10 +1191,8 @@ public final class InputLogic {
             
             // Learn from the selected suggestion (only if not special)
             if (!isSpecialSuggestion) {
-                LocalLearningEngine learningEngine = getLearningEngine();
-                if (learningEngine != null) {
-                    learningEngine.learnWord(actualText);
-                }
+                final String selectedWord = actualText;
+                learnOnWorker(engine -> engine.learnWord(selectedWord));
             }
         }
         
@@ -1178,31 +1371,32 @@ public final class InputLogic {
         mConnection.commitText(replacement, 1);
         
         // Learn from the replacement
-        LocalLearningEngine learningEngine = getLearningEngine();
-        if (learningEngine != null) {
-            learningEngine.learnWord(replacement);
-            String previousContext = getPreviousContext();
+        learnCompletedWord(replacement);
+    }
+
+    private void learnCompletedWord(String word) {
+        if (!shouldLearn()) return;
+        String previousContext = getPreviousContext();
+        learnOnWorker(engine -> {
+            engine.learnWord(word);
             if (!TextUtils.isEmpty(previousContext)) {
-                learningEngine.learnFromInput(previousContext + " " + replacement);
+                engine.learnFromInput(previousContext + " " + word);
             }
-        }
+        });
     }
     
     /**
      * Learns from the current sentence when user presses enter or finishes a sentence.
      */
     private void learnFromCurrentSentence() {
+        if (!shouldLearn()) return;
         String textBeforeCursor = mConnection.getTextBeforeCursor();
         if (!TextUtils.isEmpty(textBeforeCursor)) {
-            LocalLearningEngine learningEngine = getLearningEngine();
-            if (learningEngine != null) {
-                // Find the current sentence by looking for sentence boundaries
-                String[] sentences = textBeforeCursor.split("[.!?]");
-                if (sentences.length > 0) {
-                    String currentSentence = sentences[sentences.length - 1].trim();
-                    if (!TextUtils.isEmpty(currentSentence) && currentSentence.split("\\s+").length > 1) {
-                        learningEngine.learnSentence(currentSentence);
-                    }
+            String[] sentences = textBeforeCursor.split("[.!?؟]");
+            if (sentences.length > 0) {
+                String currentSentence = sentences[sentences.length - 1].trim();
+                if (!TextUtils.isEmpty(currentSentence) && currentSentence.split("\\s+").length > 1) {
+                    learnOnWorker(engine -> engine.learnSentence(currentSentence));
                 }
             }
         }
@@ -1227,24 +1421,25 @@ public final class InputLogic {
         
         // Capitalize after sentence ending punctuation
         char lastChar = trimmed.charAt(trimmed.length() - 1);
-        return lastChar == '.' || lastChar == '!' || lastChar == '?';
+        return lastChar == '.' || lastChar == '!' || lastChar == '?' || lastChar == '؟';
     }
     
     /**
-     * Commits text directly to the input connection.
-     * Used for emoji insertion and clipboard content.
+     * Commits explicit external text such as emoji or voice recognition output.
+     * Learning is always gated by the current editor privacy contract and the user's setting.
      */
     public void commitText(String text) {
-        if (!TextUtils.isEmpty(text)) {
-            mConnection.commitText(text, 1);
-            
-            // Learn from committed text if it's a word
-            if (text.trim().matches("\\w+")) {
-                LocalLearningEngine learningEngine = getLearningEngine();
-                if (learningEngine != null) {
-                    learningEngine.learnWord(text.trim());
-                }
-            }
+        if (TextUtils.isEmpty(text)) return;
+        mConnection.commitText(text, 1);
+
+        if (!shouldLearn()) return;
+        final String trimmed = text.trim();
+        if (trimmed.isEmpty() || trimmed.length() > 500) return;
+        if (trimmed.matches("[\\p{L}][\\p{L}\\p{M}\\p{N}'-]*")) {
+            learnOnWorker(engine -> engine.learnWord(trimmed));
+        } else if (trimmed.matches("[\\p{L}\\p{M}\\p{N}'\\- ]+")
+                && trimmed.split("\\s+").length <= 30) {
+            learnOnWorker(engine -> engine.learnFromInput(trimmed));
         }
     }
 }

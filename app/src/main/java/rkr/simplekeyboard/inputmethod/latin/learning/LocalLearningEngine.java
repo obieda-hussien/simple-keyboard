@@ -35,8 +35,8 @@ import rkr.simplekeyboard.inputmethod.latin.utils.ClipboardUtils;
 public class LocalLearningEngine {
     private static LocalLearningEngine instance;
     
-    private final WordTrie wordTrie;
-    private final NGramModel ngramModel;
+    private WordTrie wordTrie;
+    private NGramModel ngramModel;
     private final LocalStorage localStorage;
     private final Context context;
     
@@ -44,6 +44,8 @@ public class LocalLearningEngine {
     private final java.util.Map<String, Integer> wordFrequency;
     private final java.util.Map<String, Long> recentUsage;
     private final java.util.List<String> dictionaryWords;
+    private final Set<String> userWords;
+    private final Set<String> rejectedCorrections;
     
     private static final int MAX_SUGGESTIONS = 5;
     private static final int MAX_TYPO_SUGGESTIONS = 3;
@@ -65,6 +67,8 @@ public class LocalLearningEngine {
         this.wordFrequency = new java.util.HashMap<>();
         this.recentUsage = new java.util.HashMap<>();
         this.dictionaryWords = new java.util.ArrayList<>();
+        this.userWords = new HashSet<>();
+        this.rejectedCorrections = localStorage.getRejectedCorrections();
         
         // Initialize with bootstrap vocabulary
         initializeBootstrapData();
@@ -90,7 +94,7 @@ public class LocalLearningEngine {
      * Gets suggestions for the current input context.
      * Enhanced with advanced ranking, typo tolerance, and context awareness.
      */
-    public List<String> getSuggestions(String currentWord, String previousContext) {
+    public synchronized List<String> getSuggestions(String currentWord, String previousContext) {
         List<String> candidateSuggestions = new ArrayList<>();
         String fullText = (previousContext != null ? previousContext + " " : "") + (currentWord != null ? currentWord : "");
         
@@ -105,15 +109,9 @@ public class LocalLearningEngine {
             }
         }
         
-        // Add clipboard suggestion if available and no current word
-        if (TextUtils.isEmpty(currentWord) && ClipboardUtils.hasClipboardText(context)) {
-            String clipboardText = ClipboardUtils.getClipboardText(context);
-            String clipboardSuggestion = ClipboardUtils.createClipboardSuggestion(clipboardText);
-            if (clipboardSuggestion != null && !candidateSuggestions.contains(clipboardSuggestion)) {
-                candidateSuggestions.add(clipboardSuggestion);
-            }
-        }
-        
+        // Clipboard content is inserted only from the explicit toolbar action.
+        // Do not inspect or preview a copied secret as a word suggestion.
+
         // Add emoji suggestions based on keywords
         if (!TextUtils.isEmpty(currentWord)) {
             List<String> emojiSuggestions = EmojiSuggestionProvider.getEmojiSuggestions(currentWord);
@@ -195,7 +193,7 @@ public class LocalLearningEngine {
     /**
      * Learns from user input to improve future suggestions.
      */
-    public void learnFromInput(String text) {
+    public synchronized void learnFromInput(String text) {
         if (TextUtils.isEmpty(text)) return;
         
         // Learn individual words
@@ -203,7 +201,9 @@ public class LocalLearningEngine {
         for (String word : words) {
             if (isValidWord(word)) {
                 wordTrie.insert(word);
-                localStorage.addUserWord(word);
+                if (userWords.add(word.toLowerCase(java.util.Locale.ROOT))) {
+                    localStorage.addUserWord(word);
+                }
             }
         }
         
@@ -212,7 +212,7 @@ public class LocalLearningEngine {
         
         // Force save more frequently for learning data (every 5th call instead of 10%)
         saveLearningCounter++;
-        if (saveLearningCounter >= 5) {
+        if (saveLearningCounter >= 50) {
             saveLearningData();
             saveLearningCounter = 0;
         }
@@ -221,10 +221,12 @@ public class LocalLearningEngine {
     /**
      * Learns from a completed word with frequency and recency tracking.
      */
-    public void learnWord(String word) {
+    public synchronized void learnWord(String word) {
         if (isValidWord(word)) {
             wordTrie.insert(word);
-            localStorage.addUserWord(word);
+            if (userWords.add(word.toLowerCase(java.util.Locale.ROOT))) {
+                    localStorage.addUserWord(word);
+                }
             
             // Update frequency count
             wordFrequency.put(word, wordFrequency.getOrDefault(word, 0) + 1);
@@ -237,9 +239,9 @@ public class LocalLearningEngine {
                 dictionaryWords.add(word);
             }
             
-            // Force save every 10 words learned
+            // Persist context periodically; individual words are saved by addUserWord.
             wordLearningCounter++;
-            if (wordLearningCounter >= 10) {
+            if (wordLearningCounter >= 50) {
                 saveLearningData();
                 wordLearningCounter = 0;
             }
@@ -249,7 +251,7 @@ public class LocalLearningEngine {
     /**
      * Learns from a completed sentence.
      */
-    public void learnSentence(String sentence) {
+    public synchronized void learnSentence(String sentence) {
         if (!TextUtils.isEmpty(sentence)) {
             ngramModel.learnFromSentence(sentence);
             
@@ -267,9 +269,11 @@ public class LocalLearningEngine {
     /**
      * Adds a word to the user dictionary for high-priority suggestions.
      */
-    public void addToUserDictionary(String word) {
+    public synchronized void addToUserDictionary(String word) {
         if (isValidWord(word)) {
-            localStorage.addUserWord(word);
+            if (userWords.add(word.toLowerCase(java.util.Locale.ROOT))) {
+                    localStorage.addUserWord(word);
+                }
             wordTrie.insert(word);
             // Give user words extra frequency boost
             for (int i = 0; i < 5; i++) {
@@ -283,9 +287,9 @@ public class LocalLearningEngine {
     /**
      * Checks if a word is in the user dictionary.
      */
-    public boolean isInUserDictionary(String word) {
+    public synchronized boolean isInUserDictionary(String word) {
         if (TextUtils.isEmpty(word)) return false;
-        return localStorage.getUserWords().contains(word.toLowerCase().trim());
+        return userWords.contains(word.toLowerCase(java.util.Locale.ROOT).trim());
     }
 
     /**
@@ -293,13 +297,12 @@ public class LocalLearningEngine {
      */
     private List<String> getUserWordSuggestions(String prefix) {
         List<String> userSuggestions = new ArrayList<>();
-        Set<String> userWords = localStorage.getUserWords();
         
         String lowerPrefix = prefix.toLowerCase();
         for (String userWord : userWords) {
-            if (userWord.toLowerCase().startsWith(lowerPrefix)) {
+            if (userWord.toLowerCase(java.util.Locale.ROOT).startsWith(lowerPrefix)) {
                 userSuggestions.add(userWord);
-                if (userSuggestions.size() >= 3) break; // Limit user suggestions
+                if (userSuggestions.size() >= 20) break;
             }
         }
         
@@ -309,35 +312,67 @@ public class LocalLearningEngine {
     /**
      * Removes a word from suggestions.
      */
-    public void removeWord(String word) {
+    public synchronized void removeWord(String word) {
         localStorage.removeUserWord(word);
-        // Note: For simplicity, we don't remove from trie as it would require
-        // rebuilding the entire structure
+        wordFrequency.remove(word);
+        recentUsage.remove(word);
+        rebuildModels();
     }
 
     /**
      * Gets statistics about the learning system.
      */
-    public LearningStats getStats() {
-        return new LearningStats(localStorage.getUserWordCount());
+    public synchronized LearningStats getStats() {
+        return new LearningStats(userWords.size());
     }
 
     /**
      * Clears all learning data.
      */
-    public void clearAllData() {
+    public synchronized void clearAllData() {
         localStorage.clearAllData();
-        // Reinitialize components
-        // wordTrie and ngramModel would need to be reset
+        rejectedCorrections.clear();
+        wordFrequency.clear();
+        recentUsage.clear();
+        wordLearningCounter = 0;
+        saveLearningCounter = 0;
+        rebuildModels();
+    }
+
+    public synchronized String getAutoCorrection(String typed, List<String> suggestions) {
+        return AutoCorrectionPolicy.choose(typed, suggestions,
+                wordTrie.contains(typed), rejectedCorrections);
+    }
+
+    public synchronized void rejectAutoCorrection(String typed, String replacement,
+            boolean allowPersonalLearning) {
+        if (!isValidWord(typed) || !isValidWord(replacement)) return;
+        if (rejectedCorrections.size() >= 200) {
+            rejectedCorrections.remove(rejectedCorrections.iterator().next());
+        }
+        rejectedCorrections.add(AutoCorrectionPolicy.rejectionKey(typed, replacement));
+        if (allowPersonalLearning) {
+            localStorage.saveRejectedCorrections(rejectedCorrections);
+            learnWord(typed);
+        }
+    }
+
+    private void rebuildModels() {
+        wordTrie = new WordTrie();
+        ngramModel = new NGramModel();
+        dictionaryWords.clear();
+        initializeBootstrapData();
+        loadLearningData();
     }
 
     private void loadLearningData() {
-        localStorage.loadWordFrequencies(wordTrie);
+        userWords.clear();
+        userWords.addAll(localStorage.getUserWords());
+        for (String word : userWords) wordTrie.insert(word);
         localStorage.loadNGramData(ngramModel);
     }
 
     private void saveLearningData() {
-        localStorage.saveWordFrequencies(wordTrie);
         localStorage.saveNGramData(ngramModel);
     }
     
@@ -354,20 +389,10 @@ public class LocalLearningEngine {
      * Populates the dictionary list with bootstrap vocabulary for typo suggestions.
      */
     private void populateDictionaryFromBootstrap() {
-        // Add common prefixes to generate comprehensive dictionary
-        String[] commonPrefixes = {"", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
-                                   "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
-                                   "th", "wh", "ch", "sh", "ph",
-                                   "و", "أ", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز",
-                                   "س", "ش", "ص", "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك",
-                                   "ل", "م", "ن", "ه", "ي", "ال"};
-        
-        Set<String> uniqueWords = new HashSet<>();
-        for (String prefix : commonPrefixes) {
-            List<String> words = BootstrapVocabulary.getCommonWordsForPrefix(prefix);
-            uniqueWords.addAll(words);
-        }
-        
+        // Keep the typo dictionary aligned with the full bundled vocabulary. The previous
+        // prefix enumeration silently omitted many valid English and Arabic/Egyptian words.
+        final Set<String> uniqueWords =
+                new java.util.LinkedHashSet<>(BootstrapVocabulary.getAllWords());
         dictionaryWords.addAll(uniqueWords);
     }
 
@@ -384,7 +409,7 @@ public class LocalLearningEngine {
         }
         
         processed = processed
-                  .replaceAll("([.!?;:,])", " $1 ")  // Add spaces around punctuation
+                  .replaceAll("([.!?;:,؟،؛])", " $1 ")  // Add spaces around punctuation
                   .replaceAll("\\s+", " ")           // Normalize whitespace
                   .trim();
         
@@ -413,10 +438,13 @@ public class LocalLearningEngine {
         return words.toArray(new String[0]);
     }
 
-    private boolean isValidWord(String word) {
-        if (TextUtils.isEmpty(word)) return false;
+    static boolean isValidWord(String word) {
+        if (word == null || word.isEmpty()) return false;
         
         word = word.trim();
+        // Keep addresses, URLs and pasted long tokens out of the personal vocabulary.
+        if (word.length() > 48 || word.indexOf('@') >= 0 || word.indexOf('/') >= 0
+                || word.indexOf('\\') >= 0 || word.indexOf('.') >= 0) return false;
         
         // Accept emojis as valid tokens
         if (EmojiUtils.isEmoji(word)) {
@@ -424,8 +452,7 @@ public class LocalLearningEngine {
         }
         
         // Updated to accept single-letter words like "a" in English or "و" in Arabic
-        return word.length() >= 1 && 
-               word.matches(".*[a-zA-Z\\u0600-\\u06FF].*"); // Contains at least one letter (Latin or Arabic)
+        return word.matches("[\\p{L}][\\p{L}\\p{M}\\p{N}'-]*");
     }
 
     /**
@@ -434,7 +461,7 @@ public class LocalLearningEngine {
      * @param word The word to provide corrections and completions for
      * @return List of suggested corrections and completions
      */
-    public List<String> getCorrectionsAndCompletions(String word) {
+    public synchronized List<String> getCorrectionsAndCompletions(String word) {
         List<String> suggestions = new ArrayList<>();
         
         if (TextUtils.isEmpty(word)) {
@@ -473,12 +500,12 @@ public class LocalLearningEngine {
         }
         
         // Search in user dictionary first (higher priority)
-        Set<String> userWords = localStorage.getUserWords();
         for (String userWord : userWords) {
-            if (userWord.toLowerCase().startsWith(partialWord) && 
-                !userWord.toLowerCase().equals(partialWord)) {
+            final String normalizedUserWord = userWord.toLowerCase(java.util.Locale.ROOT);
+            if (normalizedUserWord.startsWith(partialWord)
+                    && !normalizedUserWord.equals(partialWord)) {
                 completions.add(userWord);
-                if (completions.size() >= 3) break; // Limit user completions
+                if (completions.size() >= 12) break;
             }
         }
         
@@ -504,7 +531,6 @@ public class LocalLearningEngine {
         }
         
         // Check user dictionary first
-        Set<String> userWords = localStorage.getUserWords();
         for (String userWord : userWords) {
             if (isSpellingCandidate(word, userWord)) {
                 corrections.add(userWord);

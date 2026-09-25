@@ -120,8 +120,17 @@ public class SuggestionRanker {
         double score = 0.0;
         
         if (currentWord != null && !currentWord.isEmpty()) {
-            String lowerSuggestion = suggestion.toLowerCase();
-            String lowerCurrent = currentWord.toLowerCase();
+            String lowerSuggestion = normalizeForComparison(suggestion);
+            String lowerCurrent = normalizeForComparison(currentWord);
+
+            // A typed Arabic or Latin prefix should not be crowded out by candidates
+            // from the other alphabet. Keep both available on a word boundary.
+            int typedScript = wordScript(lowerCurrent);
+            int suggestionScript = wordScript(lowerSuggestion);
+            if (typedScript != 0 && suggestionScript != 0
+                    && typedScript != suggestionScript) {
+                score -= 60.0;
+            }
             
             // Exact match bonus
             if (lowerSuggestion.equals(lowerCurrent)) {
@@ -137,7 +146,7 @@ public class SuggestionRanker {
             }
             
             // Typo tolerance (edit distance)
-            else {
+            else if (typedScript == 0 || typedScript == suggestionScript) {
                 int editDistance = calculateLevenshteinDistance(lowerSuggestion, lowerCurrent);
                 if (editDistance <= MAX_EDIT_DISTANCE) {
                     double typoScore = WEIGHT_TYPO_TOLERANCE * (1.0 - (double) editDistance / MAX_EDIT_DISTANCE);
@@ -178,6 +187,48 @@ public class SuggestionRanker {
         
         return score;
     }
+
+    /**
+     * Normalizes only characters that are routinely omitted or varied while typing Arabic.
+     * The original candidate is always returned to the editor; this value is ranking-only.
+     */
+    static String normalizeForComparison(String value) {
+        if (value == null) return "";
+        final String lower = value.toLowerCase(java.util.Locale.ROOT);
+        final StringBuilder out = new StringBuilder(lower.length());
+        for (int offset = 0; offset < lower.length(); ) {
+            final int cp = lower.codePointAt(offset);
+            offset += Character.charCount(cp);
+            if (cp == 0x0640 || (cp >= 0x064B && cp <= 0x065F)
+                    || cp == 0x0670 || (cp >= 0x06D6 && cp <= 0x06ED)) {
+                continue;
+            }
+            if (cp == 0x0622 || cp == 0x0623 || cp == 0x0625 || cp == 0x0671) {
+                out.append('ا');
+            } else if (cp == 0x0649) {
+                out.append('ي');
+            } else {
+                out.appendCodePoint(cp);
+            }
+        }
+        return out.toString();
+    }
+
+    /** 1 for Latin, 2 for Arabic, 0 for mixed or other content. */
+    private static int wordScript(String word) {
+        int script = 0;
+        for (int offset = 0; offset < word.length(); ) {
+            int codePoint = word.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+            int next = (codePoint >= 'a' && codePoint <= 'z') ? 1
+                    : ((codePoint >= 0x0600 && codePoint <= 0x06FF)
+                    || (codePoint >= 0x0750 && codePoint <= 0x077F)
+                    || (codePoint >= 0x08A0 && codePoint <= 0x08FF)) ? 2 : 0;
+            if (next == 0 || (script != 0 && script != next)) return 0;
+            script = next;
+        }
+        return script;
+    }
     
     /**
      * Calculates context score based on how well the suggestion fits with previous word.
@@ -198,7 +249,7 @@ public class SuggestionRanker {
      * Gets common words that typically follow the given word.
      */
     private static String[] getCommonFollowers(String word) {
-        String lowerWord = word.toLowerCase().trim();
+        String lowerWord = normalizeForComparison(word.trim());
         
         // Common English patterns
         if (lowerWord.equals("i")) return new String[]{"am", "have", "will", "can", "don't"};
@@ -209,11 +260,16 @@ public class SuggestionRanker {
         if (lowerWord.equals("will")) return new String[]{"be", "have", "not", "go", "do"};
         if (lowerWord.equals("can")) return new String[]{"be", "you", "I", "we", "not"};
         
-        // Common Arabic patterns
-        if (lowerWord.equals("أنا")) return new String[]{"أريد", "أحب", "لا", "سوف", "كنت"};
-        if (lowerWord.equals("هذا")) return new String[]{"هو", "ما", "كان", "يعني", "جيد"};
-        if (lowerWord.equals("في")) return new String[]{"البيت", "المدرسة", "الصباح", "المساء", "الوقت"};
-        if (lowerWord.equals("من")) return new String[]{"فضلك", "هنا", "هناك", "الآن", "البداية"};
+        // Arabic and Egyptian Arabic patterns. Keys use ranking normalization.
+        if (lowerWord.equals("انا")) return new String[]{"عايز", "عايزة", "أريد", "بحب", "مش"};
+        if (lowerWord.equals("انت")) return new String[]{"عامل", "عايز", "عارف", "فين", "تمام"};
+        if (lowerWord.equals("احنا")) return new String[]{"عايزين", "هنعمل", "هنشوف", "رايحين", "تمام"};
+        if (lowerWord.equals("مش")) return new String[]{"عارف", "فاهم", "عايز", "مشكلة", "دلوقتي"};
+        if (lowerWord.equals("عايز")) return new String[]{"اعمل", "اروح", "اشوف", "اعرف", "اجيب"};
+        if (lowerWord.equals("عايزين")) return new String[]{"نعمل", "نروح", "نشوف", "نعرف", "نخلص"};
+        if (lowerWord.equals("تمام")) return new String[]{"كده", "الحمدلله", "ماشي", "خلاص", "شكرا"};
+        if (lowerWord.equals("في")) return new String[]{"البيت", "الشغل", "المدرسة", "الصباح", "الوقت"};
+        if (lowerWord.equals("من")) return new String[]{"فضلك", "هنا", "هناك", "دلوقتي", "البداية"};
         
         return new String[]{};
     }
@@ -226,8 +282,8 @@ public class SuggestionRanker {
             return "prediction";
         }
         
-        String lowerSuggestion = suggestion.toLowerCase();
-        String lowerCurrent = currentWord.toLowerCase();
+        String lowerSuggestion = normalizeForComparison(suggestion);
+        String lowerCurrent = normalizeForComparison(currentWord);
         
         if (lowerSuggestion.equals(lowerCurrent)) {
             return "exact";
@@ -279,39 +335,58 @@ public class SuggestionRanker {
      * Enhanced with specialized typo detection for common mistakes.
      */
     public static List<String> generateTypoSuggestions(
-            String currentWord,
-            List<String> dictionary,
-            int maxDistance) {
-        
-        List<String> typoSuggestions = new ArrayList<>();
-        
-        if (currentWord == null || currentWord.isEmpty() || dictionary == null) {
-            return typoSuggestions;
+            String currentWord, List<String> dictionary, int maxResults) {
+        List<String> matches = new ArrayList<>();
+        if (currentWord == null || currentWord.length() < 2 || dictionary == null || maxResults <= 0) {
+            return matches;
         }
-        
-        // First, try quick specialized typo corrections
-        typoSuggestions.addAll(generateTranspositionSuggestions(currentWord, dictionary));
-        typoSuggestions.addAll(generateMissingCharSuggestions(currentWord, dictionary));
-        typoSuggestions.addAll(generateExtraCharSuggestions(currentWord, dictionary));
-        typoSuggestions.addAll(generateKeyboardProximitySuggestions(currentWord, dictionary));
-        
-        // Then add general edit distance matches that aren't already included
+        String query = normalizeForComparison(currentWord);
+        int queryScript = wordScript(query);
         for (String word : dictionary) {
-            if (!typoSuggestions.contains(word)) {
-                int distance = calculateLevenshteinDistance(
-                    currentWord.toLowerCase(),
-                    word.toLowerCase()
-                );
-                
-                if (distance > 0 && distance <= maxDistance) {
-                    typoSuggestions.add(word);
-                }
+            if (word == null || Math.abs(word.length() - query.length()) > 2) continue;
+            final String normalizedWord = normalizeForComparison(word);
+            if (queryScript != 0 && wordScript(normalizedWord) != queryScript) continue;
+            if (normalizedWord.equals(query) || matches.contains(word)) continue;
+            int distance = calculateBoundedDistance(query, normalizedWord, 2);
+            if (distance > 0 && distance <= 2) {
+                matches.add(word);
+                if (matches.size() == maxResults) break;
             }
         }
-        
-        return typoSuggestions;
+        return matches;
     }
-    
+
+    /**
+     * Memory-bounded edit distance for hot-path typo lookup. Rows that already exceed the
+     * requested distance are abandoned immediately instead of filling an O(n*m) matrix.
+     */
+    static int calculateBoundedDistance(String first, String second, int maxDistance) {
+        if (first == null || second == null) return maxDistance + 1;
+        if (Math.abs(first.length() - second.length()) > maxDistance) return maxDistance + 1;
+        if (first.isEmpty()) return second.length() <= maxDistance ? second.length() : maxDistance + 1;
+        if (second.isEmpty()) return first.length() <= maxDistance ? first.length() : maxDistance + 1;
+
+        int[] previous = new int[second.length() + 1];
+        int[] current = new int[second.length() + 1];
+        for (int j = 0; j <= second.length(); j++) previous[j] = j;
+
+        for (int i = 1; i <= first.length(); i++) {
+            current[0] = i;
+            int rowMin = current[0];
+            for (int j = 1; j <= second.length(); j++) {
+                int cost = first.charAt(i - 1) == second.charAt(j - 1) ? 0 : 1;
+                current[j] = Math.min(Math.min(previous[j] + 1, current[j - 1] + 1),
+                        previous[j - 1] + cost);
+                rowMin = Math.min(rowMin, current[j]);
+            }
+            if (rowMin > maxDistance) return maxDistance + 1;
+            int[] swap = previous;
+            previous = current;
+            current = swap;
+        }
+        return previous[second.length()];
+    }
+
     /**
      * Detects transposition errors (adjacent characters swapped).
      * Example: "teh" → "the"

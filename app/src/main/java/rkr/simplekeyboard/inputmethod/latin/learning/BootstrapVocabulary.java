@@ -16,6 +16,7 @@
 
 package rkr.simplekeyboard.inputmethod.latin.learning;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -129,8 +130,44 @@ public class BootstrapVocabulary {
         "hello", "hi", "hey", "goodbye", "bye", "welcome", "congratulations"
     };
     
+
+    // Additional everyday and modern English terms kept separate so the bootstrap remains easy
+    // to audit and extend without introducing a heavyweight external dictionary.
+    private static final String[] COMMON_ENGLISH_EXTRA_WORDS = {
+        "actually", "basically", "definitely", "probably", "possibly", "exactly", "seriously",
+        "awesome", "amazing", "perfect", "cool", "interesting", "important", "available",
+        "busy", "done", "ready", "later", "earlier", "around", "already", "yet", "else",
+        "someone", "anyone", "everyone", "something", "anything", "everything", "nothing",
+        "message", "messages", "chat", "reply", "send", "sent", "receive", "received",
+        "photo", "photos", "image", "images", "video", "videos", "camera", "gallery",
+        "voice", "audio", "record", "recording", "microphone", "speaker", "call", "calls",
+        "contact", "contacts", "notification", "notifications", "settings", "permission",
+        "permissions", "privacy", "secure", "security", "update", "updates", "version",
+        "install", "installed", "uninstall", "build", "release", "debug", "test", "tests",
+        "project", "projects", "code", "coding", "developer", "development", "repository",
+        "branch", "commit", "merge", "request", "issue", "error", "errors", "warning",
+        "success", "failed", "failure", "fix", "fixed", "problem", "solution", "feature",
+        "features", "design", "layout", "button", "buttons", "menu", "toolbar", "screen",
+        "performance", "fast", "faster", "smooth", "battery", "memory", "storage", "network",
+        "wifi", "mobile", "android", "phone", "tablet", "computer", "laptop", "keyboard",
+        "language", "english", "arabic", "typing", "suggestion", "suggestions", "dictionary",
+        "correct", "correction", "autocorrect", "predict", "prediction", "context", "word",
+        "words", "sentence", "text", "paste", "copy", "clipboard", "select", "selected",
+        "open", "close", "save", "saved", "delete", "deleted", "clear", "reset", "change",
+        "switch", "enable", "enabled", "disable", "disabled", "allow", "allowed", "block",
+        "today", "tomorrow", "yesterday", "morning", "afternoon", "evening", "weekend",
+        "minute", "minutes", "hour", "hours", "meeting", "appointment", "schedule", "plan",
+        "location", "address", "street", "home", "office", "work", "school", "university",
+        "coffee", "water", "breakfast", "lunch", "dinner", "food", "money", "price", "order"
+    };
+
     // Comprehensive Arabic dictionary for initial suggestions (1000+ words)
     private static final String[] COMMON_ARABIC_WORDS = {
+        // Everyday Egyptian Arabic, kept as the user wrote it.
+        "إزاي", "ازاي", "دلوقتي", "عايز", "عايزة", "عايزين", "معلش",
+        "كده", "ليه", "فين", "إمتى", "امتى", "لسه", "تمام", "ماشي",
+        "حاضر", "بكرة", "النهارده", "امبارح", "عشان", "مش", "أوي",
+        "اوي", "هعمل", "هنعمل", "شوية", "برضه", "برده",
         // Single-letter words and short conjunctions that are important
         "و", "أ", "ب", "ل", "ف", "ك", "س",
         
@@ -241,6 +278,50 @@ public class BootstrapVocabulary {
         "من", "ماذا", "ما", "متى", "أين", "كيف", "لماذا", "كم", "أي", "هل"
     };
     
+
+    // Egyptian Arabic conversational core. Variants are intentionally preserved because
+    // users commonly type both hamza-marked and unmarked forms.
+    private static final String[] COMMON_EGYPTIAN_ARABIC_WORDS = {
+        "انا", "إنت", "انت", "انتي", "إنتي", "إحنا", "احنا", "هما",
+        "إزاي", "ازاي", "ليه", "فين", "إمتى", "امتى", "مين", "إيه", "ايه",
+        "ده", "دي", "دول", "كده", "كدا", "هنا", "هناك", "هناك", "عندك", "عندي",
+        "دلوقتي", "النهارده", "النهاردة", "امبارح", "بكرة", "بدري", "متأخر",
+        "لسه", "خلاص", "تمام", "ماشي", "حاضر", "طيب", "طب", "بص", "بصي",
+        "معلش", "آسف", "اسف", "حقك", "عليا", "شكرا", "تسلم", "تسلمي",
+        "ربنا", "يخليك", "يكرمك", "الحمدلله", "انشاءالله",
+        "مش", "مفيش", "فيه", "فيها", "فيهم", "معايا", "معاك", "معاكي", "معانا",
+        "عايز", "عايزة", "عايزين", "عاوز", "عاوزة", "عاوزين",
+        "محتاج", "محتاجة", "محتاجين", "ممكن", "ينفع", "مينفعش", "لازم",
+        "عارف", "عارفة", "عارفين", "فاهم", "فاهمة", "فاهمين",
+        "شايف", "شايفة", "شايفين", "سامع", "سامعة", "سامعين",
+        "حلو", "حلوة", "جامد", "جامدة", "كويس", "كويسة", "وحش", "وحشة",
+        "كبير", "كبيرة", "صغير", "صغيرة", "كتير", "قليل", "شوية", "اوي", "أوي",
+        "قوي", "سريع", "بطيء", "سهل", "صعب", "مظبوط", "غلط", "صح",
+        "فرحان", "فرحانة", "زعلان", "زعلانة", "تعبان", "تعبانة", "جعان", "جعانة",
+        "عطشان", "عطشانة", "نايم", "نايمة", "صاحي", "صاحية", "فاضي", "فاضية",
+        "رايح", "رايحة", "جاي", "جاية", "راجع", "راجعة", "نازل", "نازلة",
+        "طالع", "طالعة", "داخل", "داخلة", "واقف", "واقفة", "قاعد", "قاعدة",
+        "هروح", "هتيجي", "هتيجى", "هعمل", "هتعمل", "هنعمل", "هجيب", "هتجيب",
+        "هشوف", "هتشوف", "هنشوف", "هقول", "هتقول", "هنقول", "هبعت", "هتبعت",
+        "هكلم", "هتكلم", "هخلص", "هتخلص", "هنخلص", "هبدأ", "هنبدأ",
+        "روحت", "جيت", "عملت", "جبت", "شوفت", "شفت", "قلت", "بعت", "كلمت",
+        "خلصت", "بدأت", "نسيت", "افتكرت", "لقيت", "خدت", "اخدت", "سيبت",
+        "بروح", "باجي", "بعمل", "بجيب", "بشوف", "بقول", "ببعت", "بكلم",
+        "بخلص", "ببدأ", "بعرف", "بفهم", "بحب", "بكره", "بحاول", "بفكر",
+        "روح", "تعالى", "تعالي", "تعال", "هات", "خد", "خدي", "شوف", "قولي",
+        "قول", "ابعت", "ابعتي", "كلمني", "استنى", "استني", "خلي", "سيب",
+        "موبايل", "تليفون", "كمبيوتر", "لاب", "لابتوب", "نت", "واي", "فاي",
+        "ابلكيشن", "تطبيق", "برنامج", "لينك", "ملف", "فولدر", "صورة", "فيديو",
+        "رسالة", "شات", "مكالمة", "رقم", "باسورد", "اكونت", "حساب",
+        "شغل", "شغلي", "الشغل", "جامعة", "كلية", "مدرسة", "محاضرة", "امتحان",
+        "بيت", "البيت", "شارع", "مشوار", "عربية", "مواصلات", "محطة", "مترو",
+        "قهوة", "شاي", "مياه", "اكل", "أكل", "فطار", "غدا", "عشا",
+        "فلوس", "سعر", "غالي", "رخيص", "حاجة", "حاجات", "موضوع", "مشكلة",
+        "حل", "فكرة", "وقت", "ساعة", "دقيقة", "يوم", "اسبوع", "شهر", "سنة",
+        "برده", "برضه", "عشان", "علشان", "عموما", "اصلا", "أصلا", "تقريبا",
+        "غالبا", "اكيد", "أكيد", "يمكن", "فعلا", "بجد", "خصوصا", "بالظبط"
+    };
+
     // Common punctuation and special suggestions
     private static final String[] COMMON_PUNCTUATION = {
         ".", "?", "!", ",", ";", ":", "'", "\"", "(", ")", "-"
@@ -255,8 +336,15 @@ public class BootstrapVocabulary {
             wordTrie.insert(word);
         }
         
+        for (String word : COMMON_ENGLISH_EXTRA_WORDS) {
+            wordTrie.insert(word);
+        }
+
         // Add common Arabic words
         for (String word : COMMON_ARABIC_WORDS) {
+            wordTrie.insert(word);
+        }
+        for (String word : COMMON_EGYPTIAN_ARABIC_WORDS) {
             wordTrie.insert(word);
         }
     }
@@ -391,6 +479,36 @@ public class BootstrapVocabulary {
         ngramModel.learnFromSentence("أنا أفهم");
         ngramModel.learnFromSentence("أنا موافق");
         
+        // Egyptian Arabic conversation and messaging patterns.
+        ngramModel.learnFromSentence("انا عايز اعمل");
+        ngramModel.learnFromSentence("انا عايزة اعمل");
+        ngramModel.learnFromSentence("احنا عايزين نعمل");
+        ngramModel.learnFromSentence("انت عامل ايه");
+        ngramModel.learnFromSentence("انتي عاملة ايه");
+        ngramModel.learnFromSentence("عامل ايه دلوقتي");
+        ngramModel.learnFromSentence("تمام الحمدلله");
+        ngramModel.learnFromSentence("ماشي تمام");
+        ngramModel.learnFromSentence("خلاص تمام");
+        ngramModel.learnFromSentence("بص انا شايف");
+        ngramModel.learnFromSentence("مش عارف بصراحة");
+        ngramModel.learnFromSentence("مش فاهم ليه");
+        ngramModel.learnFromSentence("ممكن تبعتلي");
+        ngramModel.learnFromSentence("ممكن تقولي");
+        ngramModel.learnFromSentence("هكلمك بعدين");
+        ngramModel.learnFromSentence("هبعتلك دلوقتي");
+        ngramModel.learnFromSentence("انا جاي دلوقتي");
+        ngramModel.learnFromSentence("انا رايح البيت");
+        ngramModel.learnFromSentence("هنشوف بكرة");
+        ngramModel.learnFromSentence("نتكلم بعدين");
+        ngramModel.learnFromSentence("فين المكان");
+        ngramModel.learnFromSentence("الساعة كام");
+        ngramModel.learnFromSentence("عايز اروح");
+        ngramModel.learnFromSentence("عايز اشوف");
+        ngramModel.learnFromSentence("عايز اعرف");
+        ngramModel.learnFromSentence("خلينا نشوف");
+        ngramModel.learnFromSentence("ولا يهمك");
+        ngramModel.learnFromSentence("معلش حصل خير");
+
         // Punctuation patterns (English)
         ngramModel.learnFromSentence("Hello, how are you?");
         ngramModel.learnFromSentence("Yes, I agree.");
@@ -528,6 +646,18 @@ public class BootstrapVocabulary {
         return Arrays.asList();
     }
     
+    /** Returns every bundled word so typo correction is not limited to hand-written prefixes. */
+    public static List<String> getAllWords() {
+        final ArrayList<String> words = new ArrayList<>(
+                COMMON_ENGLISH_WORDS.length + COMMON_ENGLISH_EXTRA_WORDS.length
+                        + COMMON_ARABIC_WORDS.length + COMMON_EGYPTIAN_ARABIC_WORDS.length);
+        words.addAll(Arrays.asList(COMMON_ENGLISH_WORDS));
+        words.addAll(Arrays.asList(COMMON_ENGLISH_EXTRA_WORDS));
+        words.addAll(Arrays.asList(COMMON_ARABIC_WORDS));
+        words.addAll(Arrays.asList(COMMON_EGYPTIAN_ARABIC_WORDS));
+        return words;
+    }
+
     /**
      * Gets common punctuation suggestions.
      */

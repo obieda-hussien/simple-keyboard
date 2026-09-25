@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="one_handed_mode_entries">
+        <item>@string/one_handed_off</item>
+        <item>@string/one_handed_left</item>
+        <item>@string/one_handed_right</item>
+        <item>@string/one_handed_floating</item>
+    </string-array>
+    <string-array name="one_handed_mode_values">
+        <item>off</item>
+        <item>left</item>
+        <item>right</item>
+        <item>floating</item>
+    </string-array>
+</resources>

@@ -140,7 +140,12 @@ public final class RichInputConnection {
      * Reload the cached text from the InputConnection.
      */
     public void reloadTextCache() {
+        reloadTextCache((Runnable) null);
+    }
+
+    public void reloadTextCache(final Runnable onReady) {
         mIC = mLatinIME.getCurrentInputConnection();
+        final InputConnection connection = mIC;
         if (!isConnected()) {
             return;
         }
@@ -149,13 +154,13 @@ public final class RichInputConnection {
         final int expectedSelEnd = mExpectedSelEnd;
 
         mBackgroundThread.execute(() -> {
-            if (!isConnected()) {
+            if (!isConnected() || mIC != connection) {
                 return;
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 final SurroundingText textAroundCursor =
                         mIC.getSurroundingText(Constants.EDITOR_CONTENTS_CACHE_SIZE, Constants.EDITOR_CONTENTS_CACHE_SIZE, 0);
-                if (expectedSelStart != mExpectedSelStart || expectedSelEnd != mExpectedSelEnd) {
+                if (mIC != connection || expectedSelStart != mExpectedSelStart || expectedSelEnd != mExpectedSelEnd) {
                     Log.w(TAG, "Selection range modified before thread completion.");
                     return;
                 }
@@ -165,7 +170,7 @@ public final class RichInputConnection {
                 mLatinIME.mHandler.postUpdateShiftState();
             } else {
                 final CharSequence textBeforeCursor = mIC.getTextBeforeCursor(Constants.EDITOR_CONTENTS_CACHE_SIZE, 0);
-                if (expectedSelStart != mExpectedSelStart) {
+                if (mIC != connection || expectedSelStart != mExpectedSelStart) {
                     Log.w(TAG, "Selection start modified before thread completion.");
                     return;
                 }
@@ -181,7 +186,7 @@ public final class RichInputConnection {
                 mLatinIME.mHandler.postUpdateShiftState();
 
                 final CharSequence textAfterCursor = mIC.getTextAfterCursor(Constants.EDITOR_CONTENTS_CACHE_SIZE, 0);
-                if (expectedSelEnd != mExpectedSelEnd) {
+                if (mIC != connection || expectedSelEnd != mExpectedSelEnd) {
                     Log.w(TAG, "Selection end modified before thread completion.");
                     return;
                 }
@@ -193,7 +198,7 @@ public final class RichInputConnection {
                 }
                 if (hasSelection()) {
                     final CharSequence textSelection = mIC.getSelectedText(0);
-                    if (expectedSelStart != mExpectedSelStart || expectedSelEnd != mExpectedSelEnd) {
+                    if (mIC != connection || expectedSelStart != mExpectedSelStart || expectedSelEnd != mExpectedSelEnd) {
                         Log.w(TAG, "Selection range modified before thread completion.");
                         return;
                     }
@@ -207,6 +212,7 @@ public final class RichInputConnection {
                     mTextSelection = "";
                 }
             }
+            if (onReady != null) mLatinIME.mHandler.post(onReady);
         });
     }
 

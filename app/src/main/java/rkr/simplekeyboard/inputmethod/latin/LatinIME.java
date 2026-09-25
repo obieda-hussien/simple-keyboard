@@ -66,6 +66,7 @@ import rkr.simplekeyboard.inputmethod.latin.settings.Settings;
 import rkr.simplekeyboard.inputmethod.latin.settings.SettingsActivity;
 import rkr.simplekeyboard.inputmethod.latin.settings.SettingsValues;
 import rkr.simplekeyboard.inputmethod.latin.utils.ApplicationUtils;
+import rkr.simplekeyboard.inputmethod.latin.utils.ClipboardHistory;
 import rkr.simplekeyboard.inputmethod.latin.utils.LeakGuardHandlerWrapper;
 import rkr.simplekeyboard.inputmethod.latin.utils.ResourceUtils;
 import rkr.simplekeyboard.inputmethod.latin.utils.ViewLayoutUtils;
@@ -104,11 +105,45 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     // View state management for Gboard model
     private boolean mShowingSuggestions = false;
     private boolean mForcedToolbarMode = false;
+    private boolean mShowingAutofill = false;
+    private int mAutofillGeneration = 0;
+    private int mEditorGeneration = 0;
+    private android.widget.LinearLayout mInlineAutofillBar;
+    private android.widget.LinearLayout mClipboardHistoryBar;
+    private final ClipboardHistory mClipboardHistory = new ClipboardHistory();
+    private boolean mShowingClipboardHistory;
 
     private RichInputMethodManager mRichImm;
     final KeyboardSwitcher mKeyboardSwitcher;
 
     private AlertDialog mOptionsDialog;
+
+    private final BroadcastReceiver mKeyboardActionReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null || isPasswordEditor(getCurrentInputEditorInfo())) return;
+            if (intent.getIntExtra(KeyboardActionActivity.EXTRA_EDITOR_GENERATION, -1)
+                    != mEditorGeneration) {
+                return;
+            }
+            final String action = intent.getAction();
+            if (KeyboardActionActivity.ACTION_VOICE_RESULT.equals(action)) {
+                final String text = intent.getStringExtra(KeyboardActionActivity.EXTRA_TEXT);
+                if (!TextUtils.isEmpty(text) && mInputLogic != null) {
+                    mInputLogic.commitText(text);
+                }
+            } else if (KeyboardActionActivity.ACTION_IMAGE_RESULT.equals(action)) {
+                final String uriValue = intent.getStringExtra(KeyboardActionActivity.EXTRA_URI);
+                final String mime = intent.getStringExtra(KeyboardActionActivity.EXTRA_MIME);
+                if (TextUtils.isEmpty(uriValue)
+                        || !commitPickedImage(android.net.Uri.parse(uriValue), mime)) {
+                    android.widget.Toast.makeText(LatinIME.this,
+                            R.string.image_picker_unsupported, android.widget.Toast.LENGTH_SHORT)
+                            .show();
+                }
+            }
+        }
+    };
 
     public final UIHandler mHandler = new UIHandler(this);
 
@@ -295,6 +330,18 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         final IntentFilter filter = new IntentFilter();
         filter.addAction(AudioManager.RINGER_MODE_CHANGED_ACTION);
         registerReceiver(mRingerModeChangeReceiver, filter);
+
+        final IntentFilter actionFilter = new IntentFilter();
+        actionFilter.addAction(KeyboardActionActivity.ACTION_VOICE_RESULT);
+        actionFilter.addAction(KeyboardActionActivity.ACTION_IMAGE_RESULT);
+        final String internalActionPermission =
+                "rkr.simplekeyboard.inputmethod.permission.INTERNAL_KEYBOARD_ACTION";
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(mKeyboardActionReceiver, actionFilter, internalActionPermission,
+                    null, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(mKeyboardActionReceiver, actionFilter, internalActionPermission, null);
+        }
     }
 
     private void loadSettings() {
@@ -308,6 +355,12 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     @Override
     public void onDestroy() {
+        if (mInputLogic != null) {
+            mInputLogic.finishInput();
+            mInputLogic.closeLearningWorker();
+        }
+        mAutofillGeneration++;
+        mClipboardHistory.clear();
         // Dismiss any open dialogs to prevent leaks
         if (mOptionsDialog != null && mOptionsDialog.isShowing()) {
             mOptionsDialog.dismiss();
@@ -315,6 +368,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         }
         mSettings.onDestroy();
         unregisterReceiver(mRingerModeChangeReceiver);
+        unregisterReceiver(mKeyboardActionReceiver);
         super.onDestroy();
     }
 
@@ -365,6 +419,8 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         if (view != null) {
             mTopContainer = view.findViewById(R.id.top_container);
             mSuggestionStrip = view.findViewById(R.id.suggestion_strip);
+            mInlineAutofillBar = view.findViewById(R.id.inline_autofill_bar);
+            mClipboardHistoryBar = view.findViewById(R.id.clipboard_history_bar);
             mTopBar = view.findViewById(R.id.keyboard_top_bar);
             
             // Apply dynamic theming to UI components
@@ -400,6 +456,21 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                     @Override
                     public void onClipboardButtonClicked() {
                         insertClipboardContent();
+                    }
+
+                    @Override
+                    public void onClipboardHistoryRequested() {
+                        showClipboardHistory();
+                    }
+
+                    @Override
+                    public void onImageButtonClicked() {
+                        launchImagePicker();
+                    }
+
+                    @Override
+                    public void onVoiceButtonClicked() {
+                        launchVoiceInput();
                     }
                     
                     @Override
@@ -479,6 +550,16 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     void onStartInputInternal(final EditorInfo editorInfo, final boolean restarting) {
         super.onStartInput(editorInfo, restarting);
+        mEditorGeneration++;
+        mAutofillGeneration++;
+        mShowingAutofill = false;
+        mShowingClipboardHistory = false;
+        if (mClipboardHistoryBar != null) mClipboardHistoryBar.removeAllViews();
+        if (!isClipboardHistoryAllowed(editorInfo)) mClipboardHistory.clear();
+        showToolbarView();
+        mForcedToolbarMode = false;
+        if (mInlineAutofillBar != null) mInlineAutofillBar.removeAllViews();
+        if (mSuggestionStrip != null) mSuggestionStrip.clearSuggestions();
 
         // If the primary hint language does not match the current subtype language, then try
         // to switch to the primary hint language.
@@ -509,10 +590,12 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             }
             return;
         }
+        if (mTopBar != null) {
+            final boolean password = isPasswordEditor(editorInfo);
+            mTopBar.setMediaActionsEnabled(!password && supportsImageContent(editorInfo),
+                    !password);
+        }
         if (DebugFlags.DEBUG_ENABLED) {
-            Log.d(TAG, "onStartInputView: editorInfo:"
-                    + String.format("inputType=0x%08x imeOptions=0x%08x",
-                            editorInfo.inputType, editorInfo.imeOptions));
             Log.d(TAG, "All caps = "
                     + ((editorInfo.inputType & InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS) != 0)
                     + ", sentence caps = "
@@ -599,7 +682,12 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     }
 
     void onFinishInputInternal() {
+        if (mInputLogic != null) mInputLogic.finishInput();
         super.onFinishInput();
+        mEditorGeneration++;
+        mAutofillGeneration++;
+        mShowingAutofill = false;
+        if (mInlineAutofillBar != null) mInlineAutofillBar.removeAllViews();
 
         final MainKeyboardView mainKeyboardView = mKeyboardSwitcher.getMainKeyboardView();
         if (mainKeyboardView != null) {
@@ -622,84 +710,21 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd,
                 composingSpanStart, composingSpanEnd);
         final MainKeyboardView keyboardView = mKeyboardSwitcher.getMainKeyboardView();
-        if (keyboardView != null && keyboardView.isInCursorMove()) {
-            return;
-        }
-
-        // === FORENSIC DEBUGGING START ===
-        Log.d("CursorDebug", "---------- onUpdateSelection TRIGGERED ----------");
-        Log.d("CursorDebug", "New Cursor Position: " + newSelStart);
-
-        final android.view.inputmethod.InputConnection ic = getCurrentInputConnection();
-        if (ic == null) {
-            Log.e("CursorDebug", "InputConnection is NULL. Aborting.");
-            return;
-        }
-
-        // Step A: Log the surrounding text
-        final CharSequence before = ic.getTextBeforeCursor(50, 0);
-        final CharSequence after = ic.getTextAfterCursor(50, 0);
-        Log.d("CursorDebug", "Context Text -> BEFORE: '" + before + "' | AFTER: '" + after + "'");
-
-        // Step B: Log the identified word (we'll implement this by calling the helper from InputLogic)
-        String wordAtCursor = "";
+        if (keyboardView != null && keyboardView.isInCursorMove()) return;
         if (mInputLogic != null) {
-            // Get word at cursor through InputLogic's method
-            try {
-                java.lang.reflect.Method findWordMethod = mInputLogic.getClass().getDeclaredMethod("findWordAtCursor");
-                findWordMethod.setAccessible(true);
-                Object wordInfo = findWordMethod.invoke(mInputLogic);
-                if (wordInfo != null) {
-                    java.lang.reflect.Field wordField = wordInfo.getClass().getDeclaredField("word");
-                    wordField.setAccessible(true);
-                    wordAtCursor = (String) wordField.get(wordInfo);
-                }
-            } catch (Exception e) {
-                // If reflection fails, extract word manually
-                String beforeText = before != null ? before.toString() : "";
-                String afterText = after != null ? after.toString() : "";
-                wordAtCursor = extractWordAtCursor(beforeText, afterText);
-            }
-        }
-        Log.d("CursorDebug", "PARSED WORD at cursor: '" + wordAtCursor + "'");
-
-        // Step C: Continue with normal logic and log suggestions
-        Log.i(TAG, "Update Selection. Cursor position = " + newSelStart + "," + newSelEnd);
-
-        if (mInputLogic != null) {
-            // First update the input logic with new cursor position
             mInputLogic.onUpdateSelection(newSelStart, newSelEnd);
-            
-            if (isInputViewShown()) {
-                // Reload text cache for accurate context analysis
-                mInputLogic.reloadTextCache();
-
-                // Update shift state based on new cursor position
-                mKeyboardSwitcher.requestUpdatingShiftState(getCurrentAutoCapsState(),
-                        getCurrentRecapitalizeState());
-                
-                // Step D: Log the attempt to update UI and force refresh
-                Log.d("CursorDebug", "ATTEMPTING TO UPDATE suggestion strip UI...");
-                if (mSuggestionStrip != null) {
-                    // Check current suggestions before invalidate
-                    Log.d("CursorDebug", "SuggestionStrip exists, forcing invalidate and requestLayout");
-                    mSuggestionStrip.invalidate();
-                    mSuggestionStrip.requestLayout();
-                    
-                    // Also force a post-delayed refresh to ensure UI updates
-                    mSuggestionStrip.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            Log.d("CursorDebug", "POST-DELAYED UI refresh executed");
-                            mSuggestionStrip.invalidate();
-                        }
-                    });
-                } else {
-                    Log.e("CursorDebug", "SuggestionStrip is NULL - cannot update UI!");
+            final int editorGeneration = mEditorGeneration;
+            mInputLogic.reloadTextCache(() -> {
+                if (editorGeneration != mEditorGeneration || mInputLogic == null) return;
+                if (mInputLogic.mConnection.getExpectedSelectionStart() != newSelStart
+                        || mInputLogic.mConnection.getExpectedSelectionEnd() != newSelEnd) return;
+                mInputLogic.refreshCursorSuggestions();
+                if (isInputViewShown()) {
+                    mKeyboardSwitcher.requestUpdatingShiftState(getCurrentAutoCapsState(),
+                            getCurrentRecapitalizeState());
                 }
-            }
+            });
         }
-        // === FORENSIC DEBUGGING END ===
     }
 
     /**
@@ -1180,42 +1205,79 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
      * Updates the suggestion strip with new suggestions following Gboard model.
      */
     public void updateSuggestionStrip(java.util.List<String> suggestions) {
-        android.util.Log.d("CursorDebug", "updateSuggestionStrip() called with suggestions: " + suggestions);
-        
-        if (mSuggestionStrip != null && mTopContainer != null) {
-            android.util.Log.d("CursorDebug", "SuggestionStrip and TopContainer are available - proceeding with update");
-            
-            mSuggestionStrip.setSuggestions(suggestions);
-            android.util.Log.d("CursorDebug", "Called setSuggestions() on suggestion strip");
-            
-            boolean hasSuggestions = suggestions != null && !suggestions.isEmpty() && mSuggestionStrip.hasSuggestions();
-            android.util.Log.d("CursorDebug", "Has suggestions check: " + hasSuggestions + " (suggestions != null: " + (suggestions != null) + ", !isEmpty: " + (suggestions != null && !suggestions.isEmpty()) + ", strip.hasSuggestions: " + (mSuggestionStrip.hasSuggestions()) + ")");
-            
-            // Gboard model logic: Auto-switch to suggestions if we have them and not in forced toolbar mode
-            if (hasSuggestions && !mForcedToolbarMode) {
-                android.util.Log.d("CursorDebug", "Showing suggestions view (has suggestions and not forced toolbar)");
-                showSuggestionsView();
-            } else if (!hasSuggestions && !mForcedToolbarMode) {
-                android.util.Log.d("CursorDebug", "Showing toolbar view (no suggestions and not forced toolbar)");
-                // No suggestions available, show toolbar by default
-                showToolbarView();
-            } else {
-                android.util.Log.d("CursorDebug", "Forced toolbar mode active - not auto-switching");
-            }
-            // If in forced toolbar mode, don't auto-switch
-            
-            // Force immediate UI refresh
-            android.util.Log.d("CursorDebug", "Forcing immediate UI refresh on suggestion strip");
-            mSuggestionStrip.invalidate();
-            mSuggestionStrip.requestLayout();
-            
-            // Also refresh the top container
-            mTopContainer.invalidate();
-            mTopContainer.requestLayout();
-            
-        } else {
-            android.util.Log.e("CursorDebug", "Cannot update suggestion strip - mSuggestionStrip: " + (mSuggestionStrip != null) + ", mTopContainer: " + (mTopContainer != null));
+        if (mSuggestionStrip == null || mTopContainer == null) return;
+        mSuggestionStrip.setSuggestions(suggestions);
+        if (!mForcedToolbarMode && !mShowingAutofill && !mShowingClipboardHistory) {
+            if (mSuggestionStrip.hasSuggestions()) showSuggestionsView();
+            else showToolbarView();
         }
+    }
+
+    @Override
+    @android.annotation.TargetApi(30)
+    public android.view.inputmethod.InlineSuggestionsRequest onCreateInlineSuggestionsRequest(
+            android.os.Bundle uiExtras) {
+        if (android.os.Build.VERSION.SDK_INT < 30 || uiExtras == null
+                || !androidx.autofill.inline.UiVersions.getVersions(uiExtras)
+                .contains(androidx.autofill.inline.UiVersions.INLINE_UI_VERSION_1)) {
+            return null;
+        }
+        android.os.Bundle style = androidx.autofill.inline.UiVersions.newStylesBuilder()
+                .addStyle(androidx.autofill.inline.v1.InlineSuggestionUi.newStyleBuilder().build())
+                .build();
+        int height = Math.round(40 * getResources().getDisplayMetrics().density);
+        int minWidth = Math.round(48 * getResources().getDisplayMetrics().density);
+        int maxWidth = getResources().getDisplayMetrics().widthPixels;
+        android.widget.inline.InlinePresentationSpec spec =
+                new android.widget.inline.InlinePresentationSpec.Builder(
+                        new android.util.Size(minWidth, height),
+                        new android.util.Size(maxWidth, height))
+                        .setStyle(style).build();
+        return new android.view.inputmethod.InlineSuggestionsRequest.Builder(
+                java.util.Collections.singletonList(spec))
+                .setMaxSuggestionCount(3).build();
+    }
+
+    @Override
+    @android.annotation.TargetApi(30)
+    public boolean onInlineSuggestionsResponse(
+            android.view.inputmethod.InlineSuggestionsResponse response) {
+        if (android.os.Build.VERSION.SDK_INT < 30 || mInlineAutofillBar == null || mTopContainer == null) {
+            return false;
+        }
+        final int generation = ++mAutofillGeneration;
+        mInlineAutofillBar.removeAllViews();
+        java.util.List<android.view.inputmethod.InlineSuggestion> suggestions =
+                response.getInlineSuggestions();
+        if (suggestions.isEmpty()) {
+            mShowingAutofill = false;
+            updateSuggestionStrip(java.util.Collections.emptyList());
+            return true;
+        }
+        mShowingAutofill = true;
+        mShowingClipboardHistory = false;
+        mTopContainer.setDisplayedChild(2);
+        final int limit = Math.min(suggestions.size(), 3);
+        final int height = Math.round(40 * getResources().getDisplayMetrics().density);
+        for (int i = 0; i < limit; i++) {
+            final android.widget.FrameLayout slot = new android.widget.FrameLayout(this);
+            mInlineAutofillBar.addView(slot, new android.widget.LinearLayout.LayoutParams(
+                    0, height, 1.0f));
+            try {
+                suggestions.get(i).inflate(this,
+                        new android.util.Size(android.view.ViewGroup.LayoutParams.WRAP_CONTENT, height),
+                        getMainExecutor(),
+                        view -> {
+                            if (generation != mAutofillGeneration || !mShowingAutofill
+                                    || mInlineAutofillBar == null || view == null) return;
+                            slot.removeAllViews();
+                            slot.addView(view);
+                        });
+            } catch (IllegalArgumentException | IllegalStateException ignored) {
+                // Preserve keyboard input if an autofill provider returns an invalid presentation.
+            }
+        }
+        return true;
     }
 
     public void launchSettings() {
@@ -1305,6 +1367,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
      */
     private void showMainKeyboard() {
         if (mMainKeyboard != null && mEmojiKeyboard != null) {
+            mKeyboardSwitcher.updateTopContainerWidth(false);
             mMainKeyboard.setVisibility(View.VISIBLE);
             mEmojiKeyboard.setVisibility(View.GONE);
             mIsEmojiMode = false;
@@ -1333,6 +1396,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
      */
     private void showEmojiKeyboard() {
         if (mMainKeyboard != null && mEmojiKeyboard != null) {
+            mKeyboardSwitcher.updateTopContainerWidth(true);
             mMainKeyboard.setVisibility(View.GONE);
             mEmojiKeyboard.setVisibility(View.VISIBLE);
             mIsEmojiMode = true;
@@ -1365,6 +1429,18 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             if (clipData == null || clipData.getItemCount() == 0) {
                 return;
             }
+
+            // Commit image content only when the editor advertises a compatible MIME type.
+            // Never turn an unsupported image URI into text or retain it in paste history.
+            if (clipData.getDescription() != null
+                    && clipData.getDescription().hasMimeType("image/*")
+                    && clipData.getItemAt(0).getUri() != null) {
+                if (!commitClipboardImage(clipData)) {
+                    android.widget.Toast.makeText(this, R.string.clipboard_image_unsupported,
+                            android.widget.Toast.LENGTH_SHORT).show();
+                }
+                return;
+            }
             
             // Get the full text content using coerceToText for reliable conversion
             CharSequence clipboardText = clipData.getItemAt(0).coerceToText(this);
@@ -1379,11 +1455,161 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                 if (mInputLogic != null && !fullText.isEmpty()) {
                     // Use commitText to properly insert the full clipboard content
                     mInputLogic.mConnection.commitText(fullText, 1);
+                    if (clipData.getItemAt(0).getText() != null
+                            && isClipboardHistoryAllowed(getCurrentInputEditorInfo())) {
+                        mClipboardHistory.recordPaste(fullText);
+                    }
                 }
             }
         } catch (Exception e) {
             // Silently handle any clipboard access errors
-            android.util.Log.w(TAG, "Error accessing clipboard: " + e.getMessage());
+            android.util.Log.w(TAG, "Unable to paste clipboard content");
+        }
+    }
+
+    private boolean commitClipboardImage(android.content.ClipData clipData) {
+        if (clipData == null || clipData.getItemCount() == 0) return false;
+        final android.net.Uri uri = clipData.getItemAt(0).getUri();
+        final android.content.ClipDescription description = clipData.getDescription();
+        if (uri == null || description == null) return false;
+        String mime = null;
+        for (int i = 0; i < description.getMimeTypeCount(); i++) {
+            final String candidate = description.getMimeType(i);
+            if (candidate != null && candidate.startsWith("image/")) {
+                mime = candidate;
+                break;
+            }
+        }
+        return commitPickedImage(uri, mime);
+    }
+
+    private boolean commitPickedImage(android.net.Uri uri, String mime) {
+        if (Build.VERSION.SDK_INT < 25 || uri == null
+                || !"content".equals(uri.getScheme()) || isPasswordEditor(getCurrentInputEditorInfo())) {
+            return false;
+        }
+        final EditorInfo editor = getCurrentInputEditorInfo();
+        final android.view.inputmethod.InputConnection connection = getCurrentInputConnection();
+        if (editor == null || editor.contentMimeTypes == null || connection == null) return false;
+        if (TextUtils.isEmpty(mime)) mime = "image/*";
+
+        boolean compatible = false;
+        for (String editorMime : editor.contentMimeTypes) {
+            if (editorMime != null && android.content.ClipDescription.compareMimeTypes(
+                    editorMime, mime)) {
+                compatible = true;
+                break;
+            }
+        }
+        if (!compatible) return false;
+
+        final android.content.ClipDescription description =
+                new android.content.ClipDescription("Keyboard image", new String[]{mime});
+        return connection.commitContent(
+                new android.view.inputmethod.InputContentInfo(uri, description, null),
+                android.view.inputmethod.InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION,
+                null);
+    }
+
+    private boolean isPasswordEditor(EditorInfo editorInfo) {
+        return editorInfo != null && new InputAttributes(editorInfo, false).mIsPasswordField;
+    }
+
+    private boolean supportsImageContent(EditorInfo editorInfo) {
+        if (Build.VERSION.SDK_INT < 25 || editorInfo == null || editorInfo.contentMimeTypes == null) {
+            return false;
+        }
+        for (String mime : editorInfo.contentMimeTypes) {
+            if (mime != null && android.content.ClipDescription.compareMimeTypes(mime, "image/*")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void launchVoiceInput() {
+        if (isPasswordEditor(getCurrentInputEditorInfo())) return;
+        final Intent intent = new Intent(this, KeyboardActionActivity.class);
+        intent.putExtra(KeyboardActionActivity.EXTRA_MODE, KeyboardActionActivity.MODE_VOICE);
+        intent.putExtra(KeyboardActionActivity.EXTRA_EDITOR_GENERATION, mEditorGeneration);
+        if (mLocale != null) {
+            intent.putExtra(KeyboardActionActivity.EXTRA_LANGUAGE, mLocale.toLanguageTag());
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivity(intent);
+    }
+
+    private void launchImagePicker() {
+        if (isPasswordEditor(getCurrentInputEditorInfo())) return;
+        final Intent intent = new Intent(this, KeyboardActionActivity.class);
+        intent.putExtra(KeyboardActionActivity.EXTRA_MODE, KeyboardActionActivity.MODE_IMAGE);
+        intent.putExtra(KeyboardActionActivity.EXTRA_EDITOR_GENERATION, mEditorGeneration);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivity(intent);
+    }
+
+    private boolean isClipboardHistoryAllowed(EditorInfo editorInfo) {
+        return editorInfo != null
+                && (editorInfo.imeOptions & EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) == 0
+                && new InputAttributes(editorInfo, false).mShouldShowSuggestions;
+    }
+
+    private void showClipboardHistory() {
+        if (mTopContainer == null || mClipboardHistoryBar == null
+                || !isClipboardHistoryAllowed(getCurrentInputEditorInfo())) return;
+        mClipboardHistoryBar.removeAllViews();
+        final android.widget.TextView close = new android.widget.TextView(this);
+        close.setText("✕");
+        close.setContentDescription(getString(R.string.clipboard_history_close));
+        close.setGravity(Gravity.CENTER);
+        close.setOnClickListener(v -> closeClipboardHistory());
+        mClipboardHistoryBar.addView(close, new android.widget.LinearLayout.LayoutParams(
+                Math.round(40 * getResources().getDisplayMetrics().density), LayoutParams.MATCH_PARENT));
+        final android.widget.TextView clear = new android.widget.TextView(this);
+        clear.setText("⌫");
+        clear.setContentDescription(getString(R.string.clipboard_history_clear));
+        clear.setGravity(Gravity.CENTER);
+        clear.setOnClickListener(v -> {
+            mClipboardHistory.clear();
+            showClipboardHistory();
+        });
+        mClipboardHistoryBar.addView(clear, new android.widget.LinearLayout.LayoutParams(
+                Math.round(40 * getResources().getDisplayMetrics().density), LayoutParams.MATCH_PARENT));
+        final java.util.List<String> entries = mClipboardHistory.entries();
+        if (entries.isEmpty()) {
+            final android.widget.TextView empty = new android.widget.TextView(this);
+            empty.setText(R.string.clipboard_history_empty);
+            empty.setGravity(Gravity.CENTER_VERTICAL);
+            mClipboardHistoryBar.addView(empty);
+        }
+        for (String entry : entries) {
+            final android.widget.TextView item = new android.widget.TextView(this);
+            item.setText(entry.replace('\n', ' '));
+            item.setSingleLine(true);
+            item.setEllipsize(TextUtils.TruncateAt.END);
+            item.setGravity(Gravity.CENTER);
+            item.setContentDescription(getString(R.string.clipboard_history_paste) + ": " + entry);
+            item.setOnClickListener(v -> {
+                if (isClipboardHistoryAllowed(getCurrentInputEditorInfo()) && mInputLogic != null) {
+                    mInputLogic.mConnection.commitText(entry, 1);
+                    mClipboardHistory.recordPaste(entry);
+                }
+                closeClipboardHistory();
+            });
+            mClipboardHistoryBar.addView(item, new android.widget.LinearLayout.LayoutParams(
+                    0, LayoutParams.MATCH_PARENT, 1));
+        }
+        mShowingClipboardHistory = true;
+        mTopContainer.setDisplayedChild(3);
+    }
+
+    private void closeClipboardHistory() {
+        mShowingClipboardHistory = false;
+        if (mClipboardHistoryBar != null) mClipboardHistoryBar.removeAllViews();
+        if (mSuggestionStrip != null && mSuggestionStrip.hasSuggestions() && !mForcedToolbarMode) {
+            showSuggestionsView();
+        } else {
+            showToolbarView();
         }
     }
     

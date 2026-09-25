@@ -52,8 +52,28 @@
         android:title="@string/delete_swipe"
         android:defaultValue="false" />
     <CheckBoxPreference
+        android:key="pref_personalized_learning"
+        android:title="Local personalized learning"
+        android:summary="Learn words on this device. Password and private fields are always excluded."
+        android:defaultValue="true" />
+    <CheckBoxPreference
+        android:key="pref_auto_correction"
+        android:title="@string/auto_correction_title"
+        android:summary="@string/auto_correction_summary"
+        android:defaultValue="false" />
+    <CheckBoxPreference
         android:key="pref_email_suggestions"
         android:title="@string/email_suggestions"
         android:summary="@string/email_suggestions_summary"
-        android:defaultValue="true" />
+        android:defaultValue="false" />
+    <CheckBoxPreference
+        android:key="pref_account_email_suggestions"
+        android:title="@string/account_email_suggestions"
+        android:summary="@string/account_email_suggestions_summary"
+        android:dependency="pref_email_suggestions"
+        android:defaultValue="false" />
+    <Preference
+        android:key="pref_clear_learning"
+        android:title="@string/clear_learning_data"
+        android:summary="@string/clear_learning_data_summary" />
 </PreferenceScreen>

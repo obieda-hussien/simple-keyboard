@@ -15,14 +15,23 @@ Features:
 - Swipe space to move pointer
 - Delete swipe
 - Custom theme colors
-- Minimal permissions (only Vibrate)
+- No INTERNET permission; optional account-based email suggestions request GET_ACCOUNTS
 - Ads-free
 
-Feature it doesn't have and probably will never have:
-- Emojis
-- GIFs
-- Spell checker
-- Swipe typing
+Additional features in this fork:
+- Emoji picker and emoji suggestions
+- Local word completion and contextual suggestions
+- Local learning controls in Preferences
+- Optional reversible autocorrection on Space (off by default)
+- Recent paste history: long press the clipboard button; stored in memory only
+- Paste clipboard images into editors that advertise image support on Android 7.1+
+- System image picker for compatible editors, without broad media-storage permission
+- Voice typing through the device's speech-recognition provider
+- English, Modern Standard Arabic, and expanded Egyptian Arabic bootstrap vocabulary
+- Mixed Arabic/Latin ranking, bounded typo matching, and locally learned words
+- One-handed left/right layouts plus a centered compact floating mode
+
+Gesture word input and sticker/GIF insertion are intentionally deferred. A full desktop-class spell-checker is not yet implemented.
 
 ## Downloads
 

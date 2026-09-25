@@ -33,6 +33,7 @@ public class LocalStorage {
     private static final String KEY_BIGRAM_DATA = "bigram_data";
     private static final String KEY_TRIGRAM_DATA = "trigram_data";
     private static final String KEY_USER_WORDS = "user_words";
+    private static final String KEY_REJECTED_CORRECTIONS = "rejected_corrections";
     private static final String SEPARATOR = "|||";
     private static final String PAIR_SEPARATOR = ":::";
 
@@ -46,16 +47,9 @@ public class LocalStorage {
      * Saves word frequencies to local storage.
      */
     public void saveWordFrequencies(WordTrie wordTrie) {
-        // This is a simplified implementation
-        // In a real implementation, you'd serialize the trie structure
-        // For now, we'll save frequently used words
-        Set<String> userWords = new HashSet<>();
-        // This would need to be implemented to extract words from trie
-        // userWords = extractWordsFromTrie(wordTrie);
-        
-        preferences.edit()
-                .putStringSet(KEY_USER_WORDS, userWords)
-                .apply();
+        // User words are persisted when they are learned via addUserWord().
+        // Never overwrite them with an empty snapshot of the trie.
+
     }
 
     /**
@@ -136,7 +130,18 @@ public class LocalStorage {
                 .remove(KEY_BIGRAM_DATA)
                 .remove(KEY_TRIGRAM_DATA)
                 .remove(KEY_USER_WORDS)
+                .remove(KEY_REJECTED_CORRECTIONS)
                 .apply();
+    }
+
+    public Set<String> getRejectedCorrections() {
+        return new HashSet<>(preferences.getStringSet(KEY_REJECTED_CORRECTIONS,
+                new HashSet<String>()));
+    }
+
+    public void saveRejectedCorrections(Set<String> rejected) {
+        preferences.edit().putStringSet(KEY_REJECTED_CORRECTIONS,
+                new HashSet<>(rejected)).apply();
     }
 
     /**

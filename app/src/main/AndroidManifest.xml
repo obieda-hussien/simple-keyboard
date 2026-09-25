@@ -18,9 +18,13 @@
 
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+    <permission
+        android:name="rkr.simplekeyboard.inputmethod.permission.INTERNAL_KEYBOARD_ACTION"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="rkr.simplekeyboard.inputmethod.permission.INTERNAL_KEYBOARD_ACTION" />
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:fullBackupOnly="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/english_ime_name"
@@ -40,6 +44,12 @@
                 android:name="android.view.im"
                 android:resource="@xml/method" />
         </service>
+
+        <activity
+            android:name=".latin.KeyboardActionActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <activity
             android:name=".latin.settings.SettingsActivity"
