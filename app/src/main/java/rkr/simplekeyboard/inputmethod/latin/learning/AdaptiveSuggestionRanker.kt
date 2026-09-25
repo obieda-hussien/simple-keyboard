@@ -40,6 +40,10 @@ object AdaptiveSuggestionRanker {
                 val normalized = normalize(candidate)
                 var score = 18.0 / (1.0 + index * 0.55)
 
+                // Functional chips such as the on-device calculator should not be buried under
+                // ordinary lexical completions merely because their text shape differs.
+                if (candidate.startsWith("= ")) score += 180.0
+
                 if (typed.isNotEmpty()) {
                     val candidateScript = scriptOf(normalized)
                     if (typedScript != 0 && candidateScript != 0 && typedScript != candidateScript) {
