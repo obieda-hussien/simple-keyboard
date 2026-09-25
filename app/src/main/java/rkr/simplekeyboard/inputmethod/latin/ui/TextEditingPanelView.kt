@@ -48,7 +48,7 @@ class TextEditingPanelView @JvmOverloads constructor(
         fun onCloseTextEditingPanel()
     }
 
-    private data class ActionButton(val action: Int, val view: ImageButton)
+    private data class ActionButton(val action: Int, val view: ImageButton, val labelRes: Int)
 
     private val handler = Handler(Looper.getMainLooper())
     private val header = LinearLayout(context)
@@ -133,6 +133,14 @@ class TextEditingPanelView @JvmOverloads constructor(
     fun setLanguageLocale(locale: Locale?) {
         // Cursor arrows stay physical. Only the title follows the selected language direction.
         layoutDirection = View.LAYOUT_DIRECTION_LTR
+        title.text = ImeUiKit.string(context, locale, R.string.text_editing_title)
+        close.contentDescription = ImeUiKit.string(context, locale, R.string.close_panel)
+        buttons.forEach {
+            it.view.contentDescription = ImeUiKit.string(context, locale, it.labelRes)
+        }
+        if (::selectModeButton.isInitialized) {
+            selectModeButton.contentDescription = ImeUiKit.string(context, locale, R.string.edit_select)
+        }
         ImeUiKit.applyTextDirection(title, title.text, locale)
         title.gravity = if (ImeUiKit.layoutDirection(locale) == View.LAYOUT_DIRECTION_RTL)
             Gravity.RIGHT or Gravity.CENTER_VERTICAL
@@ -181,7 +189,7 @@ class TextEditingPanelView @JvmOverloads constructor(
         val view = makeActionButton(iconRes, labelRes)
         view.setOnClickListener { listener?.onEditingAction(action, selectionMode) }
         ImeUiKit.applyPressMotion(view)
-        buttons += ActionButton(action, view)
+        buttons += ActionButton(action, view, labelRes)
         addToGrid(view, span)
         return view
     }
@@ -214,7 +222,7 @@ class TextEditingPanelView @JvmOverloads constructor(
             }
             true
         }
-        buttons += ActionButton(action, view)
+        buttons += ActionButton(action, view, labelRes)
         addToGrid(view, span)
         return view
     }
