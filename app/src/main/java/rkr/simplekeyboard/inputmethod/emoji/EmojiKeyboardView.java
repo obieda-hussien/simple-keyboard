@@ -17,6 +17,7 @@
 package rkr.simplekeyboard.inputmethod.emoji;
 
 import android.content.Context;
+import android.graphics.drawable.GradientDrawable;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.AttributeSet;
@@ -37,7 +38,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import rkr.simplekeyboard.inputmethod.R;
+import rkr.simplekeyboard.inputmethod.latin.settings.ThemeEngine;
 import rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager;
+import rkr.simplekeyboard.inputmethod.latin.settings.ThemePalette;
 
 /**
  * View for displaying emoji keyboard with categories and search functionality.
@@ -116,7 +119,15 @@ public class EmojiKeyboardView extends LinearLayout {
         
         // Apply search field styling
         searchEditText.setTextColor(textColor);
-        searchEditText.setHintTextColor(textColor & 0x7FFFFFFF); // Semi-transparent
+        searchEditText.setHintTextColor((textColor & 0x00FFFFFF) | 0x88000000);
+        if (ThemeEngine.isEnabled(getContext())) {
+            ThemePalette palette = ThemeEngine.palette(getContext());
+            GradientDrawable searchBackground = new GradientDrawable();
+            searchBackground.setColor(palette.getFunctionalSurface());
+            searchBackground.setCornerRadius(dpToPx(18));
+            searchBackground.setStroke(Math.max(1, dpToPx(1)), palette.getBorder());
+            searchEditText.setBackground(searchBackground);
+        }
         
         // Apply clear button tint
         searchClearButton.setColorFilter(iconTintColor);
@@ -139,8 +150,10 @@ public class EmojiKeyboardView extends LinearLayout {
         GridLayoutManager gridLayoutManager = new GridLayoutManager(getContext(), 8);
         emojiRecyclerView.setLayoutManager(gridLayoutManager);
         emojiRecyclerView.setAdapter(emojiAdapter);
-        
-        // Debug logging for RecyclerView setup
+        emojiRecyclerView.setHasFixedSize(true);
+        // Emoji cells are static-size glyphs; disabling change animations avoids flashes while
+        // filtering and switching categories.
+        emojiRecyclerView.setItemAnimator(null);
     }
     
     private void setupSearchFunctionality() {
@@ -197,14 +210,26 @@ public class EmojiKeyboardView extends LinearLayout {
      * Apply theme styling to category tab buttons.
      */
     private void applyCategoryTabTheme(Button button, boolean isSelected) {
-        int backgroundColor = themeManager.getBackgroundColor();
         int textColor = themeManager.getKeyTextColor();
         int accentColor = themeManager.getAccentColor();
-        
-        button.setTextColor(isSelected ? accentColor : textColor);
-        button.setBackground(getContext().getDrawable(R.drawable.tab_selector));
+
+        if (ThemeEngine.isEnabled(getContext())) {
+            ThemePalette palette = ThemeEngine.palette(getContext());
+            GradientDrawable background = new GradientDrawable();
+            background.setColor(isSelected
+                    ? palette.getActionSurface() : palette.getFunctionalSurface());
+            background.setCornerRadius(dpToPx(16));
+            background.setStroke(Math.max(1, dpToPx(1)),
+                    isSelected ? palette.getActionSurface() : palette.getBorder());
+            button.setBackground(background);
+            button.setTextColor(isSelected ? palette.getOnAction() : palette.getOnFunctional());
+            button.setAlpha(isSelected ? 1.0f : 0.86f);
+        } else {
+            button.setTextColor(isSelected ? accentColor : textColor);
+            button.setBackground(getContext().getDrawable(R.drawable.tab_selector));
+            button.setAlpha(isSelected ? 1.0f : 0.7f);
+        }
         button.setSelected(isSelected);
-        button.setAlpha(isSelected ? 1.0f : 0.7f);
     }
     
     private void updateCategorySelection() {
@@ -307,13 +332,6 @@ public class EmojiKeyboardView extends LinearLayout {
             
             public void bind(EmojiItem emoji) {
                 emojiTextView.setText(emoji.getEmoji());
-                
-                // DEBUG: Check TextView properties
-                Log.d(TAG, "EmojiViewHolder.bind(): TextView width=" + emojiTextView.getWidth() + 
-                          ", height=" + emojiTextView.getHeight() + 
-                          ", visibility=" + emojiTextView.getVisibility() + 
-                          ", textColor=" + emojiTextView.getCurrentTextColor() +
-                          ", textSize=" + emojiTextView.getTextSize());
                 
                 emojiTextView.setOnClickListener(v -> {
                     if (emojiClickListener != null) {

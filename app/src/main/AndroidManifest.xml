@@ -52,6 +52,12 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <activity
+            android:name=".latin.settings.ThemeStudioActivity"
+            android:exported="false"
+            android:label="@string/theme_studio_title"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+
+        <activity
             android:name=".latin.settings.SettingsActivity"
             android:label="@string/english_ime_name"
             android:exported="true"

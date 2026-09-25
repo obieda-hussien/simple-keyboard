@@ -115,22 +115,22 @@ public final class AudioAndHapticFeedbackManager {
     }
 
     public void performHapticFeedback(final View viewToPerformHapticFeedbackOn) {
-        if (!mSettingsValues.mVibrateOn || mVibrator == null) {
+        if (mSettingsValues == null || !mSettingsValues.mVibrateOn || mVibrator == null) {
             return;
         }
-        mBackgroundThread.execute(() -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                mVibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK));
-            } else if (viewToPerformHapticFeedbackOn != null) {
-                viewToPerformHapticFeedbackOn.performHapticFeedback(
-                        HapticFeedbackConstants.KEYBOARD_TAP,
-                        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-            }
-        });
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            mBackgroundThread.execute(() ->
+                    mVibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)));
+        } else if (viewToPerformHapticFeedbackOn != null) {
+            // View.performHapticFeedback is a UI operation; keep it on the caller/main thread.
+            viewToPerformHapticFeedbackOn.performHapticFeedback(
+                    HapticFeedbackConstants.KEYBOARD_TAP,
+                    HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+        }
     }
 
     public void performTickFeedback() {
-        if (!mSettingsValues.mVibrateOn || mVibrator == null) {
+        if (mSettingsValues == null || !mSettingsValues.mVibrateOn || mVibrator == null) {
             return;
         }
 

@@ -77,6 +77,19 @@ public final class ThemeManager {
      * Load theme colors from preferences or apply defaults based on current keyboard theme.
      */
     private void loadThemeColors() {
+        if (ThemeEngine.isEnabled(mContext)) {
+            final ThemePalette palette = ThemeEngine.palette(mContext);
+            mBackgroundColor = palette.getBackground();
+            mKeyTextColor = palette.getOnKey();
+            mAccentColor = palette.getAccent();
+            mFunctionalTextColor = palette.getOnFunctional();
+            mKeyPressedColor = palette.getPressedSurface();
+            mTopBarBackgroundColor = palette.getToolbarSurface();
+            mSuggestionTextColor = palette.getOnKey();
+            mIconTintColor = palette.getSecondaryText();
+            return;
+        }
+
         // Get the current keyboard theme to determine defaults
         KeyboardTheme currentTheme = KeyboardTheme.getKeyboardTheme(mContext);
         int themeId = currentTheme.mThemeId;

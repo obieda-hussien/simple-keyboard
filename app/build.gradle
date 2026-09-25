@@ -1,27 +1,48 @@
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
 }
 
 android {
-    namespace = 'rkr.simplekeyboard.inputmethod' // هذا السطر ضروري
-    compileSdk = 35
+    namespace = 'rkr.simplekeyboard.inputmethod'
+
+    // Android 16 QPR2 / API 36.1. AGP 8.13+ understands minor API levels.
+    compileSdk {
+        version = release(36) {
+            it.minorApiLevel = 1
+        }
+    }
 
     defaultConfig {
         applicationId = "rkr.simplekeyboard.inputmethod"
-        minSdkVersion = 21
-        targetSdkVersion = 34
+        minSdkVersion = 24
+        targetSdkVersion = 36
         versionCode = 132
         versionName = "5.36"
     }
+
     buildFeatures {
         buildConfig = true
+        compose = true
     }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
     buildTypes {
         release {
             minifyEnabled = true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
     lint {
         abortOnError = false
         checkReleaseBuilds = false
@@ -30,25 +51,29 @@ android {
 
 dependencies {
     testImplementation 'junit:junit:4.13.2'
-    implementation 'androidx.autofill:autofill:1.1.0'
 
-    // Emoji support with bundled config
-    implementation 'androidx.emoji2:emoji2:1.4.0'
-    implementation 'androidx.emoji2:emoji2-views:1.4.0'
-    implementation 'androidx.emoji2:emoji2-bundled:1.4.0'
-    
-    // RecyclerView for emoji grid
-    implementation 'androidx.recyclerview:recyclerview:1.3.1'
-    
-    // AndroidX Core for ContextCompat and permission handling
-    implementation 'androidx.core:core:1.12.0'
-    
-    // Material 3 components for expressive themes
-    implementation 'com.google.android.material:material:1.14.0-alpha06'
-    
-    // Math expression parser for advanced calculator
+    implementation 'androidx.autofill:autofill:1.3.0'
+    implementation 'androidx.activity:activity-compose:1.13.0'
+    // Compose 1.12.x requires API 37 / AGP 9.1+. For the requested SDK 36 target,
+    // 1.11.4 is the newest stable Compose core line compatible with this toolchain.
+    implementation 'androidx.compose.ui:ui:1.11.4'
+    implementation 'androidx.compose.ui:ui-tooling-preview:1.11.4'
+    implementation 'androidx.compose.foundation:foundation:1.11.4'
+    implementation 'androidx.compose.material3:material3:1.4.0'
+    debugImplementation 'androidx.compose.ui:ui-tooling:1.11.4'
+
+    // Emoji2 1.7 is the current stable line and requires API 24+.
+    implementation 'androidx.emoji2:emoji2:1.7.0'
+    implementation 'androidx.emoji2:emoji2-views:1.7.0'
+    implementation 'androidx.emoji2:emoji2-bundled:1.7.0'
+
+    implementation 'androidx.recyclerview:recyclerview:1.4.0'
+    // Core 1.19.x moved to API 37 / AGP 9.1. Core 1.18.0 is the newest
+    // stable release that still targets the requested API 36.1 toolchain.
+    implementation 'androidx.core:core:1.18.0'
+
+    // Legacy PreferenceActivity screens still depend on Material Components Views.
+    implementation 'com.google.android.material:material:1.14.0'
+
     implementation 'net.objecthunter:exp4j:0.4.8'
-    
-    // لا تحتاج لإضافة logsender هنا، سيتم إضافته تلقائيا من AndroidIDE
-    // والآن سيجده Gradle بنجاح في mavenCentral
 }
