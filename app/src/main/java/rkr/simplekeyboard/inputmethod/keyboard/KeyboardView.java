@@ -26,6 +26,7 @@ import android.graphics.Paint;
 import android.graphics.Paint.Align;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.NinePatchDrawable;
@@ -40,6 +41,8 @@ import rkr.simplekeyboard.inputmethod.keyboard.internal.KeyDrawParams;
 import rkr.simplekeyboard.inputmethod.keyboard.internal.KeyVisualAttributes;
 import rkr.simplekeyboard.inputmethod.latin.common.Constants;
 import rkr.simplekeyboard.inputmethod.latin.settings.Settings;
+import rkr.simplekeyboard.inputmethod.latin.settings.ThemeEngine;
+import rkr.simplekeyboard.inputmethod.latin.settings.ThemePalette;
 import rkr.simplekeyboard.inputmethod.latin.utils.TypefaceUtils;
 
 /**
@@ -113,6 +116,16 @@ public class KeyboardView extends View {
     private final Canvas mOffscreenCanvas = new Canvas();
     private final Paint mPaint = new Paint();
     private final Paint.FontMetrics mFontMetrics = new Paint.FontMetrics();
+    private final RectF mThemeKeyRect = new RectF();
+
+    // Theme Studio values are snapshotted when a keyboard is attached. Nothing is allocated
+    // during a key press/draw.
+    private boolean mThemeStudioEnabled;
+    private ThemePalette mThemePalette;
+    private float mThemeCornerRadiusPx;
+    private float mThemeKeyInsetPx;
+    private float mThemeFontScale = 1.0f;
+    private float mThemeBorderStrength;
 
     public KeyboardView(final Context context, final AttributeSet attrs) {
         this(context, attrs, R.attr.keyboardViewStyle);
@@ -173,6 +186,23 @@ public class KeyboardView extends View {
         mKeyDrawParams.updateParams(keyHeight, keyboard.mKeyVisualAttributes);
         final SharedPreferences prefs = PreferenceManagerCompat.getDeviceSharedPreferences(getContext());
         mCustomColor = Settings.readKeyboardColor(prefs, getContext());
+
+        mThemeStudioEnabled = ThemeEngine.isEnabled(getContext());
+        if (mThemeStudioEnabled) {
+            final rkr.simplekeyboard.inputmethod.latin.settings.ThemeProfile profile =
+                    ThemeEngine.read(getContext());
+            mThemePalette = ThemeEngine.palette(getContext());
+            final float density = getResources().getDisplayMetrics().density;
+            mThemeCornerRadiusPx = profile.getCornerRadiusDp() * density;
+            mThemeKeyInsetPx = profile.getKeyInsetDp() * density;
+            mThemeFontScale = profile.getFontScale();
+            mThemeBorderStrength = profile.getBorderStrength();
+            setBackgroundColor(mThemePalette.getBackground());
+        } else {
+            mThemePalette = null;
+            mThemeFontScale = 1.0f;
+            mThemeBorderStrength = 0.0f;
+        }
         invalidateAllKeys();
         requestLayout();
     }
@@ -259,7 +289,8 @@ public class KeyboardView extends View {
 
         final Paint paint = mPaint;
         final Drawable background = getBackground();
-        if (Color.alpha(mCustomColor) > 0 && keyboard.getKey(Constants.CODE_SPACE) != null) {
+        if (!mThemeStudioEnabled && Color.alpha(mCustomColor) > 0
+                && keyboard.getKey(Constants.CODE_SPACE) != null) {
             setBackgroundColor(mCustomColor);
         }
         // Calculate clip region and set.
@@ -325,6 +356,11 @@ public class KeyboardView extends View {
     // Draw key background.
     protected void onDrawKeyBackground(final Key key, final Canvas canvas,
             final Drawable background) {
+        if (mThemeStudioEnabled && mThemePalette != null) {
+            drawThemeStudioKeyBackground(key, canvas);
+            return;
+        }
+
         final int keyWidth = key.getWidth();
         final int keyHeight = key.getHeight();
         final Rect padding = mKeyBackgroundPadding;
@@ -339,6 +375,61 @@ public class KeyboardView extends View {
         canvas.translate(bgX, bgY);
         background.draw(canvas);
         canvas.translate(-bgX, -bgY);
+    }
+
+    private void drawThemeStudioKeyBackground(final Key key, final Canvas canvas) {
+        final float inset = Math.min(mThemeKeyInsetPx,
+                Math.min(key.getWidth(), key.getHeight()) * 0.18f);
+        mThemeKeyRect.set(inset, inset, key.getWidth() - inset, key.getHeight() - inset);
+
+        int fill;
+        if (key.isPressed()) {
+            fill = mThemePalette.getPressedSurface();
+        } else {
+            switch (key.getBackgroundType()) {
+            case Key.BACKGROUND_TYPE_FUNCTIONAL:
+                fill = mThemePalette.getFunctionalSurface();
+                break;
+            case Key.BACKGROUND_TYPE_ACTION:
+                fill = mThemePalette.getActionSurface();
+                break;
+            default:
+                fill = mThemePalette.getKeySurface();
+                break;
+            }
+        }
+
+        final float radius = Math.min(mThemeCornerRadiusPx,
+                Math.min(mThemeKeyRect.width(), mThemeKeyRect.height()) * 0.48f);
+        final Paint paint = mPaint;
+        final Paint.Style oldStyle = paint.getStyle();
+        final float oldStroke = paint.getStrokeWidth();
+
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(fill);
+        canvas.drawRoundRect(mThemeKeyRect, radius, radius, paint);
+
+        if (mThemeBorderStrength > 0.005f) {
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(Math.max(1.0f, getResources().getDisplayMetrics().density * 0.75f));
+            paint.setColor(mThemePalette.getBorder());
+            canvas.drawRoundRect(mThemeKeyRect, radius, radius, paint);
+        }
+
+        paint.setStyle(oldStyle);
+        paint.setStrokeWidth(oldStroke);
+    }
+
+    private int getThemeTextColor(final Key key) {
+        if (mThemePalette == null) return Color.WHITE;
+        switch (key.getBackgroundType()) {
+        case Key.BACKGROUND_TYPE_ACTION:
+            return mThemePalette.getOnAction();
+        case Key.BACKGROUND_TYPE_FUNCTIONAL:
+            return mThemePalette.getOnFunctional();
+        default:
+            return mThemePalette.getOnKey();
+        }
     }
 
     // Draw key top visuals.
@@ -358,7 +449,8 @@ public class KeyboardView extends View {
         final String label = key.getLabel();
         if (label != null) {
             paint.setTypeface(key.selectTypeface(params));
-            paint.setTextSize(key.selectTextSize(params));
+            paint.setTextSize(key.selectTextSize(params)
+                    * (mThemeStudioEnabled ? mThemeFontScale : 1.0f));
             final float labelCharHeight = TypefaceUtils.getReferenceCharHeight(paint);
             final float labelCharWidth = TypefaceUtils.getReferenceCharWidth(paint);
 
@@ -385,7 +477,8 @@ public class KeyboardView extends View {
                 }
             }
 
-            paint.setColor(key.selectTextColor(params));
+            paint.setColor(mThemeStudioEnabled && mThemePalette != null
+                    ? getThemeTextColor(key) : key.selectTextColor(params));
             // Set a drop shadow for the text if the shadow radius is positive value.
             if (mKeyTextShadowRadius > 0.0f) {
                 paint.setShadowLayer(mKeyTextShadowRadius, 0.0f, 0.0f, params.mTextShadowColor);
@@ -403,8 +496,10 @@ public class KeyboardView extends View {
         // Draw hint label.
         final String hintLabel = key.getHintLabel();
         if (hintLabel != null) {
-            paint.setTextSize(key.selectHintTextSize(params));
-            paint.setColor(key.selectHintTextColor(params));
+            paint.setTextSize(key.selectHintTextSize(params)
+                    * (mThemeStudioEnabled ? mThemeFontScale : 1.0f));
+            paint.setColor(mThemeStudioEnabled && mThemePalette != null
+                    ? mThemePalette.getSecondaryText() : key.selectHintTextColor(params));
             // TODO: Should add a way to specify type face for hint letters
             paint.setTypeface(Typeface.DEFAULT_BOLD);
             blendAlpha(paint, params.mAnimAlpha);
@@ -443,6 +538,9 @@ public class KeyboardView extends View {
 
         // Draw key icon.
         if (label == null && icon != null) {
+            if (mThemeStudioEnabled && mThemePalette != null) {
+                icon.mutate().setTint(getThemeTextColor(key));
+            }
             final int iconWidth;
             if (key.getCode() == Constants.CODE_SPACE && icon instanceof NinePatchDrawable) {
                 iconWidth = (int)(keyWidth * mSpacebarIconWidthRatio);
