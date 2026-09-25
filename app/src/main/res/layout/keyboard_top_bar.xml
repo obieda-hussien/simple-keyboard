@@ -97,9 +97,9 @@
         android:id="@+id/top_bar_settings_button"
         android:layout_width="40dp"
         android:layout_height="40dp"
-        android:src="@drawable/ic_settings"
+        android:src="@drawable/ic_tools_grid"
         android:background="@drawable/button_selector"
-        android:contentDescription="Settings"
+        android:contentDescription="@string/show_keyboard_tools"
         android:scaleType="centerInside"
         android:padding="8dp" />
 
