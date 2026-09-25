@@ -60,7 +60,8 @@ public final class AppearanceSettingsFragment extends SubScreenFragment {
         final KeyboardTheme theme = KeyboardTheme.getKeyboardTheme(prefs);
         final boolean isSystemTheme = theme.mThemeId != KeyboardTheme.THEME_ID_SYSTEM
                 && theme.mThemeId != KeyboardTheme.THEME_ID_SYSTEM_BORDER;
-        setPreferenceEnabled(Settings.PREF_KEYBOARD_COLOR, isSystemTheme);
+        setPreferenceEnabled(Settings.PREF_KEYBOARD_COLOR,
+                isSystemTheme && !ThemeEngine.isEnabled(getActivity()));
     }
 
     private void setupThemeStudio() {
