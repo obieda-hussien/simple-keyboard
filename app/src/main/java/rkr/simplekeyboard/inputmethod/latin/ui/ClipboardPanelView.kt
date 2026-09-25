@@ -185,7 +185,7 @@ class ClipboardPanelView @JvmOverloads constructor(
             ImeUiKit.applyTextDirection(this, this.text, locale)
         }
         val state = TextView(context).apply {
-            text = ImeUiKit.string(
+            this.text = ImeUiKit.string(
                 context,
                 locale,
                 if (isPinned) R.string.clipboard_pinned else R.string.clipboard_long_press_pin
