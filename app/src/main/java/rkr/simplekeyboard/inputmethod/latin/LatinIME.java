@@ -1396,7 +1396,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             }
         } catch (Exception e) {
             // Silently handle any clipboard access errors
-            android.util.Log.w(TAG, "Error accessing clipboard: " + e.getMessage());
+            android.util.Log.w(TAG, "Unable to paste clipboard content");
         }
     }
 

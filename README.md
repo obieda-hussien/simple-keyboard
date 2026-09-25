@@ -22,6 +22,8 @@ Additional features in this fork:
 - Emoji picker and emoji suggestions
 - Local word completion and contextual suggestions
 - Local learning controls in Preferences
+- Optional reversible autocorrection on Space (off by default)
+- Recent paste history: long press the clipboard button; stored in memory only
 
 Gesture word input, GIF insertion, and a complete spell-checker are not yet implemented.
 
