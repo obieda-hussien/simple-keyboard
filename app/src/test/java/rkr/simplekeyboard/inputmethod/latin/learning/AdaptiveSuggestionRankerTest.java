@@ -23,7 +23,7 @@ public class AdaptiveSuggestionRankerTest {
     public void typedPrefixAndTypoEvidenceBeatUnrelatedCandidates() {
         List<String> ranked = AdaptiveSuggestionRanker.rerank(
                 Arrays.asList("house", "hello", "help"),
-                "helo",
+                "hlelo",
                 "",
                 Collections.emptyMap(),
                 Collections.emptyMap(),
