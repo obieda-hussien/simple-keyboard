@@ -706,6 +706,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     @Override
     public void onWindowHidden() {
         super.onWindowHidden();
+        closeUtilityPanel(false);
         final MainKeyboardView mainKeyboardView = mKeyboardSwitcher.getMainKeyboardView();
         if (mainKeyboardView != null) {
             mainKeyboardView.closing();
@@ -718,6 +719,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         mEditorGeneration++;
         mAutofillGeneration++;
         mShowingAutofill = false;
+        closeUtilityPanel(false);
         if (mInlineAutofillBar != null) mInlineAutofillBar.removeAllViews();
 
         final MainKeyboardView mainKeyboardView = mKeyboardSwitcher.getMainKeyboardView();
@@ -740,6 +742,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             final int composingSpanStart, final int composingSpanEnd) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd,
                 composingSpanStart, composingSpanEnd);
+        if (mActiveUtilityPanel == mTextEditingPanel) {
+            updateEditingPanelState();
+        }
         final MainKeyboardView keyboardView = mKeyboardSwitcher.getMainKeyboardView();
         if (keyboardView != null && keyboardView.isInCursorMove()) return;
         if (mInputLogic != null) {
@@ -829,33 +834,29 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             return;
         }
         
-        // Calculate total visible input height based on current keyboard mode
-        int totalVisibleHeight = 0;
-        
-        // Always include the fixed top container height (50dp converted to pixels)
-        final int fixedTopContainerHeight = dpToPx(50);
-        totalVisibleHeight += fixedTopContainerHeight;
-        
-        // Add the appropriate keyboard height based on current mode
-        if (mIsEmojiMode && mEmojiKeyboard != null && mEmojiKeyboard.isShown()) {
-            // Emoji keyboard mode - use emoji keyboard height
-            totalVisibleHeight += mEmojiKeyboard.getHeight();
+        int totalVisibleHeight = dpToPx(50);
+
+        final View currentSurface;
+        if (mActiveUtilityPanel != null && mActiveUtilityPanel.isShown()) {
+            currentSurface = mActiveUtilityPanel;
+        } else if (mIsEmojiMode && mEmojiKeyboard != null && mEmojiKeyboard.isShown()) {
+            currentSurface = mEmojiKeyboard;
         } else {
-            // Main keyboard mode - use main keyboard height
-            final View visibleKeyboardView = mKeyboardSwitcher.getVisibleKeyboardView();
-            if (visibleKeyboardView != null && visibleKeyboardView.isShown()) {
-                totalVisibleHeight += visibleKeyboardView.getHeight();
-            }
+            currentSurface = mKeyboardSwitcher.getVisibleKeyboardView();
         }
-        
+
+        if (currentSurface != null && currentSurface.isShown()) {
+            totalVisibleHeight += currentSurface.getHeight();
+        }
+
         final int visibleTopY = inputHeight - totalVisibleHeight;
-        
-        // Set touchable region
-        final View currentKeyboard = mIsEmojiMode ? mEmojiKeyboard : mKeyboardSwitcher.getVisibleKeyboardView();
-        if (currentKeyboard != null && currentKeyboard.isShown()) {
+
+        if (currentSurface != null && currentSurface.isShown()) {
             final int touchLeft = 0;
-            final int touchTop = mKeyboardSwitcher.isShowingMoreKeysPanel() ? 0 : visibleTopY;
-            final int touchRight = currentKeyboard.getWidth();
+            final boolean mainKeyboardSurface = currentSurface == mKeyboardSwitcher.getVisibleKeyboardView();
+            final int touchTop = mainKeyboardSurface && mKeyboardSwitcher.isShowingMoreKeysPanel()
+                    ? 0 : visibleTopY;
+            final int touchRight = currentSurface.getWidth();
             final int touchBottom = inputHeight + EXTENDED_TOUCHABLE_REGION_HEIGHT;
             outInsets.touchableInsets = InputMethodService.Insets.TOUCHABLE_INSETS_REGION;
             outInsets.touchableRegion.set(touchLeft, touchTop, touchRight, touchBottom);
