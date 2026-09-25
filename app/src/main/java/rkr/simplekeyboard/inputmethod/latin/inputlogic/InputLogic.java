@@ -1207,6 +1207,23 @@ public final class InputLogic {
     }
     
     /**
+     * Removes personal ranking evidence for a suggestion. Bundled dictionary words remain
+     * available, but user-specific boosts are cleared.
+     */
+    public void forgetSuggestion(String suggestion) {
+        if (TextUtils.isEmpty(suggestion) || isSpecialSuggestion(suggestion) || learningClosed) {
+            return;
+        }
+        final String value = stripSuggestionPrefix(suggestion).trim();
+        if (value.isEmpty()) return;
+        learningWorker.execute(() -> {
+            LocalLearningEngine engine = getLearningEngine();
+            if (engine != null) engine.removeWord(value);
+            suggestionHandler.post(this::updateSuggestions);
+        });
+    }
+
+    /**
      * Gets the full clipboard text without any truncation.
      * This is used when pasting clipboard suggestions to ensure the complete content is inserted.
      */
