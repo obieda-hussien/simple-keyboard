@@ -1,6 +1,7 @@
 package rkr.simplekeyboard.inputmethod.latin.ui
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
@@ -106,6 +107,15 @@ object ImeUiKit {
         }
         view.textDirection = direction
         view.textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+    }
+
+    @JvmStatic
+    fun string(context: Context, locale: Locale?, resId: Int): String {
+        if (locale == null) return context.getString(resId)
+        val configuration = Configuration(context.resources.configuration)
+        configuration.setLocale(locale)
+        configuration.setLayoutDirection(locale)
+        return context.createConfigurationContext(configuration).getString(resId)
     }
 
     @JvmStatic
