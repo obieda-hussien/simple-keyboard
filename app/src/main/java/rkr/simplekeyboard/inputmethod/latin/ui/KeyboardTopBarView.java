@@ -35,6 +35,8 @@ public class KeyboardTopBarView extends LinearLayout {
     
     private ImageButton emojiButton;
     private ImageButton clipboardButton;
+    private ImageButton imageButton;
+    private ImageButton voiceButton;
     private ImageButton settingsButton;
     private ImageButton toggleButton;
     
@@ -45,6 +47,8 @@ public class KeyboardTopBarView extends LinearLayout {
         void onEmojiButtonClicked();
         void onClipboardButtonClicked();
         void onClipboardHistoryRequested();
+        void onImageButtonClicked();
+        void onVoiceButtonClicked();
         void onSettingsButtonClicked();
         void onToggleButtonClicked(); // New toggle functionality
     }
@@ -70,6 +74,8 @@ public class KeyboardTopBarView extends LinearLayout {
         
         emojiButton = findViewById(R.id.top_bar_emoji_button);
         clipboardButton = findViewById(R.id.top_bar_clipboard_button);
+        imageButton = findViewById(R.id.top_bar_image_button);
+        voiceButton = findViewById(R.id.top_bar_voice_button);
         settingsButton = findViewById(R.id.top_bar_settings_button);
         toggleButton = findViewById(R.id.top_bar_toggle_button);
         
@@ -90,6 +96,8 @@ public class KeyboardTopBarView extends LinearLayout {
         // Apply icon tints
         emojiButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
         clipboardButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
+        imageButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
+        voiceButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
         settingsButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
         toggleButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
     }
@@ -119,6 +127,18 @@ public class KeyboardTopBarView extends LinearLayout {
             actionListener.onClipboardHistoryRequested();
             return true;
         });
+
+        imageButton.setOnClickListener(v -> {
+            if (actionListener != null) {
+                actionListener.onImageButtonClicked();
+            }
+        });
+
+        voiceButton.setOnClickListener(v -> {
+            if (actionListener != null) {
+                actionListener.onVoiceButtonClicked();
+            }
+        });
         
         settingsButton.setOnClickListener(v -> {
             if (actionListener != null) {
@@ -135,6 +155,13 @@ public class KeyboardTopBarView extends LinearLayout {
     
     public void setOnTopBarActionListener(OnTopBarActionListener listener) {
         this.actionListener = listener;
+    }
+
+    public void setMediaActionsEnabled(boolean enabled) {
+        imageButton.setEnabled(enabled);
+        imageButton.setAlpha(enabled ? 0.85f : 0.35f);
+        voiceButton.setEnabled(enabled);
+        voiceButton.setAlpha(enabled ? 0.85f : 0.35f);
     }
     
     /**
