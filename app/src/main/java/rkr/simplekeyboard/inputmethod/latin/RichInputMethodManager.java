@@ -50,6 +50,7 @@ import rkr.simplekeyboard.inputmethod.R;
 import rkr.simplekeyboard.inputmethod.compat.PreferenceManagerCompat;
 import rkr.simplekeyboard.inputmethod.latin.common.LocaleUtils;
 import rkr.simplekeyboard.inputmethod.latin.settings.Settings;
+import rkr.simplekeyboard.inputmethod.latin.settings.UiLocaleManager;
 import rkr.simplekeyboard.inputmethod.latin.utils.SubtypePreferenceUtils;
 import rkr.simplekeyboard.inputmethod.latin.utils.DialogUtils;
 import rkr.simplekeyboard.inputmethod.latin.utils.LocaleResourceUtils;
@@ -540,7 +541,8 @@ public class RichInputMethodManager {
         if (windowToken == null) {
             return null;
         }
-        final CharSequence title = context.getString(R.string.change_keyboard);
+        final Context localizedContext = UiLocaleManager.wrap(context);
+        final CharSequence title = localizedContext.getString(R.string.change_keyboard);
 
         final List<SubtypeInfo> subtypeInfoList = getEnabledSubtypeInfoOfAllImes(context);
         if (subtypeInfoList.size() < 2) {
@@ -594,7 +596,7 @@ public class RichInputMethodManager {
             }
         };
         final AlertDialog.Builder builder = new AlertDialog.Builder(
-                DialogUtils.getPlatformDialogThemeContext(context));
+                DialogUtils.getPlatformDialogThemeContext(localizedContext));
         builder.setSingleChoiceItems(items, currentSubtypeIndex, listener).setTitle(title);
         final AlertDialog dialog = builder.create();
         dialog.setCancelable(true);
