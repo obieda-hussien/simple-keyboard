@@ -101,15 +101,19 @@ public class KeyboardTopBarView extends LinearLayout {
             button.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
         }
 
+        final ImageButton[] surfaced = { voiceButton, toolsButton, toggleButton };
         if (ThemeEngine.isEnabled(getContext())) {
             final ThemePalette palette = ThemeEngine.palette(getContext());
-            final ImageButton[] surfaced = { voiceButton, toolsButton, toggleButton };
             for (ImageButton button : surfaced) {
                 if (button != null) {
                     button.setBackground(ImeUiKit.roundedBackground(
                             getContext(), palette.getFunctionalSurface(), 22.0f,
                             palette.getBorder(), 0.7f));
                 }
+            }
+        } else {
+            for (ImageButton button : surfaced) {
+                if (button != null) button.setBackgroundResource(R.drawable.button_selector);
             }
         }
     }
