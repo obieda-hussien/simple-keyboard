@@ -363,6 +363,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     private void loadSettings() {
         mLocale = mRichImm.getCurrentSubtype().getLocaleObject();
+        rkr.simplekeyboard.inputmethod.latin.settings.UiLocaleManager.remember(this, mLocale);
         updateUtilityLocaleDirection();
         final EditorInfo editorInfo = getCurrentInputEditorInfo();
         final InputAttributes inputAttributes = new InputAttributes(editorInfo, isFullscreenMode());
