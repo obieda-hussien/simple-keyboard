@@ -304,7 +304,15 @@ public final class MainKeyboardView extends KeyboardView implements MoreKeysPane
      */
     @Override
     public void setKeyboard(final Keyboard keyboard) {
-        if (mAccessibilityProvider != null) mAccessibilityProvider.clearFocus();
+        Keyboard previous = getKeyboard();
+        boolean layoutChanged = previous == null
+                || previous.mId.mElementId != keyboard.mId.mElementId
+                || !previous.mId.mSubtype.equals(keyboard.mId.mSubtype)
+                || previous.getSortedKeys().size() != keyboard.getSortedKeys().size();
+        if (layoutChanged && mAccessibilityProvider != null) {
+            mAccessibilityProvider.clearFocus();
+            mAccessibilityProvider.clearHover();
+        }
         // Remove any pending messages, except dismissing preview and key repeat.
         mTimerHandler.cancelLongPressTimers();
         super.setKeyboard(keyboard);
@@ -453,6 +461,12 @@ public final class MainKeyboardView extends KeyboardView implements MoreKeysPane
             int old = focusedId;
             focusedId = View.NO_ID;
             sendKeyEvent(old, AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUS_CLEARED);
+        }
+
+        void clearHover() {
+            if (hoveredId == View.NO_ID) return;
+            sendKeyEvent(hoveredId, AccessibilityEvent.TYPE_VIEW_HOVER_EXIT);
+            hoveredId = View.NO_ID;
         }
 
         boolean onHover(MotionEvent event) {
