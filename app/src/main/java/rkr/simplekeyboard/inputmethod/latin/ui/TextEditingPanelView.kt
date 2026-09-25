@@ -6,7 +6,6 @@ import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
 import android.view.Gravity
-import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.widget.GridLayout
@@ -154,7 +153,7 @@ class TextEditingPanelView @JvmOverloads constructor(
         view.setOnClickListener {
             selectionMode = !selectionMode
             styleAction(view, selectionMode)
-            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            view.ImeUiKit.haptic(this)
         }
         addToGrid(view)
         return view
@@ -179,7 +178,7 @@ class TextEditingPanelView @JvmOverloads constructor(
                     v.animate().cancel()
                     v.animate().scaleX(0.965f).scaleY(0.965f).alpha(0.88f)
                         .setDuration(65L).start()
-                    v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    v.ImeUiKit.haptic(this)
                     listener?.onEditingAction(action, selectionMode)
                     startRepeating(action)
                 }
