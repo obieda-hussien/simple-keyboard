@@ -1,6 +1,7 @@
 package rkr.simplekeyboard.inputmethod.latin.ui
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
@@ -9,6 +10,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.widget.GridLayout
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import rkr.simplekeyboard.inputmethod.R
@@ -16,6 +18,10 @@ import rkr.simplekeyboard.inputmethod.latin.settings.ThemeEngine
 import rkr.simplekeyboard.inputmethod.latin.settings.ThemePalette
 import java.util.Locale
 
+/**
+ * Gboard-like text editing surface. Action cells are intentionally icon-only: labels live in
+ * contentDescription so the panel stays compact, scan-friendly and language-neutral.
+ */
 class TextEditingPanelView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
@@ -42,14 +48,15 @@ class TextEditingPanelView @JvmOverloads constructor(
         fun onCloseTextEditingPanel()
     }
 
-    private data class ActionButton(val action: Int, val view: TextView)
+    private data class ActionButton(val action: Int, val view: ImageButton)
+
     private val handler = Handler(Looper.getMainLooper())
     private val header = LinearLayout(context)
     private val title = TextView(context)
-    private val close = TextView(context)
+    private val close = ImageButton(context)
     private val grid = GridLayout(context)
-    private val buttons = ArrayList<ActionButton>()
-    private lateinit var selectModeButton: TextView
+    private val buttons = ArrayList<ActionButton>(14)
+    private lateinit var selectModeButton: ImageButton
     private var selectionMode = false
     private var listener: Listener? = null
     private var palette: ThemePalette = ThemeEngine.palette(context)
@@ -59,51 +66,62 @@ class TextEditingPanelView @JvmOverloads constructor(
         orientation = VERTICAL
         minimumHeight = ImeUiKit.dp(context, 236f)
         setPadding(
-            ImeUiKit.dp(context, 11f),
+            ImeUiKit.dp(context, 10f),
             ImeUiKit.dp(context, 7f),
-            ImeUiKit.dp(context, 11f),
-            ImeUiKit.dp(context, 8f)
+            ImeUiKit.dp(context, 10f),
+            ImeUiKit.dp(context, 9f)
         )
 
         header.orientation = HORIZONTAL
         header.gravity = Gravity.CENTER_VERTICAL
+        header.setPadding(ImeUiKit.dp(context, 2f), 0, 0, ImeUiKit.dp(context, 3f))
+
         title.setText(R.string.text_editing_title)
-        title.textSize = 20f
+        title.textSize = 18f
         title.setTypeface(null, Typeface.BOLD)
+        title.gravity = Gravity.CENTER_VERTICAL
         header.addView(title, LayoutParams(0, ImeUiKit.dp(context, 38f), 1f))
-        close.text = "→"
-        close.textSize = 25f
-        close.gravity = Gravity.CENTER
+
+        close.setImageResource(R.drawable.ic_clear)
+        close.scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+        close.setPadding(
+            ImeUiKit.dp(context, 10f),
+            ImeUiKit.dp(context, 10f),
+            ImeUiKit.dp(context, 10f),
+            ImeUiKit.dp(context, 10f)
+        )
         close.contentDescription = context.getString(R.string.close_panel)
         close.setOnClickListener { listener?.onCloseTextEditingPanel() }
         ImeUiKit.applyPressMotion(close)
-        header.addView(close, LayoutParams(ImeUiKit.dp(context, 46f), ImeUiKit.dp(context, 38f)))
-        addView(header)
+        header.addView(close, LayoutParams(ImeUiKit.dp(context, 40f), ImeUiKit.dp(context, 40f)))
+        addView(header, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
         grid.columnCount = 4
         grid.rowCount = 4
         grid.alignmentMode = GridLayout.ALIGN_BOUNDS
         addView(grid, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
 
-        addRepeatable(ACTION_LEFT, "‹", R.string.edit_move_left)
-        addRepeatable(ACTION_UP, "⌃", R.string.edit_move_up)
-        addRepeatable(ACTION_DOWN, "⌄", R.string.edit_move_down)
-        addRepeatable(ACTION_RIGHT, "›", R.string.edit_move_right)
+        // Navigation row.
+        addRepeatable(ACTION_LEFT, R.drawable.ic_edit_left, R.string.edit_move_left)
+        addRepeatable(ACTION_UP, R.drawable.ic_edit_up, R.string.edit_move_up)
+        addRepeatable(ACTION_DOWN, R.drawable.ic_edit_down, R.string.edit_move_down)
+        addRepeatable(ACTION_RIGHT, R.drawable.ic_edit_right, R.string.edit_move_right)
 
-        addAction(ACTION_HOME, "|‹", R.string.edit_home)
+        // Boundary and selection row.
+        addAction(ACTION_HOME, R.drawable.ic_edit_home, R.string.edit_home)
         selectModeButton = addToggleSelect()
-        addAction(ACTION_SELECT_ALL, "▣", R.string.edit_select_all)
-        addAction(ACTION_END, "›|", R.string.edit_end)
+        addAction(ACTION_SELECT_ALL, R.drawable.ic_edit_select_all, R.string.edit_select_all)
+        addAction(ACTION_END, R.drawable.ic_edit_end, R.string.edit_end)
 
-        addAction(ACTION_UNDO, "↶", R.string.edit_undo)
-        addAction(ACTION_COPY, "⧉", R.string.edit_copy)
-        addAction(ACTION_PASTE, "▤", R.string.edit_paste)
-        addAction(ACTION_REDO, "↷", R.string.edit_redo)
+        // History and clipboard row.
+        addAction(ACTION_UNDO, R.drawable.ic_edit_undo, R.string.edit_undo)
+        addAction(ACTION_COPY, R.drawable.ic_edit_copy, R.string.edit_copy)
+        addAction(ACTION_PASTE, R.drawable.ic_edit_paste, R.string.edit_paste)
+        addAction(ACTION_REDO, R.drawable.ic_edit_redo, R.string.edit_redo)
 
-        addAction(ACTION_CUT, "✂", R.string.edit_cut)
-        addRepeatable(ACTION_DELETE, "⌫", R.string.a11y_key_delete)
-        addSpacer()
-        addSpacer()
+        // Destructive row: two balanced wide actions instead of two empty grid cells.
+        addAction(ACTION_CUT, R.drawable.ic_edit_cut, R.string.edit_cut, span = 2)
+        addRepeatable(ACTION_DELETE, R.drawable.ic_edit_delete, R.string.a11y_key_delete, span = 2)
 
         refreshTheme()
     }
@@ -113,11 +131,12 @@ class TextEditingPanelView @JvmOverloads constructor(
     }
 
     fun setLanguageLocale(locale: Locale?) {
-        // Cursor arrows remain physical left/right in both Arabic and Latin layouts.
+        // Cursor arrows stay physical. Only the title follows the selected language direction.
         layoutDirection = View.LAYOUT_DIRECTION_LTR
         ImeUiKit.applyTextDirection(title, title.text, locale)
         title.gravity = if (ImeUiKit.layoutDirection(locale) == View.LAYOUT_DIRECTION_RTL)
-            Gravity.RIGHT or Gravity.CENTER_VERTICAL else Gravity.LEFT or Gravity.CENTER_VERTICAL
+            Gravity.RIGHT or Gravity.CENTER_VERTICAL
+        else Gravity.LEFT or Gravity.CENTER_VERTICAL
     }
 
     fun updateState(hasSelection: Boolean, canPaste: Boolean) {
@@ -128,7 +147,7 @@ class TextEditingPanelView @JvmOverloads constructor(
                 else -> true
             }
             item.view.isEnabled = enabled
-            item.view.alpha = if (enabled) 1f else 0.34f
+            item.view.alpha = if (enabled) 1f else 0.32f
         }
     }
 
@@ -136,11 +155,10 @@ class TextEditingPanelView @JvmOverloads constructor(
         palette = ThemeEngine.palette(context)
         setBackgroundColor(palette.background)
         title.setTextColor(palette.onKey)
-        close.setTextColor(palette.onKey)
-        close.background = ImeUiKit.roundedBackground(
-            context, palette.functionalSurface, 20f, palette.border, 0.7f
-        )
-        buttons.forEach { item -> styleAction(item.view, item.view === selectModeButton && selectionMode) }
+        styleIconButton(close, selected = false)
+        buttons.forEach { item ->
+            styleIconButton(item.view, item.view === selectModeButton && selectionMode)
+        }
     }
 
     override fun onDetachedFromWindow() {
@@ -148,36 +166,41 @@ class TextEditingPanelView @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
-    private fun addToggleSelect(): TextView {
-        val view = makeActionView("I↔", R.string.edit_select)
+    private fun addToggleSelect(): ImageButton {
+        val view = makeActionButton(R.drawable.ic_edit_select, R.string.edit_select)
         view.setOnClickListener {
             selectionMode = !selectionMode
-            styleAction(view, selectionMode)
+            styleIconButton(view, selectionMode)
             ImeUiKit.haptic(view)
         }
         addToGrid(view)
         return view
     }
 
-    private fun addAction(action: Int, glyph: String, label: Int): TextView {
-        val view = makeActionView(glyph, label)
+    private fun addAction(action: Int, iconRes: Int, labelRes: Int, span: Int = 1): ImageButton {
+        val view = makeActionButton(iconRes, labelRes)
         view.setOnClickListener { listener?.onEditingAction(action, selectionMode) }
         ImeUiKit.applyPressMotion(view)
         buttons += ActionButton(action, view)
-        addToGrid(view)
+        addToGrid(view, span)
         return view
     }
 
-    private fun addRepeatable(action: Int, glyph: String, label: Int): TextView {
-        val view = makeActionView(glyph, label)
+    private fun addRepeatable(
+        action: Int,
+        iconRes: Int,
+        labelRes: Int,
+        span: Int = 1
+    ): ImageButton {
+        val view = makeActionButton(iconRes, labelRes)
         view.isHapticFeedbackEnabled = true
         view.setOnTouchListener { v, event ->
             if (!v.isEnabled) return@setOnTouchListener true
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     v.animate().cancel()
-                    v.animate().scaleX(0.965f).scaleY(0.965f).alpha(0.88f)
-                        .setDuration(65L).start()
+                    v.animate().scaleX(0.95f).scaleY(0.95f).alpha(0.84f)
+                        .setDuration(55L).start()
                     ImeUiKit.haptic(v)
                     listener?.onEditingAction(action, selectionMode)
                     startRepeating(action)
@@ -186,13 +209,13 @@ class TextEditingPanelView @JvmOverloads constructor(
                     stopRepeating()
                     v.animate().cancel()
                     v.animate().scaleX(1f).scaleY(1f).alpha(1f)
-                        .setDuration(100L).start()
+                        .setDuration(95L).start()
                 }
             }
             true
         }
         buttons += ActionButton(action, view)
-        addToGrid(view)
+        addToGrid(view, span)
         return view
     }
 
@@ -213,28 +236,26 @@ class TextEditingPanelView @JvmOverloads constructor(
         repeatRunnable = null
     }
 
-    private fun makeActionView(glyph: String, label: Int): TextView =
-        TextView(context).apply {
-            text = glyph + "\n" + context.getString(label)
-            textSize = 13f
-            gravity = Gravity.CENTER
-            maxLines = 2
-            setTypeface(null, Typeface.NORMAL)
+    private fun makeActionButton(iconRes: Int, labelRes: Int): ImageButton =
+        ImageButton(context).apply {
+            setImageResource(iconRes)
+            contentDescription = context.getString(labelRes)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             isClickable = true
             isFocusable = true
             setPadding(
-                ImeUiKit.dp(context, 4f),
-                ImeUiKit.dp(context, 3f),
-                ImeUiKit.dp(context, 4f),
-                ImeUiKit.dp(context, 3f)
+                ImeUiKit.dp(context, 13f),
+                ImeUiKit.dp(context, 10f),
+                ImeUiKit.dp(context, 13f),
+                ImeUiKit.dp(context, 10f)
             )
         }
 
-    private fun addToGrid(view: View) {
+    private fun addToGrid(view: View, span: Int = 1) {
         grid.addView(view, GridLayout.LayoutParams().apply {
             width = 0
             height = 0
-            columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+            columnSpec = GridLayout.spec(GridLayout.UNDEFINED, span, span.toFloat())
             rowSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
             setMargins(
                 ImeUiKit.dp(context, 4f),
@@ -245,14 +266,11 @@ class TextEditingPanelView @JvmOverloads constructor(
         })
     }
 
-    private fun addSpacer() {
-        addToGrid(View(context))
-    }
-
-    private fun styleAction(view: TextView, selected: Boolean) {
+    private fun styleIconButton(view: ImageButton, selected: Boolean) {
         val fill = if (selected) palette.actionSurface else palette.functionalSurface
         val stroke = if (selected) palette.actionSurface else palette.border
-        view.background = ImeUiKit.roundedBackground(context, fill, 16f, stroke, 0.7f)
-        view.setTextColor(if (selected) palette.onAction else palette.onFunctional)
+        val tint = if (selected) palette.onAction else palette.onFunctional
+        view.background = ImeUiKit.roundedBackground(context, fill, 16f, stroke, 0.75f)
+        view.imageTintList = ColorStateList.valueOf(tint)
     }
 }
