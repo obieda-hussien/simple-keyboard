@@ -135,6 +135,7 @@
     <string name="clipboard_history_clear">Clear paste history</string>
     <string name="clipboard_history_empty">No recent pastes</string>
     <string name="clipboard_history_paste">Paste saved text</string>
+    <string name="clipboard_image_unsupported">This field cannot accept the clipboard image</string>
     <string name="delete_swipe">Delete swipe</string>
     
     <!-- Email suggestion preferences -->

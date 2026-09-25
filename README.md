@@ -24,6 +24,7 @@ Additional features in this fork:
 - Local learning controls in Preferences
 - Optional reversible autocorrection on Space (off by default)
 - Recent paste history: long press the clipboard button; stored in memory only
+- Paste clipboard images into editors that advertise image support on Android 7.1+
 
 Gesture word input, GIF insertion, and a complete spell-checker are not yet implemented.
 

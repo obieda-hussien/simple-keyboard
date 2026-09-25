@@ -1374,6 +1374,18 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             if (clipData == null || clipData.getItemCount() == 0) {
                 return;
             }
+
+            // Commit image content only when the editor advertises a compatible MIME type.
+            // Never turn an unsupported image URI into text or retain it in paste history.
+            if (clipData.getDescription() != null
+                    && clipData.getDescription().hasMimeType("image/*")
+                    && clipData.getItemAt(0).getUri() != null) {
+                if (!commitClipboardImage(clipData)) {
+                    android.widget.Toast.makeText(this, R.string.clipboard_image_unsupported,
+                            android.widget.Toast.LENGTH_SHORT).show();
+                }
+                return;
+            }
             
             // Get the full text content using coerceToText for reliable conversion
             CharSequence clipboardText = clipData.getItemAt(0).coerceToText(this);
@@ -1398,6 +1410,29 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             // Silently handle any clipboard access errors
             android.util.Log.w(TAG, "Unable to paste clipboard content");
         }
+    }
+
+    private boolean commitClipboardImage(android.content.ClipData clipData) {
+        if (Build.VERSION.SDK_INT < 25) return false;
+        final EditorInfo editor = getCurrentInputEditorInfo();
+        final android.view.inputmethod.InputConnection connection = getCurrentInputConnection();
+        if (editor == null || editor.contentMimeTypes == null || connection == null) return false;
+        final android.net.Uri uri = clipData.getItemAt(0).getUri();
+        if (uri == null || !"content".equals(uri.getScheme())) return false;
+        final android.content.ClipDescription description = clipData.getDescription();
+        boolean compatible = false;
+        for (String mimeType : editor.contentMimeTypes) {
+            if (mimeType != null && mimeType.startsWith("image/")
+                    && description.hasMimeType(mimeType)) {
+                compatible = true;
+                break;
+            }
+        }
+        if (!compatible) return false;
+        return connection.commitContent(
+                new android.view.inputmethod.InputContentInfo(uri, description, null),
+                android.view.inputmethod.InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION,
+                null);
     }
 
     private boolean isClipboardHistoryAllowed(EditorInfo editorInfo) {
