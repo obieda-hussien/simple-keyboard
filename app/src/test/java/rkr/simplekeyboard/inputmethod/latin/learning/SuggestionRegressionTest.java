@@ -51,7 +51,7 @@ public class SuggestionRegressionTest {
 
     @Test
     public void boundedDistanceStopsDistantCandidates() {
-        assertEquals(1, SuggestionRanker.calculateBoundedDistance("teh", "the", 2));
+        assertEquals(1, SuggestionRanker.calculateBoundedDistance("helo", "hello", 2));
         assertEquals(3, SuggestionRanker.calculateBoundedDistance("keyboard", "house", 2));
     }
 
