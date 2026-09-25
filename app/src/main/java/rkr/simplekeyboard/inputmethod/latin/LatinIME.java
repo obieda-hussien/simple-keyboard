@@ -1376,6 +1376,376 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         }
     }
     
+    private void setupUtilityPanelListeners() {
+        if (mToolsGrid != null) {
+            mToolsGrid.setListener(new rkr.simplekeyboard.inputmethod.latin.ui.KeyboardToolsGridView.Listener() {
+                @Override public void onEmojiTool() { showEmojiKeyboard(); }
+                @Override public void onClipboardTool() { showClipboardPanel(); }
+                @Override public void onTextEditingTool() { showTextEditingPanel(); }
+                @Override public void onTranslateTool() { showTranslatePanel(); }
+                @Override public void onVoiceTool() { launchVoiceInput(); }
+                @Override public void onImageTool() { launchImagePicker(); }
+                @Override public void onThemeTool() { launchThemeStudio(); }
+                @Override public void onSettingsTool() { launchSettings(); }
+            });
+        }
+
+        if (mClipboardPanel != null) {
+            mClipboardPanel.setListener(new rkr.simplekeyboard.inputmethod.latin.ui.ClipboardPanelView.Listener() {
+                @Override
+                public void onPasteClipboardItem(String text) {
+                    if (TextUtils.isEmpty(text) || mInputLogic == null
+                            || !isClipboardHistoryAllowed(getCurrentInputEditorInfo())) return;
+                    mInputLogic.mConnection.commitText(text, 1);
+                    mClipboardHistory.recordPaste(text);
+                    refreshClipboardPanel();
+                }
+
+                @Override
+                public void onToggleClipboardPin(String text) {
+                    mClipboardHistory.togglePinned(text);
+                    refreshClipboardPanel();
+                }
+
+                @Override
+                public void onClearClipboardHistory() {
+                    mClipboardHistory.clearRecent();
+                    refreshClipboardPanel();
+                }
+
+                @Override
+                public void onCloseClipboardPanel() {
+                    closeUtilityPanel(true);
+                }
+            });
+        }
+
+        if (mTextEditingPanel != null) {
+            mTextEditingPanel.setListener(new rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.Listener() {
+                @Override
+                public void onEditingAction(int action, boolean extendSelection) {
+                    performEditingAction(action, extendSelection);
+                }
+
+                @Override
+                public void onCloseTextEditingPanel() {
+                    closeUtilityPanel(true);
+                }
+            });
+        }
+
+        if (mTranslatePanel != null) {
+            mTranslatePanel.setListener(new rkr.simplekeyboard.inputmethod.latin.ui.TranslatePanelView.Listener() {
+                @Override
+                public void onTranslateRequested(String text) {
+                    launchTranslateProcessor(text);
+                }
+
+                @Override
+                public void onReplaceTranslation(String text) {
+                    commitTranslation(text, true);
+                }
+
+                @Override
+                public void onInsertTranslation(String text) {
+                    commitTranslation(text, false);
+                }
+
+                @Override
+                public void onCloseTranslatePanel() {
+                    closeUtilityPanel(true);
+                }
+            });
+        }
+    }
+
+    private void updateUtilityLocaleDirection() {
+        if (mSuggestionStrip != null) mSuggestionStrip.setLanguageLocale(mLocale);
+        if (mToolsGrid != null) mToolsGrid.setLanguageLocale(mLocale);
+        if (mClipboardPanel != null) mClipboardPanel.setLanguageLocale(mLocale);
+        if (mTextEditingPanel != null) mTextEditingPanel.setLanguageLocale(mLocale);
+        if (mTranslatePanel != null) mTranslatePanel.setLanguageLocale(mLocale);
+    }
+
+    private void toggleToolsGrid() {
+        if (mActiveUtilityPanel != null) {
+            closeUtilityPanel(true);
+            return;
+        }
+        showUtilityPanel(mToolsGrid);
+    }
+
+    private void showUtilityPanel(View panel) {
+        if (panel == null || mMainKeyboard == null || mEmojiKeyboard == null) return;
+
+        final View[] panels = { mToolsGrid, mClipboardPanel, mTextEditingPanel, mTranslatePanel };
+        for (View candidate : panels) {
+            if (candidate == null || candidate == panel) continue;
+            candidate.animate().cancel();
+            candidate.setVisibility(View.GONE);
+            candidate.setAlpha(1.0f);
+            candidate.setScaleX(1.0f);
+            candidate.setScaleY(1.0f);
+            candidate.setTranslationY(0.0f);
+        }
+
+        int panelHeight = mMainKeyboard.getHeight();
+        if (panelHeight <= 0) panelHeight = dpToPx(236);
+        final android.view.ViewGroup.LayoutParams params = panel.getLayoutParams();
+        if (params != null && params.height != panelHeight) {
+            params.height = panelHeight;
+            panel.setLayoutParams(params);
+        }
+
+        mMainKeyboard.setVisibility(View.GONE);
+        mEmojiKeyboard.setVisibility(View.GONE);
+        mIsEmojiMode = false;
+        mActiveUtilityPanel = panel;
+        mShowingClipboardHistory = panel == mClipboardPanel;
+        mForcedToolbarMode = true;
+        mKeyboardSwitcher.updateTopContainerWidth(true);
+
+        if (mTopBar != null) {
+            mTopBar.setEmojiMode(false);
+            mTopBar.setPanelOpen(true);
+        }
+        showToolbarView();
+        rkr.simplekeyboard.inputmethod.latin.ui.ImeUiKit.animateIn(panel);
+        updateInputViewShown();
+    }
+
+    private void closeUtilityPanel(boolean animate) {
+        final View active = mActiveUtilityPanel;
+        mActiveUtilityPanel = null;
+        mShowingClipboardHistory = false;
+        mForcedToolbarMode = false;
+
+        if (active == null) {
+            if (mTopBar != null) mTopBar.setPanelOpen(false);
+            return;
+        }
+
+        final Runnable restore = this::restoreMainKeyboardAfterPanel;
+        if (animate && active.isShown()) {
+            rkr.simplekeyboard.inputmethod.latin.ui.ImeUiKit.animateOut(active, restore);
+        } else {
+            active.animate().cancel();
+            active.setVisibility(View.GONE);
+            restore.run();
+        }
+    }
+
+    private void restoreMainKeyboardAfterPanel() {
+        if (mMainKeyboard == null || mEmojiKeyboard == null) return;
+        mKeyboardSwitcher.updateTopContainerWidth(false);
+        mMainKeyboard.setVisibility(View.VISIBLE);
+        mEmojiKeyboard.setVisibility(View.GONE);
+        mIsEmojiMode = false;
+        if (mTopBar != null) {
+            mTopBar.setPanelOpen(false);
+            mTopBar.setEmojiMode(false);
+        }
+        if (mSuggestionStrip != null && mSuggestionStrip.hasSuggestions()) {
+            showSuggestionsView();
+        } else {
+            showToolbarView();
+        }
+        updateInputViewShown();
+    }
+
+    private void launchThemeStudio() {
+        requestHideSelf(0);
+        final Intent intent = new Intent(this,
+                rkr.simplekeyboard.inputmethod.latin.settings.ThemeStudioActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivity(intent);
+    }
+
+    private void showClipboardPanel() {
+        if (mClipboardPanel == null || !isClipboardHistoryAllowed(getCurrentInputEditorInfo())) return;
+        try {
+            final android.content.ClipboardManager manager =
+                    (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (manager != null && manager.hasPrimaryClip()) {
+                final android.content.ClipData clip = manager.getPrimaryClip();
+                if (clip != null && clip.getItemCount() > 0
+                        && (clip.getDescription() == null
+                            || !clip.getDescription().hasMimeType("image/*"))) {
+                    final CharSequence current = clip.getItemAt(0).coerceToText(this);
+                    if (!TextUtils.isEmpty(current)) {
+                        mClipboardHistory.recordPaste(current.toString());
+                    }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Clipboard remains user-driven; keep the panel available even if a provider fails.
+        }
+        refreshClipboardPanel();
+        showUtilityPanel(mClipboardPanel);
+    }
+
+    private void refreshClipboardPanel() {
+        if (mClipboardPanel == null) return;
+        mClipboardPanel.setEntries(mClipboardHistory.entries(), mClipboardHistory.pinnedEntries());
+    }
+
+    private void showTextEditingPanel() {
+        if (mTextEditingPanel == null) return;
+        updateEditingPanelState();
+        showUtilityPanel(mTextEditingPanel);
+    }
+
+    private void updateEditingPanelState() {
+        if (mTextEditingPanel == null) return;
+        final android.view.inputmethod.InputConnection connection = getCurrentInputConnection();
+        boolean hasSelection = false;
+        if (connection != null) {
+            try {
+                hasSelection = !TextUtils.isEmpty(connection.getSelectedText(0));
+            } catch (RuntimeException ignored) {
+                hasSelection = false;
+            }
+        }
+        boolean canPaste = false;
+        try {
+            final android.content.ClipboardManager manager =
+                    (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            canPaste = manager != null && manager.hasPrimaryClip();
+        } catch (RuntimeException ignored) {
+            canPaste = false;
+        }
+        mTextEditingPanel.updateState(hasSelection, canPaste);
+    }
+
+    private void performEditingAction(int action, boolean extendSelection) {
+        final android.view.inputmethod.InputConnection connection = getCurrentInputConnection();
+        if (connection == null) return;
+        final int shift = extendSelection ? KeyEvent.META_SHIFT_ON : 0;
+
+        switch (action) {
+        case rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_LEFT:
+            sendEditorKey(connection, KeyEvent.KEYCODE_DPAD_LEFT, shift);
+            break;
+        case rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_UP:
+            sendEditorKey(connection, KeyEvent.KEYCODE_DPAD_UP, shift);
+            break;
+        case rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_DOWN:
+            sendEditorKey(connection, KeyEvent.KEYCODE_DPAD_DOWN, shift);
+            break;
+        case rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_RIGHT:
+            sendEditorKey(connection, KeyEvent.KEYCODE_DPAD_RIGHT, shift);
+            break;
+        case rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_HOME:
+            sendEditorKey(connection, KeyEvent.KEYCODE_MOVE_HOME, shift);
+            break;
+        case rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_END:
+            sendEditorKey(connection, KeyEvent.KEYCODE_MOVE_END, shift);
+            break;
+        case rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_SELECT_ALL:
+            connection.performContextMenuAction(android.R.id.selectAll);
+            break;
+        case rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_COPY:
+            connection.performContextMenuAction(android.R.id.copy);
+            break;
+        case rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_CUT:
+            connection.performContextMenuAction(android.R.id.cut);
+            break;
+        case rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_PASTE:
+            connection.performContextMenuAction(android.R.id.paste);
+            break;
+        case rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_DELETE:
+            sendEditorKey(connection, KeyEvent.KEYCODE_DEL, 0);
+            break;
+        case rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_UNDO:
+            sendEditorKey(connection, KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON);
+            break;
+        case rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView.ACTION_REDO:
+            sendEditorKey(connection, KeyEvent.KEYCODE_Z,
+                    KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON);
+            break;
+        default:
+            return;
+        }
+        mTextEditingPanel.post(this::updateEditingPanelState);
+    }
+
+    private void sendEditorKey(android.view.inputmethod.InputConnection connection,
+            int keyCode, int metaState) {
+        final long now = android.os.SystemClock.uptimeMillis();
+        connection.sendKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN,
+                keyCode, 0, metaState));
+        connection.sendKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP,
+                keyCode, 0, metaState));
+    }
+
+    private void showTranslatePanel() {
+        if (mTranslatePanel == null || isPasswordEditor(getCurrentInputEditorInfo())) return;
+        final android.view.inputmethod.InputConnection connection = getCurrentInputConnection();
+        if (connection == null) return;
+
+        CharSequence source = null;
+        try {
+            source = connection.getSelectedText(0);
+            mTranslateSourceWasSelection = !TextUtils.isEmpty(source);
+            if (TextUtils.isEmpty(source)) {
+                source = connection.getTextBeforeCursor(500, 0);
+                source = trimTranslationSource(source);
+                mTranslateSourceWasSelection = false;
+            }
+        } catch (RuntimeException ignored) {
+            source = null;
+            mTranslateSourceWasSelection = false;
+        }
+        mTranslatePanel.setLanguageLocale(mLocale);
+        mTranslatePanel.setSourceText(source);
+        showUtilityPanel(mTranslatePanel);
+    }
+
+    private CharSequence trimTranslationSource(CharSequence value) {
+        if (TextUtils.isEmpty(value)) return value;
+        String text = value.toString().trim();
+        int start = Math.max(text.lastIndexOf('\n'),
+                Math.max(text.lastIndexOf('.'),
+                    Math.max(text.lastIndexOf('!'),
+                        Math.max(text.lastIndexOf('?'), text.lastIndexOf('؟')))));
+        if (start >= 0 && start + 1 < text.length()) text = text.substring(start + 1).trim();
+        if (text.length() > 300) text = text.substring(text.length() - 300);
+        return text;
+    }
+
+    private void launchTranslateProcessor(String text) {
+        if (TextUtils.isEmpty(text) || isPasswordEditor(getCurrentInputEditorInfo())) return;
+        final Intent intent = new Intent(this, KeyboardActionActivity.class);
+        intent.putExtra(KeyboardActionActivity.EXTRA_MODE, KeyboardActionActivity.MODE_TRANSLATE);
+        intent.putExtra(KeyboardActionActivity.EXTRA_TEXT, text);
+        intent.putExtra(KeyboardActionActivity.EXTRA_EDITOR_GENERATION, mEditorGeneration);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivity(intent);
+    }
+
+    private void commitTranslation(String text, boolean replace) {
+        if (TextUtils.isEmpty(text) || isPasswordEditor(getCurrentInputEditorInfo())) return;
+        final android.view.inputmethod.InputConnection connection = getCurrentInputConnection();
+        if (connection == null) return;
+        if (replace && mTranslateSourceWasSelection) {
+            CharSequence selected = null;
+            try {
+                selected = connection.getSelectedText(0);
+            } catch (RuntimeException ignored) {
+                selected = null;
+            }
+            if (!TextUtils.isEmpty(selected)) {
+                connection.commitText(text, 1);
+            } else {
+                connection.commitText(text, 1);
+            }
+        } else {
+            connection.commitText(text, 1);
+        }
+        mTranslateSourceWasSelection = false;
+        closeUtilityPanel(true);
+    }
+
     /**
      * Toggles between main keyboard and emoji keyboard.
      */
