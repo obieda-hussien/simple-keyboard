@@ -5,7 +5,6 @@ import android.graphics.Typeface
 import android.text.TextUtils
 import android.util.AttributeSet
 import android.view.Gravity
-import android.view.HapticFeedbackConstants
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.GridLayout
@@ -167,7 +166,7 @@ class ClipboardPanelView @JvmOverloads constructor(
             contentDescription = context.getString(R.string.clipboard_history_paste) + ": " + text
             setOnClickListener { listener?.onPasteClipboardItem(text) }
             setOnLongClickListener {
-                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                ImeUiKit.haptic(this)
                 listener?.onToggleClipboardPin(text)
                 true
             }
