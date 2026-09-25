@@ -1365,7 +1365,11 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                 return;
             }
             final SharedPreferences prefs = PreferenceManagerCompat.getDeviceSharedPreferences(this);
-            final int keyboardColor = Settings.readKeyboardColor(prefs, this);
+            final int keyboardColor = rkr.simplekeyboard.inputmethod.latin.settings.ThemeEngine
+                    .isEnabled(this)
+                    ? rkr.simplekeyboard.inputmethod.latin.settings.ThemeEngine.palette(this)
+                            .getBackground()
+                    : Settings.readKeyboardColor(prefs, this);
             window.setNavigationBarColor(keyboardColor);
             window.setNavigationBarContrastEnforced(false);
             final int flag = WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
