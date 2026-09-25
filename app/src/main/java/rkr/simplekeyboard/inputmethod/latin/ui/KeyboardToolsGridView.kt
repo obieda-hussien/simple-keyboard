@@ -126,7 +126,7 @@ class KeyboardToolsGridView @JvmOverloads constructor(
             textSize = 11.5f
             gravity = Gravity.CENTER
             maxLines = 1
-            setTypeface(null, Typeface.MEDIUM)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }
 
         card.addView(icon, LayoutParams(ImeUiKit.dp(context, 28f), ImeUiKit.dp(context, 28f)).apply {
