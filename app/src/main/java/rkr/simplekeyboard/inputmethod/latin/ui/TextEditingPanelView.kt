@@ -153,7 +153,7 @@ class TextEditingPanelView @JvmOverloads constructor(
         view.setOnClickListener {
             selectionMode = !selectionMode
             styleAction(view, selectionMode)
-            view.ImeUiKit.haptic(this)
+            ImeUiKit.haptic(view)
         }
         addToGrid(view)
         return view
@@ -178,7 +178,7 @@ class TextEditingPanelView @JvmOverloads constructor(
                     v.animate().cancel()
                     v.animate().scaleX(0.965f).scaleY(0.965f).alpha(0.88f)
                         .setDuration(65L).start()
-                    v.ImeUiKit.haptic(this)
+                    ImeUiKit.haptic(v)
                     listener?.onEditingAction(action, selectionMode)
                     startRepeating(action)
                 }
