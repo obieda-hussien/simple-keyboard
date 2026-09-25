@@ -19,13 +19,16 @@ package rkr.simplekeyboard.inputmethod.latin.ui;
 import android.content.Context;
 import android.graphics.PorterDuff;
 import android.util.AttributeSet;
+import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
 import rkr.simplekeyboard.inputmethod.R;
+import rkr.simplekeyboard.inputmethod.latin.settings.ThemeEngine;
 import rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager;
+import rkr.simplekeyboard.inputmethod.latin.settings.ThemePalette;
 
 /**
  * Top bar component for accessing keyboard features like emoji and clipboard.
@@ -37,7 +40,7 @@ public class KeyboardTopBarView extends LinearLayout {
     private ImageButton clipboardButton;
     private ImageButton imageButton;
     private ImageButton voiceButton;
-    private ImageButton settingsButton;
+    private ImageButton toolsButton;
     private ImageButton toggleButton;
     
     private ThemeManager themeManager;
@@ -49,7 +52,7 @@ public class KeyboardTopBarView extends LinearLayout {
         void onClipboardHistoryRequested();
         void onImageButtonClicked();
         void onVoiceButtonClicked();
-        void onSettingsButtonClicked();
+        void onToolsButtonClicked();
         void onToggleButtonClicked(); // New toggle functionality
     }
     
@@ -76,7 +79,7 @@ public class KeyboardTopBarView extends LinearLayout {
         clipboardButton = findViewById(R.id.top_bar_clipboard_button);
         imageButton = findViewById(R.id.top_bar_image_button);
         voiceButton = findViewById(R.id.top_bar_voice_button);
-        settingsButton = findViewById(R.id.top_bar_settings_button);
+        toolsButton = findViewById(R.id.top_bar_settings_button);
         toggleButton = findViewById(R.id.top_bar_toggle_button);
         
         applyTheme();
@@ -87,19 +90,29 @@ public class KeyboardTopBarView extends LinearLayout {
      * Apply dynamic theme colors to all components.
      */
     private void applyTheme() {
-        int topBarBgColor = themeManager.getTopBarBackgroundColor();
-        int iconTintColor = themeManager.getIconTintColor();
-        
-        // Apply background color
+        final int topBarBgColor = themeManager.getTopBarBackgroundColor();
+        final int iconTintColor = themeManager.getIconTintColor();
         setBackgroundColor(topBarBgColor);
-        
-        // Apply icon tints
-        emojiButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
-        clipboardButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
-        imageButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
-        voiceButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
-        settingsButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
-        toggleButton.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
+
+        final ImageButton[] buttons = {
+                emojiButton, clipboardButton, imageButton, voiceButton, toolsButton, toggleButton
+        };
+        for (ImageButton button : buttons) {
+            if (button == null) continue;
+            button.setColorFilter(iconTintColor, PorterDuff.Mode.SRC_IN);
+        }
+
+        if (ThemeEngine.isEnabled(getContext())) {
+            final ThemePalette palette = ThemeEngine.palette(getContext());
+            final ImageButton[] surfaced = { voiceButton, toolsButton, toggleButton };
+            for (ImageButton button : surfaced) {
+                if (button != null) {
+                    button.setBackground(ImeUiKit.roundedBackground(
+                            getContext(), palette.getFunctionalSurface(), 22.0f,
+                            palette.getBorder(), 0.7f));
+                }
+            }
+        }
     }
     
     /**
@@ -111,45 +124,41 @@ public class KeyboardTopBarView extends LinearLayout {
     }
     
     private void setupButtons() {
+        final ImageButton[] buttons = {
+                emojiButton, clipboardButton, imageButton, voiceButton, toolsButton, toggleButton
+        };
+        for (ImageButton button : buttons) {
+            if (button != null) ImeUiKit.applyPressMotion(button);
+        }
+
         emojiButton.setOnClickListener(v -> {
-            if (actionListener != null) {
-                actionListener.onEmojiButtonClicked();
-            }
+            if (actionListener != null) actionListener.onEmojiButtonClicked();
         });
-        
+
         clipboardButton.setOnClickListener(v -> {
-            if (actionListener != null) {
-                actionListener.onClipboardButtonClicked();
-            }
+            if (actionListener != null) actionListener.onClipboardButtonClicked();
         });
         clipboardButton.setOnLongClickListener(v -> {
             if (actionListener == null) return false;
+            v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
             actionListener.onClipboardHistoryRequested();
             return true;
         });
 
         imageButton.setOnClickListener(v -> {
-            if (actionListener != null) {
-                actionListener.onImageButtonClicked();
-            }
+            if (actionListener != null) actionListener.onImageButtonClicked();
         });
 
         voiceButton.setOnClickListener(v -> {
-            if (actionListener != null) {
-                actionListener.onVoiceButtonClicked();
-            }
+            if (actionListener != null) actionListener.onVoiceButtonClicked();
         });
-        
-        settingsButton.setOnClickListener(v -> {
-            if (actionListener != null) {
-                actionListener.onSettingsButtonClicked();
-            }
+
+        toolsButton.setOnClickListener(v -> {
+            if (actionListener != null) actionListener.onToolsButtonClicked();
         });
-        
+
         toggleButton.setOnClickListener(v -> {
-            if (actionListener != null) {
-                actionListener.onToggleButtonClicked();
-            }
+            if (actionListener != null) actionListener.onToggleButtonClicked();
         });
     }
     
@@ -164,6 +173,15 @@ public class KeyboardTopBarView extends LinearLayout {
         voiceButton.setAlpha(voiceEnabled ? 0.85f : 0.35f);
     }
     
+    public void setPanelOpen(boolean panelOpen) {
+        if (toolsButton == null) return;
+        toolsButton.setImageResource(panelOpen ? R.drawable.ic_clear : R.drawable.ic_tools_grid);
+        toolsButton.setContentDescription(getContext().getString(
+                panelOpen ? R.string.close_panel : R.string.show_keyboard_tools));
+        toolsButton.setAlpha(panelOpen ? 1.0f : 0.88f);
+        applyTheme();
+    }
+
     /**
      * Updates the emoji button appearance based on keyboard state.
      */
