@@ -68,7 +68,9 @@ dependencies {
     implementation 'androidx.emoji2:emoji2-bundled:1.7.0'
 
     implementation 'androidx.recyclerview:recyclerview:1.4.0'
-    implementation 'androidx.core:core:1.19.1'
+    // Core 1.19.x moved to API 37 / AGP 9.1. Core 1.18.0 is the newest
+    // stable release that still targets the requested API 36.1 toolchain.
+    implementation 'androidx.core:core:1.18.0'
 
     // Legacy PreferenceActivity screens still depend on Material Components Views.
     implementation 'com.google.android.material:material:1.14.0'
