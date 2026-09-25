@@ -1757,31 +1757,43 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         }
     }
     
+    private void hideUtilityPanelViews() {
+        final View[] panels = { mToolsGrid, mClipboardPanel, mTextEditingPanel, mTranslatePanel };
+        for (View panel : panels) {
+            if (panel == null) continue;
+            panel.animate().cancel();
+            panel.setVisibility(View.GONE);
+            panel.setAlpha(1.0f);
+            panel.setScaleX(1.0f);
+            panel.setScaleY(1.0f);
+            panel.setTranslationY(0.0f);
+        }
+    }
+
     /**
      * Shows the main keyboard and hides emoji keyboard.
      */
     private void showMainKeyboard() {
         if (mMainKeyboard != null && mEmojiKeyboard != null) {
+            hideUtilityPanelViews();
+            mActiveUtilityPanel = null;
+            mShowingClipboardHistory = false;
             mKeyboardSwitcher.updateTopContainerWidth(false);
             mMainKeyboard.setVisibility(View.VISIBLE);
             mEmojiKeyboard.setVisibility(View.GONE);
             mIsEmojiMode = false;
-            
+
             if (mTopBar != null) {
                 mTopBar.setEmojiMode(false);
+                mTopBar.setPanelOpen(false);
             }
-            
-            // Reset forced toolbar mode when switching back to main keyboard
+
             mForcedToolbarMode = false;
-            
-            // Show appropriate view based on current suggestions
             if (mSuggestionStrip != null && mSuggestionStrip.hasSuggestions()) {
                 showSuggestionsView();
             } else {
                 showToolbarView();
             }
-            
-            // Trigger inset recalculation for height change
             updateInputViewShown();
         }
     }
@@ -1791,19 +1803,21 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
      */
     private void showEmojiKeyboard() {
         if (mMainKeyboard != null && mEmojiKeyboard != null) {
+            hideUtilityPanelViews();
+            mActiveUtilityPanel = null;
+            mShowingClipboardHistory = false;
             mKeyboardSwitcher.updateTopContainerWidth(true);
             mMainKeyboard.setVisibility(View.GONE);
             mEmojiKeyboard.setVisibility(View.VISIBLE);
             mIsEmojiMode = true;
-            
+            mForcedToolbarMode = true;
+
             if (mTopBar != null) {
+                mTopBar.setPanelOpen(false);
                 mTopBar.setEmojiMode(true);
             }
-            
-            // Always show toolbar when in emoji mode
+
             showToolbarView();
-            
-            // Trigger inset recalculation for height change
             updateInputViewShown();
         }
     }
@@ -1950,62 +1964,11 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     }
 
     private void showClipboardHistory() {
-        if (mTopContainer == null || mClipboardHistoryBar == null
-                || !isClipboardHistoryAllowed(getCurrentInputEditorInfo())) return;
-        mClipboardHistoryBar.removeAllViews();
-        final android.widget.TextView close = new android.widget.TextView(this);
-        close.setText("✕");
-        close.setContentDescription(getString(R.string.clipboard_history_close));
-        close.setGravity(Gravity.CENTER);
-        close.setOnClickListener(v -> closeClipboardHistory());
-        mClipboardHistoryBar.addView(close, new android.widget.LinearLayout.LayoutParams(
-                Math.round(40 * getResources().getDisplayMetrics().density), LayoutParams.MATCH_PARENT));
-        final android.widget.TextView clear = new android.widget.TextView(this);
-        clear.setText("⌫");
-        clear.setContentDescription(getString(R.string.clipboard_history_clear));
-        clear.setGravity(Gravity.CENTER);
-        clear.setOnClickListener(v -> {
-            mClipboardHistory.clear();
-            showClipboardHistory();
-        });
-        mClipboardHistoryBar.addView(clear, new android.widget.LinearLayout.LayoutParams(
-                Math.round(40 * getResources().getDisplayMetrics().density), LayoutParams.MATCH_PARENT));
-        final java.util.List<String> entries = mClipboardHistory.entries();
-        if (entries.isEmpty()) {
-            final android.widget.TextView empty = new android.widget.TextView(this);
-            empty.setText(R.string.clipboard_history_empty);
-            empty.setGravity(Gravity.CENTER_VERTICAL);
-            mClipboardHistoryBar.addView(empty);
-        }
-        for (String entry : entries) {
-            final android.widget.TextView item = new android.widget.TextView(this);
-            item.setText(entry.replace('\n', ' '));
-            item.setSingleLine(true);
-            item.setEllipsize(TextUtils.TruncateAt.END);
-            item.setGravity(Gravity.CENTER);
-            item.setContentDescription(getString(R.string.clipboard_history_paste) + ": " + entry);
-            item.setOnClickListener(v -> {
-                if (isClipboardHistoryAllowed(getCurrentInputEditorInfo()) && mInputLogic != null) {
-                    mInputLogic.mConnection.commitText(entry, 1);
-                    mClipboardHistory.recordPaste(entry);
-                }
-                closeClipboardHistory();
-            });
-            mClipboardHistoryBar.addView(item, new android.widget.LinearLayout.LayoutParams(
-                    0, LayoutParams.MATCH_PARENT, 1));
-        }
-        mShowingClipboardHistory = true;
-        mTopContainer.setDisplayedChild(3);
+        showClipboardPanel();
     }
 
     private void closeClipboardHistory() {
-        mShowingClipboardHistory = false;
-        if (mClipboardHistoryBar != null) mClipboardHistoryBar.removeAllViews();
-        if (mSuggestionStrip != null && mSuggestionStrip.hasSuggestions() && !mForcedToolbarMode) {
-            showSuggestionsView();
-        } else {
-            showToolbarView();
-        }
+        closeUtilityPanel(true);
     }
     
     /**
@@ -2013,9 +1976,10 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
      */
     private void showToolbarView() {
         if (mTopContainer != null && mTopBar != null) {
-            mTopContainer.setDisplayedChild(0); // First child is toolbar
+            mTopContainer.setDisplayedChild(0);
             mShowingSuggestions = false;
             mTopBar.setShowingSuggestions(false);
+            mTopBar.setPanelOpen(mActiveUtilityPanel != null);
         }
     }
     
@@ -2023,9 +1987,14 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
      * Shows the suggestions view in the top container.
      */
     private void showSuggestionsView() {
+        if (mActiveUtilityPanel != null || mIsEmojiMode) {
+            showToolbarView();
+            return;
+        }
         if (mTopContainer != null && mTopBar != null) {
-            mTopContainer.setDisplayedChild(1); // Second child is suggestions
+            mTopContainer.setDisplayedChild(1);
             mShowingSuggestions = true;
+            mTopBar.setPanelOpen(false);
             mTopBar.setShowingSuggestions(true);
         }
     }
@@ -2034,15 +2003,15 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
      * Toggles the top container between toolbar and suggestions (manual override).
      */
     private void toggleTopContainer() {
+        if (mActiveUtilityPanel != null) {
+            closeUtilityPanel(true);
+            return;
+        }
         if (mShowingSuggestions) {
-            // Force toolbar view and remember this was a manual action
             mForcedToolbarMode = true;
             showToolbarView();
         } else {
-            // Allow auto-switching again
             mForcedToolbarMode = false;
-            
-            // If we have suggestions, show them; otherwise stay on toolbar
             if (mSuggestionStrip != null && mSuggestionStrip.hasSuggestions()) {
                 showSuggestionsView();
             }
