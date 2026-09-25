@@ -5,6 +5,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import org.junit.Test;
 import rkr.simplekeyboard.inputmethod.latin.utils.EmailSuggestionProvider;
@@ -65,5 +67,23 @@ public class SuggestionRegressionTest {
         List<String> suggestions = provider.getDomainCompletions("oba", "gm");
         assertEquals(Arrays.asList("oba@gmail.com"), suggestions);
         assertTrue(provider.getDomainCompletions("oba", "gmail.com").isEmpty());
+    }
+
+    @Test
+    public void autocorrectionOnlyUsesUnambiguousEditsAndRespectsRejection() {
+        HashSet<String> rejected = new HashSet<>();
+        assertEquals("the", AutoCorrectionPolicy.choose("teh",
+                Arrays.asList("teh", "the"), false, rejected));
+        assertEquals("Hello", AutoCorrectionPolicy.choose("Hella",
+                Collections.singletonList("hello"), false, rejected));
+        assertTrue(AutoCorrectionPolicy.choose("teh", Arrays.asList("the", "eth"),
+                false, rejected) == null);
+        assertTrue(AutoCorrectionPolicy.choose("teh", Collections.singletonList("the"),
+                true, rejected) == null);
+        rejected.add(AutoCorrectionPolicy.rejectionKey("teh", "the"));
+        assertTrue(AutoCorrectionPolicy.choose("teh", Collections.singletonList("the"),
+                false, rejected) == null);
+        assertTrue(AutoCorrectionPolicy.choose("مريم", Collections.singletonList("مرام"),
+                false, Collections.emptySet()) == null);
     }
 }

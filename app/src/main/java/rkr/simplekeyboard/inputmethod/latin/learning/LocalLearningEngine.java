@@ -45,6 +45,7 @@ public class LocalLearningEngine {
     private final java.util.Map<String, Long> recentUsage;
     private final java.util.List<String> dictionaryWords;
     private final Set<String> userWords;
+    private final Set<String> rejectedCorrections;
     
     private static final int MAX_SUGGESTIONS = 5;
     private static final int MAX_TYPO_SUGGESTIONS = 3;
@@ -67,6 +68,7 @@ public class LocalLearningEngine {
         this.recentUsage = new java.util.HashMap<>();
         this.dictionaryWords = new java.util.ArrayList<>();
         this.userWords = new HashSet<>();
+        this.rejectedCorrections = localStorage.getRejectedCorrections();
         
         // Initialize with bootstrap vocabulary
         initializeBootstrapData();
@@ -329,11 +331,30 @@ public class LocalLearningEngine {
      */
     public synchronized void clearAllData() {
         localStorage.clearAllData();
+        rejectedCorrections.clear();
         wordFrequency.clear();
         recentUsage.clear();
         wordLearningCounter = 0;
         saveLearningCounter = 0;
         rebuildModels();
+    }
+
+    public synchronized String getAutoCorrection(String typed, List<String> suggestions) {
+        return AutoCorrectionPolicy.choose(typed, suggestions,
+                wordTrie.contains(typed), rejectedCorrections);
+    }
+
+    public synchronized void rejectAutoCorrection(String typed, String replacement,
+            boolean allowPersonalLearning) {
+        if (!isValidWord(typed) || !isValidWord(replacement)) return;
+        if (rejectedCorrections.size() >= 200) {
+            rejectedCorrections.remove(rejectedCorrections.iterator().next());
+        }
+        rejectedCorrections.add(AutoCorrectionPolicy.rejectionKey(typed, replacement));
+        if (allowPersonalLearning) {
+            localStorage.saveRejectedCorrections(rejectedCorrections);
+            learnWord(typed);
+        }
     }
 
     private void rebuildModels() {

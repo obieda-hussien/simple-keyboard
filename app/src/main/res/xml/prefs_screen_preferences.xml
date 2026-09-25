@@ -57,6 +57,11 @@
         android:summary="Learn words on this device. Password and private fields are always excluded."
         android:defaultValue="true" />
     <CheckBoxPreference
+        android:key="pref_auto_correction"
+        android:title="@string/auto_correction_title"
+        android:summary="@string/auto_correction_summary"
+        android:defaultValue="false" />
+    <CheckBoxPreference
         android:key="pref_email_suggestions"
         android:title="@string/email_suggestions"
         android:summary="@string/email_suggestions_summary"

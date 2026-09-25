@@ -34,6 +34,7 @@ import rkr.simplekeyboard.inputmethod.latin.RichInputConnection;
 import rkr.simplekeyboard.inputmethod.latin.common.Constants;
 import rkr.simplekeyboard.inputmethod.latin.common.StringUtils;
 import rkr.simplekeyboard.inputmethod.latin.learning.LocalLearningEngine;
+import rkr.simplekeyboard.inputmethod.latin.settings.Settings;
 import rkr.simplekeyboard.inputmethod.latin.settings.SettingsValues;
 import rkr.simplekeyboard.inputmethod.latin.utils.InputTypeUtils;
 import rkr.simplekeyboard.inputmethod.latin.utils.EmailSuggestionProvider;
@@ -70,6 +71,21 @@ public final class InputLogic {
     
     // Current word being typed for suggestion purposes
     private StringBuilder mCurrentWord = new StringBuilder();
+    private String mCorrectionWord;
+    private String mCorrectionCandidate;
+    private PendingCorrection mPendingCorrection;
+
+    private static final class PendingCorrection {
+        final String original;
+        final String replacement;
+        final EditorInfo editor;
+
+        PendingCorrection(String original, String replacement, EditorInfo editor) {
+            this.original = original;
+            this.replacement = replacement;
+            this.editor = editor;
+        }
+    }
 
     public final TreeSet<Long> mCurrentlyPressedHardwareKeys = new TreeSet<>();
 
@@ -143,6 +159,7 @@ public final class InputLogic {
     public void startInput() {
         suggestionHandler.removeCallbacks(suggestionUpdate);
         suggestionGeneration++;
+        resetCorrectionState();
         mRecapitalizeStatus.disable(); // Do not perform recapitalize until the cursor is moved once
         mCurrentlyPressedHardwareKeys.clear();
         mCurrentWord.setLength(0); // Clear current word tracking
@@ -158,6 +175,8 @@ public final class InputLogic {
 
     public void finishInput() {
         suggestionHandler.removeCallbacks(suggestionUpdate);
+        suggestionGeneration++;
+        resetCorrectionState();
         mCurrentWord.setLength(0);
     }
 
@@ -172,6 +191,7 @@ public final class InputLogic {
      * @return the complete transaction object
      */
     public InputTransaction onTextInput(final SettingsValues settingsValues, final Event event) {
+        mPendingCorrection = null;
         final String rawText = event.getTextToCommit().toString();
         final InputTransaction inputTransaction = new InputTransaction(settingsValues);
         final String text = performSpecificTldProcessingOnTextInput(rawText);
@@ -196,6 +216,7 @@ public final class InputLogic {
         if (cursorMoved) {
             suggestionGeneration++;
             suggestionHandler.removeCallbacks(suggestionUpdate);
+            resetCorrectionState();
             mCurrentWord.setLength(0);
             // Surrounding text is loaded asynchronously; LatinIME requests suggestions when ready.
         }
@@ -274,6 +295,7 @@ public final class InputLogic {
      * @param inputTransaction The transaction in progress.
      */
     private void handleFunctionalEvent(final Event event, final InputTransaction inputTransaction) {
+        if (event.mKeyCode != Constants.CODE_DELETE) mPendingCorrection = null;
         switch (event.mKeyCode) {
             case Constants.CODE_DELETE:
                 handleBackspaceEvent(event, inputTransaction);
@@ -388,6 +410,7 @@ public final class InputLogic {
      * @param event The event to handle.
      */
     private void handleNonSeparatorEvent(final Event event) {
+        mPendingCorrection = null;
         final char character = (char) event.mCodePoint;
         
         // Commit first so suggestions read a consistent editor state.
@@ -404,14 +427,36 @@ public final class InputLogic {
      * @param inputTransaction The transaction in progress.
      */
     private void handleSeparatorEvent(final Event event, final InputTransaction inputTransaction) {
+        final String typedWord = mCurrentWord.toString();
+        final boolean allowLearning = shouldLearn();
+        final String previousContext = allowLearning ? getPreviousContext() : "";
+        final int codePoint = event.mCodePoint;
+        String completedWord = typedWord;
+        mPendingCorrection = null;
+        if (codePoint == Constants.CODE_SPACE && !typedWord.isEmpty()
+                && typedWord.equals(mCorrectionWord) && mCorrectionCandidate != null
+                && canAutoCorrect() && !mConnection.hasSelection()) {
+            String before = mConnection.getTextBeforeCursor();
+            if (before != null && before.endsWith(typedWord)) {
+                mConnection.beginBatchEdit();
+                try {
+                    mConnection.deleteTextBeforeCursor(typedWord.length());
+                    mConnection.commitText(mCorrectionCandidate, 1);
+                } finally {
+                    mConnection.endBatchEdit();
+                }
+                completedWord = mCorrectionCandidate;
+                mPendingCorrection = new PendingCorrection(typedWord, completedWord,
+                        getCurrentInputEditorInfo());
+            }
+        }
         // Learn from completed word before handling separator
-        if (mCurrentWord.length() > 0 && shouldLearn()) {
-            String completedWord = mCurrentWord.toString();
-            String previousContext = getPreviousContext();
+        if (!completedWord.isEmpty() && allowLearning) {
+            final String wordToLearn = completedWord;
             learnOnWorker(engine -> {
-                engine.learnWord(completedWord);
+                engine.learnWord(wordToLearn);
                 if (!TextUtils.isEmpty(previousContext)) {
-                    engine.learnFromInput(previousContext + " " + completedWord);
+                    engine.learnFromInput(previousContext + " " + wordToLearn);
                 }
             });
             
@@ -419,12 +464,13 @@ public final class InputLogic {
         }
         
         // Check if this separator indicates sentence completion
-        int codePoint = event.mCodePoint;
         if (codePoint == '.' || codePoint == '!' || codePoint == '?') {
             learnFromCurrentSentence(); // Learn from the completed sentence
         }
         
         mCurrentWord.setLength(0);
+        mCorrectionWord = null;
+        mCorrectionCandidate = null;
         sendKeyCodePoint(event.mCodePoint);
         
         // Update suggestions after separator
@@ -439,6 +485,10 @@ public final class InputLogic {
      * @param inputTransaction The transaction in progress.
      */
     private void handleBackspaceEvent(final Event event, final InputTransaction inputTransaction) {
+        if (restoreAutoCorrection()) {
+            inputTransaction.requireShiftUpdate(InputTransaction.SHIFT_UPDATE_NOW);
+            return;
+        }
         // Update current word tracking
         if (mCurrentWord.length() > 0) {
             int start = Character.offsetByCodePoints(mCurrentWord, mCurrentWord.length(), -1);
@@ -481,6 +531,50 @@ public final class InputLogic {
                 mConnection.deleteTextBeforeCursor(numChars);
             }
         }
+    }
+
+    private boolean restoreAutoCorrection() {
+        PendingCorrection pending = mPendingCorrection;
+        mPendingCorrection = null;
+        if (pending == null || pending.editor != getCurrentInputEditorInfo()
+                || mConnection.hasSelection()) return false;
+        String before = mConnection.getTextBeforeCursor();
+        String corrected = pending.replacement + " ";
+        if (before == null || !before.endsWith(corrected)) return false;
+        mConnection.beginBatchEdit();
+        try {
+            mConnection.deleteTextBeforeCursor(corrected.length());
+            mConnection.commitText(pending.original, 1);
+        } finally {
+            mConnection.endBatchEdit();
+        }
+        mCurrentWord.setLength(0);
+        mCurrentWord.append(pending.original);
+        final boolean allowPersonalLearning = shouldLearn();
+        learningWorker.execute(() -> {
+            LocalLearningEngine engine = getLearningEngine();
+            if (engine != null) {
+                engine.rejectAutoCorrection(pending.original, pending.replacement,
+                        allowPersonalLearning);
+            }
+        });
+        updateSuggestions();
+        return true;
+    }
+
+    private boolean canAutoCorrect() {
+        SettingsValues values = mLatinIME.getSettingsValues();
+        return !isPrivateField() && values != null && values.mInputAttributes != null
+                && !values.mInputAttributes.mInputTypeNoAutoCorrect
+                && rkr.simplekeyboard.inputmethod.compat.PreferenceManagerCompat
+                .getDeviceSharedPreferences(mLatinIME)
+                .getBoolean(Settings.PREF_AUTO_CORRECTION, false);
+    }
+
+    private void resetCorrectionState() {
+        mCorrectionWord = null;
+        mCorrectionCandidate = null;
+        mPendingCorrection = null;
     }
 
     /**
@@ -761,6 +855,8 @@ public final class InputLogic {
     private void updateContextualSuggestions() {
         suggestionGeneration++;
         suggestionHandler.removeCallbacks(suggestionUpdate);
+        mCorrectionWord = null;
+        mCorrectionCandidate = null;
         if (isEmailSuggestionField()) {
             updateSuggestions();
             return;
@@ -811,6 +907,8 @@ public final class InputLogic {
     private void updateSuggestions() {
         suggestionHandler.removeCallbacks(suggestionUpdate);
         suggestionGeneration++;
+        mCorrectionWord = null;
+        mCorrectionCandidate = null;
         if (isPrivateField() && !isEmailSuggestionField()) {
             mLatinIME.updateSuggestionStrip(java.util.Collections.emptyList());
             return;
@@ -839,6 +937,7 @@ public final class InputLogic {
         }
         final String currentWord = mCurrentWord.toString();
         final String previousContext = getPreviousContext();
+        final boolean allowCorrection = canAutoCorrect();
         
         // Fall back to regular learning-based suggestions
         learningWorker.execute(() -> {
@@ -846,15 +945,24 @@ public final class InputLogic {
             LocalLearningEngine engine = getLearningEngine();
             List<String> suggestions = engine == null ? java.util.Collections.emptyList()
                     : engine.getSuggestions(currentWord, previousContext);
-            deliverSuggestions(generation, editor, suggestions);
+            String correction = allowCorrection && engine != null
+                    ? engine.getAutoCorrection(currentWord, suggestions) : null;
+            deliverSuggestions(generation, editor, suggestions, currentWord, correction);
         });
     }
 
     private void deliverSuggestions(int generation, EditorInfo editor, List<String> suggestions) {
+        deliverSuggestions(generation, editor, suggestions, null, null);
+    }
+
+    private void deliverSuggestions(int generation, EditorInfo editor, List<String> suggestions,
+            String word, String correction) {
         suggestionHandler.post(() -> {
             if (!learningClosed && generation == suggestionGeneration
                     && editor == getCurrentInputEditorInfo()
                     && (!isPrivateField() || isEmailSuggestionField())) {
+                mCorrectionWord = correction == null ? null : word;
+                mCorrectionCandidate = correction;
                 mLatinIME.updateSuggestionStrip(suggestions);
             }
         });
@@ -1027,6 +1135,7 @@ public final class InputLogic {
      * Handles suggestion selection from the suggestion strip.
      */
     public void onSuggestionSelected(String suggestion) {
+        mPendingCorrection = null;
         if (isEmailSuggestionField() && suggestion != null && suggestion.contains("@")) {
             String before = mConnection.getTextBeforeCursor();
             if (before != null) {

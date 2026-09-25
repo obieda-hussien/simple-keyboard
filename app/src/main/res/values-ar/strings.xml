@@ -30,6 +30,8 @@
     <string name="one_handed_off">إيقاف</string>
     <string name="one_handed_left">اليسار</string>
     <string name="one_handed_right">اليمين</string>
+    <string name="auto_correction_title">تصحيح تلقائي محافظ</string>
+    <string name="auto_correction_summary">تصحيح الأخطاء الواضحة عند المسافة؛ اضغط الحذف لاسترجاع كلمتك</string>
     <string name="email_suggestions_summary">إكمال نطاقات البريد الشائعة في حقول البريد</string>
     <string name="account_email_suggestions">اقتراح عناوين حسابات الجهاز</string>
     <string name="account_email_suggestions_summary">طلب صلاحية الحسابات؛ قد يُظهر أندرويد الحسابات المتاحة للتطبيق فقط</string>

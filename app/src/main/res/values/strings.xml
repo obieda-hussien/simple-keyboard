@@ -128,6 +128,8 @@
     <string name="one_handed_off">Off</string>
     <string name="one_handed_left">Left</string>
     <string name="one_handed_right">Right</string>
+    <string name="auto_correction_title">Conservative autocorrect</string>
+    <string name="auto_correction_summary">Correct clear typos on space; press Backspace to restore the original</string>
     <string name="delete_swipe">Delete swipe</string>
     
     <!-- Email suggestion preferences -->
