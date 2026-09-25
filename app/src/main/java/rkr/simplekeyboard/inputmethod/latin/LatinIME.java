@@ -1296,6 +1296,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
      */
     private void showMainKeyboard() {
         if (mMainKeyboard != null && mEmojiKeyboard != null) {
+            mKeyboardSwitcher.updateTopContainerWidth(false);
             mMainKeyboard.setVisibility(View.VISIBLE);
             mEmojiKeyboard.setVisibility(View.GONE);
             mIsEmojiMode = false;
@@ -1324,6 +1325,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
      */
     private void showEmojiKeyboard() {
         if (mMainKeyboard != null && mEmojiKeyboard != null) {
+            mKeyboardSwitcher.updateTopContainerWidth(true);
             mMainKeyboard.setVisibility(View.GONE);
             mEmojiKeyboard.setVisibility(View.VISIBLE);
             mIsEmojiMode = true;

@@ -28,6 +28,7 @@ import android.view.LayoutInflater;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.view.WindowInsets;
 import android.view.inputmethod.EditorInfo;
 
@@ -56,6 +57,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     private Insets mInsets;
     private View mMainKeyboardFrame;
     private MainKeyboardView mKeyboardView;
+    private boolean mOneHanded;
     private LatinIME mLatinIME;
     private RichInputMethodManager mRichImm;
 
@@ -128,6 +130,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         boolean oneHanded = res.getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT
                 && res.getConfiguration().smallestScreenWidthDp < 600
                 && ("left".equals(oneHandedMode) || "right".equals(oneHandedMode));
+        mOneHanded = oneHanded;
         int minWidth = (int) (280 * res.getDisplayMetrics().density + 0.5f);
         final int keyboardWidth = oneHanded
                 ? Math.min(fullWidth, Math.max(minWidth, Math.round(fullWidth * 0.78f)))
@@ -139,6 +142,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
                     ? Gravity.RIGHT : Gravity.LEFT;
             mKeyboardView.setLayoutParams(params);
         }
+        updateTopContainerWidth(false);
         final int keyboardHeight = ResourceUtils.getKeyboardHeight(res, settingsValues);
         final int keyboardBottomOffset = ResourceUtils.getKeyboardBottomOffset(res, settingsValues);
         builder.setKeyboardTheme(mKeyboardTheme.mThemeId);
@@ -161,6 +165,17 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         if (mKeyboardView != null) {
             mKeyboardView.onHideWindow();
         }
+    }
+
+    public void updateTopContainerWidth(boolean emojiMode) {
+        if (mMainKeyboardFrame == null || mKeyboardView == null) return;
+        View top = mMainKeyboardFrame.findViewById(R.id.top_container);
+        if (top == null) return;
+        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) top.getLayoutParams();
+        params.width = emojiMode || !mOneHanded
+                ? LinearLayout.LayoutParams.MATCH_PARENT : mKeyboardView.getLayoutParams().width;
+        params.gravity = ((FrameLayout.LayoutParams) mKeyboardView.getLayoutParams()).gravity;
+        top.setLayoutParams(params);
     }
 
     private void setKeyboard(
