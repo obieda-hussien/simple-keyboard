@@ -117,6 +117,12 @@
     <string name="pref_enable_ime_switch">Switch to other keyboards</string>
     <string name="show_number_row">Show separate number row</string>
     <string name="space_swipe">Space swipe cursor move</string>
+    <string name="a11y_key_delete">Delete</string>
+    <string name="a11y_key_space">Space</string>
+    <string name="a11y_key_shift">Shift</string>
+    <string name="a11y_key_enter">Enter</string>
+    <string name="a11y_key_symbols">Symbols</string>
+    <string name="a11y_key_language">Switch language</string>
     <string name="delete_swipe">Delete swipe</string>
     
     <!-- Email suggestion preferences -->

@@ -24,6 +24,7 @@ import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.Paint.Align;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
@@ -32,7 +33,14 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityManager;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityNodeProvider;
+import android.os.Bundle;
 
+import java.util.List;
 import java.util.WeakHashMap;
 
 import rkr.simplekeyboard.inputmethod.R;
@@ -97,6 +105,7 @@ public final class MainKeyboardView extends KeyboardView implements MoreKeysPane
 
     /** Listener for {@link KeyboardActionListener}. */
     private KeyboardActionListener mKeyboardActionListener;
+    private KeyboardKeyAccessibilityProvider mAccessibilityProvider;
 
     /* Space key and its icon and background. */
     private Key mSpaceKey;
@@ -209,6 +218,7 @@ public final class MainKeyboardView extends KeyboardView implements MoreKeysPane
                 altCodeKeyWhileTypingFadeinAnimatorResId, this);
 
         mKeyboardActionListener = KeyboardActionListener.EMPTY_LISTENER;
+        setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
 
         mLanguageOnSpacebarHorizontalMargin = (int)getResources().getDimension(
                 R.dimen.config_language_on_spacebar_horizontal_margin);
@@ -294,6 +304,7 @@ public final class MainKeyboardView extends KeyboardView implements MoreKeysPane
      */
     @Override
     public void setKeyboard(final Keyboard keyboard) {
+        if (mAccessibilityProvider != null) mAccessibilityProvider.clearFocus();
         // Remove any pending messages, except dismissing preview and key repeat.
         mTimerHandler.cancelLongPressTimers();
         super.setKeyboard(keyboard);
@@ -305,6 +316,182 @@ public final class MainKeyboardView extends KeyboardView implements MoreKeysPane
         mSpaceKey = keyboard.getKey(Constants.CODE_SPACE);
         final int keyHeight = keyboard.mMostCommonKeyHeight;
         mLanguageOnSpacebarTextSize = keyHeight * mLanguageOnSpacebarTextRatio;
+        if (mAccessibilityProvider != null) {
+            sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
+        }
+    }
+
+    @Override
+    public AccessibilityNodeProvider getAccessibilityNodeProvider() {
+        if (mAccessibilityProvider == null) {
+            mAccessibilityProvider = new KeyboardKeyAccessibilityProvider();
+        }
+        return mAccessibilityProvider;
+    }
+
+    @Override
+    public boolean dispatchHoverEvent(MotionEvent event) {
+        AccessibilityManager manager = (AccessibilityManager) getContext()
+                .getSystemService(Context.ACCESSIBILITY_SERVICE);
+        if (manager != null && manager.isTouchExplorationEnabled() && getKeyboard() != null) {
+            if (mAccessibilityProvider == null) {
+                mAccessibilityProvider = new KeyboardKeyAccessibilityProvider();
+            }
+            return mAccessibilityProvider.onHover(event) || super.dispatchHoverEvent(event);
+        }
+        return super.dispatchHoverEvent(event);
+    }
+
+    private final class KeyboardKeyAccessibilityProvider extends AccessibilityNodeProvider {
+        private int focusedId = View.NO_ID;
+        private int hoveredId = View.NO_ID;
+
+        private Key keyForId(int id) {
+            Keyboard keyboard = getKeyboard();
+            if (keyboard == null || id < 0 || id >= keyboard.getSortedKeys().size()) return null;
+            Key key = keyboard.getSortedKeys().get(id);
+            return key.isSpacer() ? null : key;
+        }
+
+        private CharSequence description(Key key) {
+            switch (key.getCode()) {
+                case Constants.CODE_DELETE: return getContext().getString(R.string.a11y_key_delete);
+                case Constants.CODE_SPACE: return getContext().getString(R.string.a11y_key_space);
+                case Constants.CODE_SHIFT: return getContext().getString(R.string.a11y_key_shift);
+                case Constants.CODE_ENTER: return getContext().getString(R.string.a11y_key_enter);
+                case Constants.CODE_SWITCH_ALPHA_SYMBOL:
+                    return getContext().getString(R.string.a11y_key_symbols);
+                case Constants.CODE_LANGUAGE_SWITCH:
+                    return getContext().getString(R.string.a11y_key_language);
+                default:
+                    if (key.getCode() == Constants.CODE_OUTPUT_TEXT && key.getOutputText() != null) {
+                        return key.getOutputText();
+                    }
+                    if (key.getLabel() != null && !key.getLabel().isEmpty()) return key.getLabel();
+                    return Constants.printableCode(key.getCode());
+            }
+        }
+
+        @Override
+        public AccessibilityNodeInfo createAccessibilityNodeInfo(int id) {
+            Keyboard keyboard = getKeyboard();
+            if (keyboard == null) return null;
+            if (id == HOST_VIEW_ID) {
+                AccessibilityNodeInfo host = AccessibilityNodeInfo.obtain(MainKeyboardView.this);
+                host.setClassName(MainKeyboardView.class.getName());
+                List<Key> keys = keyboard.getSortedKeys();
+                for (int i = 0; i < keys.size(); i++) {
+                    if (!keys.get(i).isSpacer()) host.addChild(MainKeyboardView.this, i);
+                }
+                return host;
+            }
+            Key key = keyForId(id);
+            if (key == null) return null;
+            AccessibilityNodeInfo node = AccessibilityNodeInfo.obtain();
+            node.setSource(MainKeyboardView.this, id);
+            node.setParent(MainKeyboardView.this);
+            node.setPackageName(getContext().getPackageName());
+            node.setClassName(android.widget.Button.class.getName());
+            node.setContentDescription(description(key));
+            node.setEnabled(isEnabled());
+            node.setClickable(true);
+            node.setFocusable(true);
+            node.addAction(AccessibilityNodeInfo.ACTION_CLICK);
+            node.setAccessibilityFocused(id == focusedId);
+            node.addAction(id == focusedId ? AccessibilityNodeInfo.ACTION_CLEAR_ACCESSIBILITY_FOCUS
+                    : AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS);
+            Rect bounds = new Rect(key.getX() + getPaddingLeft(), key.getY() + getPaddingTop(),
+                    key.getX() + key.getWidth() + getPaddingLeft(),
+                    key.getY() + key.getHeight() + getPaddingTop());
+            node.setBoundsInParent(bounds);
+            int[] screen = new int[2];
+            getLocationOnScreen(screen);
+            bounds.offset(screen[0], screen[1]);
+            node.setBoundsInScreen(bounds);
+            return node;
+        }
+
+        @Override
+        public boolean performAction(int id, int action, Bundle arguments) {
+            if (id == HOST_VIEW_ID) return performAccessibilityAction(action, arguments);
+            Key key = keyForId(id);
+            if (key == null) return false;
+            if (action == AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS) {
+                if (focusedId == id) return false;
+                clearFocus();
+                focusedId = id;
+                sendKeyEvent(id, AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED);
+                return true;
+            }
+            if (action == AccessibilityNodeInfo.ACTION_CLEAR_ACCESSIBILITY_FOCUS) {
+                if (focusedId != id) return false;
+                clearFocus();
+                return true;
+            }
+            if (action != AccessibilityNodeInfo.ACTION_CLICK || !isEnabled()) return false;
+            int code = key.getCode();
+            sendKeyEvent(id, AccessibilityEvent.TYPE_VIEW_CLICKED);
+            mKeyboardActionListener.onPressKey(code, 0, true);
+            if (code == Constants.CODE_OUTPUT_TEXT && key.getOutputText() != null) {
+                mKeyboardActionListener.onTextInput(key.getOutputText());
+            } else {
+                mKeyboardActionListener.onCodeInput(code, Constants.NOT_A_COORDINATE,
+                        Constants.NOT_A_COORDINATE, false);
+            }
+            mKeyboardActionListener.onReleaseKey(code, false);
+            return true;
+        }
+
+        @Override
+        public AccessibilityNodeInfo findFocus(int focus) {
+            return focus == AccessibilityNodeInfo.FOCUS_ACCESSIBILITY && focusedId != View.NO_ID
+                    ? createAccessibilityNodeInfo(focusedId) : null;
+        }
+
+        void clearFocus() {
+            if (focusedId == View.NO_ID) return;
+            int old = focusedId;
+            focusedId = View.NO_ID;
+            sendKeyEvent(old, AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUS_CLEARED);
+        }
+
+        boolean onHover(MotionEvent event) {
+            int action = event.getActionMasked();
+            if (action != MotionEvent.ACTION_HOVER_ENTER && action != MotionEvent.ACTION_HOVER_MOVE
+                    && action != MotionEvent.ACTION_HOVER_EXIT) return false;
+            int next = View.NO_ID;
+            if (action != MotionEvent.ACTION_HOVER_EXIT) {
+                List<Key> keys = getKeyboard().getSortedKeys();
+                int x = (int) event.getX() - getPaddingLeft();
+                int y = (int) event.getY() - getPaddingTop();
+                for (int i = 0; i < keys.size(); i++) {
+                    if (!keys.get(i).isSpacer() && keys.get(i).isOnKey(x, y)) {
+                        next = i;
+                        break;
+                    }
+                }
+            }
+            if (next != hoveredId) {
+                if (hoveredId != View.NO_ID) {
+                    sendKeyEvent(hoveredId, AccessibilityEvent.TYPE_VIEW_HOVER_EXIT);
+                }
+                hoveredId = next;
+                if (next != View.NO_ID) sendKeyEvent(next, AccessibilityEvent.TYPE_VIEW_HOVER_ENTER);
+            }
+            return next != View.NO_ID || action == MotionEvent.ACTION_HOVER_EXIT;
+        }
+
+        private void sendKeyEvent(int id, int type) {
+            Key key = keyForId(id);
+            ViewParent parent = getParent();
+            if (key == null || parent == null) return;
+            AccessibilityEvent event = AccessibilityEvent.obtain(type);
+            event.setSource(MainKeyboardView.this, id);
+            event.setPackageName(getContext().getPackageName());
+            event.setClassName(android.widget.Button.class.getName());
+            event.setContentDescription(description(key));
+            parent.requestSendAccessibilityEvent(MainKeyboardView.this, event);
+        }
     }
 
     /**
