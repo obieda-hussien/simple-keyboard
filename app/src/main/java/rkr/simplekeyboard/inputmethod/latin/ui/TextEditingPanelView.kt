@@ -114,7 +114,11 @@ class TextEditingPanelView @JvmOverloads constructor(
     }
 
     fun setLanguageLocale(locale: Locale?) {
-        layoutDirection = ImeUiKit.layoutDirection(locale)
+        // Cursor arrows remain physical left/right in both Arabic and Latin layouts.
+        layoutDirection = View.LAYOUT_DIRECTION_LTR
+        ImeUiKit.applyTextDirection(title, title.text, locale)
+        title.gravity = if (ImeUiKit.layoutDirection(locale) == View.LAYOUT_DIRECTION_RTL)
+            Gravity.RIGHT or Gravity.CENTER_VERTICAL else Gravity.LEFT or Gravity.CENTER_VERTICAL
     }
 
     fun updateState(hasSelection: Boolean, canPaste: Boolean) {
