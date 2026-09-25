@@ -98,15 +98,12 @@ public class LocalLearningEngine {
         List<String> candidateSuggestions = new ArrayList<>();
         String fullText = (previousContext != null ? previousContext + " " : "") + (currentWord != null ? currentWord : "");
         
-        // Check for calculator expressions first (highest priority for special suggestions)
-        if (CalculatorUtils.isMathExpression(fullText.trim())) {
-            String result = CalculatorUtils.evaluateMathExpression(fullText.trim());
-            if (result != null) {
-                String calcSuggestion = CalculatorUtils.createCalculationSuggestion(fullText.trim(), result);
-                if (calcSuggestion != null) {
-                    candidateSuggestions.add(calcSuggestion);
-                }
-            }
+        // Evaluate once per update; the calculator already performs bounded expression detection.
+        String calculationResult = CalculatorUtils.evaluateMathExpression(fullText.trim());
+        if (calculationResult != null) {
+            String calcSuggestion =
+                    CalculatorUtils.createCalculationSuggestion(fullText.trim(), calculationResult);
+            if (calcSuggestion != null) candidateSuggestions.add(calcSuggestion);
         }
         
         // Clipboard content is inserted only from the explicit toolbar action.
