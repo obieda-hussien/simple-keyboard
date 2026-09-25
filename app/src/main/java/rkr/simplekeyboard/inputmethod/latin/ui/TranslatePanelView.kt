@@ -108,13 +108,13 @@ class TranslatePanelView @JvmOverloads constructor(
         }
         configureAction(replaceButton, R.string.translate_replace) {
             val value = result.text?.toString().orEmpty()
-            if (value.isNotBlank() && value != context.getString(R.string.translate_result_hint)) {
+            if (value.isNotBlank() && value != ImeUiKit.string(context, locale, R.string.translate_result_hint)) {
                 listener?.onReplaceTranslation(value)
             }
         }
         configureAction(insertButton, R.string.translate_insert) {
             val value = result.text?.toString().orEmpty()
-            if (value.isNotBlank() && value != context.getString(R.string.translate_result_hint)) {
+            if (value.isNotBlank() && value != ImeUiKit.string(context, locale, R.string.translate_result_hint)) {
                 listener?.onInsertTranslation(value)
             }
         }
@@ -138,10 +138,18 @@ class TranslatePanelView @JvmOverloads constructor(
         locale = value
         // Structural controls stay in fixed positions; source/result text independently follows bidi.
         layoutDirection = android.view.View.LAYOUT_DIRECTION_LTR
-        sourceLanguage.text = value?.displayLanguage?.takeIf { it.isNotBlank() }
-            ?: context.getString(R.string.translate_auto)
+        sourceLanguage.text = value?.getDisplayLanguage(value)?.takeIf { it.isNotBlank() }
+            ?: ImeUiKit.string(context, value, R.string.translate_auto)
+        targetLanguage.text = ImeUiKit.string(context, value, R.string.translate_external_app)
+        close.contentDescription = ImeUiKit.string(context, value, R.string.close_panel)
+        translateButton.text = ImeUiKit.string(context, value, R.string.translate_action)
+        replaceButton.text = ImeUiKit.string(context, value, R.string.translate_replace)
+        insertButton.text = ImeUiKit.string(context, value, R.string.translate_insert)
         ImeUiKit.applyTextDirection(sourceLanguage, sourceLanguage.text, value)
         ImeUiKit.applyTextDirection(targetLanguage, targetLanguage.text, value)
+        ImeUiKit.applyTextDirection(translateButton, translateButton.text, value)
+        ImeUiKit.applyTextDirection(replaceButton, replaceButton.text, value)
+        ImeUiKit.applyTextDirection(insertButton, insertButton.text, value)
     }
 
     fun setCanReplaceSource(value: Boolean) {
@@ -151,21 +159,21 @@ class TranslatePanelView @JvmOverloads constructor(
 
     fun setSourceText(value: CharSequence?) {
         source.text = value?.takeIf { it.isNotBlank() }
-            ?: context.getString(R.string.translate_source_hint)
+            ?: ImeUiKit.string(context, locale, R.string.translate_source_hint)
         ImeUiKit.applyTextDirection(source, source.text, locale)
         setResultText(null)
     }
 
     fun setResultText(value: CharSequence?) {
         result.text = value?.takeIf { it.isNotBlank() }
-            ?: context.getString(R.string.translate_result_hint)
+            ?: ImeUiKit.string(context, locale, R.string.translate_result_hint)
         ImeUiKit.applyTextDirection(result, result.text, locale)
         updateResultActions()
     }
 
     private fun updateResultActions() {
         val hasResult = result.text?.toString()?.let {
-            it.isNotBlank() && it != context.getString(R.string.translate_result_hint)
+            it.isNotBlank() && it != ImeUiKit.string(context, locale, R.string.translate_result_hint)
         } == true
         replaceButton.isEnabled = hasResult && canReplaceSource
         insertButton.isEnabled = hasResult
