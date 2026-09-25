@@ -22,6 +22,7 @@ public final class KeyboardActionActivity extends Activity {
     public static final String EXTRA_TEXT = "text";
     public static final String EXTRA_URI = "uri";
     public static final String EXTRA_MIME = "mime";
+    public static final String EXTRA_EDITOR_GENERATION = "editor_generation";
 
     public static final String MODE_VOICE = "voice";
     public static final String MODE_IMAGE = "image";
@@ -137,6 +138,8 @@ public final class KeyboardActionActivity extends Activity {
     private void sendResult(String action, String key, String value,
             String secondKey, String secondValue) {
         final Intent result = new Intent(action).setPackage(getPackageName());
+        result.putExtra(EXTRA_EDITOR_GENERATION,
+                getIntent().getIntExtra(EXTRA_EDITOR_GENERATION, -1));
         result.putExtra(key, value);
         if (secondKey != null) result.putExtra(secondKey, secondValue);
         sendBroadcast(result);
