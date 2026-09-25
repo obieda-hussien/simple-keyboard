@@ -55,6 +55,8 @@ import kotlin.math.roundToInt
 class ThemeStudioActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ThemeEngine.setEnabled(this, true)
+        ThemeManager.getInstance(this).refreshTheme()
         setContent {
             MaterialTheme {
                 ThemeStudioScreen(onBack = { finish() })
