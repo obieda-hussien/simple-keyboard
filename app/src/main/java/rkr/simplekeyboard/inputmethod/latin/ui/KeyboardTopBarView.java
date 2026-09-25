@@ -157,11 +157,11 @@ public class KeyboardTopBarView extends LinearLayout {
         this.actionListener = listener;
     }
 
-    public void setMediaActionsEnabled(boolean enabled) {
-        imageButton.setEnabled(enabled);
-        imageButton.setAlpha(enabled ? 0.85f : 0.35f);
-        voiceButton.setEnabled(enabled);
-        voiceButton.setAlpha(enabled ? 0.85f : 0.35f);
+    public void setMediaActionsEnabled(boolean imageEnabled, boolean voiceEnabled) {
+        imageButton.setEnabled(imageEnabled);
+        imageButton.setAlpha(imageEnabled ? 0.85f : 0.35f);
+        voiceButton.setEnabled(voiceEnabled);
+        voiceButton.setAlpha(voiceEnabled ? 0.85f : 0.35f);
     }
     
     /**
