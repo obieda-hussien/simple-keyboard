@@ -142,7 +142,8 @@ private fun ThemeStudioScreen(onBack: () -> Unit) {
                 valueRange = 0f..360f,
                 valueText = "${profile.hue.roundToInt()}°",
                 palette = palette,
-                onChanged = { persist(profile.copy(hue = it, dynamicColor = false)) }
+                onChanged = { profile = profile.copy(hue = it, dynamicColor = false) },
+                onCommit = { persist(profile.copy(hue = it, dynamicColor = false)) }
             )
             ThemeSlider(
                 label = stringResource(R.string.theme_studio_saturation),
@@ -150,7 +151,8 @@ private fun ThemeStudioScreen(onBack: () -> Unit) {
                 valueRange = 0f..1f,
                 valueText = "${(profile.saturation * 100).roundToInt()}%",
                 palette = palette,
-                onChanged = { persist(profile.copy(saturation = it)) }
+                onChanged = { profile = profile.copy(saturation = it) },
+                onCommit = { persist(profile.copy(saturation = it)) }
             )
             ThemeSlider(
                 label = stringResource(R.string.theme_studio_surface_tone),
@@ -158,7 +160,8 @@ private fun ThemeStudioScreen(onBack: () -> Unit) {
                 valueRange = 0.02f..0.96f,
                 valueText = "${(profile.surfaceTone * 100).roundToInt()}%",
                 palette = palette,
-                onChanged = { persist(profile.copy(surfaceTone = it)) }
+                onChanged = { profile = profile.copy(surfaceTone = it) },
+                onCommit = { persist(profile.copy(surfaceTone = it)) }
             )
             ThemeSlider(
                 label = stringResource(R.string.theme_studio_corner_radius),
@@ -166,7 +169,8 @@ private fun ThemeStudioScreen(onBack: () -> Unit) {
                 valueRange = 2f..28f,
                 valueText = "${profile.cornerRadiusDp.roundToInt()} dp",
                 palette = palette,
-                onChanged = { persist(profile.copy(cornerRadiusDp = it)) }
+                onChanged = { profile = profile.copy(cornerRadiusDp = it) },
+                onCommit = { persist(profile.copy(cornerRadiusDp = it)) }
             )
             ThemeSlider(
                 label = stringResource(R.string.theme_studio_key_spacing),
@@ -174,7 +178,8 @@ private fun ThemeStudioScreen(onBack: () -> Unit) {
                 valueRange = 0f..7f,
                 valueText = "${String.format("%.1f", profile.keyInsetDp)} dp",
                 palette = palette,
-                onChanged = { persist(profile.copy(keyInsetDp = it)) }
+                onChanged = { profile = profile.copy(keyInsetDp = it) },
+                onCommit = { persist(profile.copy(keyInsetDp = it)) }
             )
             ThemeSlider(
                 label = stringResource(R.string.theme_studio_font_scale),
@@ -182,7 +187,8 @@ private fun ThemeStudioScreen(onBack: () -> Unit) {
                 valueRange = 0.82f..1.22f,
                 valueText = "${(profile.fontScale * 100).roundToInt()}%",
                 palette = palette,
-                onChanged = { persist(profile.copy(fontScale = it)) }
+                onChanged = { profile = profile.copy(fontScale = it) },
+                onCommit = { persist(profile.copy(fontScale = it)) }
             )
             ThemeSlider(
                 label = stringResource(R.string.theme_studio_border),
@@ -190,7 +196,8 @@ private fun ThemeStudioScreen(onBack: () -> Unit) {
                 valueRange = 0f..0.4f,
                 valueText = "${(profile.borderStrength * 100).roundToInt()}%",
                 palette = palette,
-                onChanged = { persist(profile.copy(borderStrength = it)) }
+                onChanged = { profile = profile.copy(borderStrength = it) },
+                onCommit = { persist(profile.copy(borderStrength = it)) }
             )
 
             ToggleRow(
@@ -380,7 +387,8 @@ private fun ThemeSlider(
     valueRange: ClosedFloatingPointRange<Float>,
     valueText: String,
     palette: ThemePalette,
-    onChanged: (Float) -> Unit
+    onChanged: (Float) -> Unit,
+    onCommit: (Float) -> Unit
 ) {
     Column {
         Row(
@@ -390,7 +398,16 @@ private fun ThemeSlider(
             Text(label, color = Color(palette.onKey), modifier = Modifier.weight(1f))
             Text(valueText, color = Color(palette.secondaryText), fontSize = 12.sp)
         }
-        Slider(value = value, onValueChange = onChanged, valueRange = valueRange)
+        var latestValue by remember(value) { mutableStateOf(value) }
+        Slider(
+            value = latestValue,
+            onValueChange = {
+                latestValue = it
+                onChanged(it)
+            },
+            onValueChangeFinished = { onCommit(latestValue) },
+            valueRange = valueRange
+        )
     }
 }
 
