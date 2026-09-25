@@ -25,8 +25,13 @@ Additional features in this fork:
 - Optional reversible autocorrection on Space (off by default)
 - Recent paste history: long press the clipboard button; stored in memory only
 - Paste clipboard images into editors that advertise image support on Android 7.1+
+- System image picker for compatible editors, without broad media-storage permission
+- Voice typing through the device's speech-recognition provider
+- English, Modern Standard Arabic, and expanded Egyptian Arabic bootstrap vocabulary
+- Mixed Arabic/Latin ranking, bounded typo matching, and locally learned words
+- One-handed left/right layouts plus a centered compact floating mode
 
-Gesture word input, GIF insertion, and a complete spell-checker are not yet implemented.
+Gesture word input and sticker/GIF insertion are intentionally deferred. A full desktop-class spell-checker is not yet implemented.
 
 ## Downloads
 
