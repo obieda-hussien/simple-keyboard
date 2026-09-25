@@ -120,8 +120,17 @@ public class SuggestionRanker {
         double score = 0.0;
         
         if (currentWord != null && !currentWord.isEmpty()) {
-            String lowerSuggestion = suggestion.toLowerCase();
-            String lowerCurrent = currentWord.toLowerCase();
+            String lowerSuggestion = suggestion.toLowerCase(java.util.Locale.ROOT);
+            String lowerCurrent = currentWord.toLowerCase(java.util.Locale.ROOT);
+
+            // A typed Arabic or Latin prefix should not be crowded out by candidates
+            // from the other alphabet. Keep both available on a word boundary.
+            int typedScript = wordScript(lowerCurrent);
+            int suggestionScript = wordScript(lowerSuggestion);
+            if (typedScript != 0 && suggestionScript != 0
+                    && typedScript != suggestionScript) {
+                score -= 60.0;
+            }
             
             // Exact match bonus
             if (lowerSuggestion.equals(lowerCurrent)) {
@@ -137,7 +146,7 @@ public class SuggestionRanker {
             }
             
             // Typo tolerance (edit distance)
-            else {
+            else if (typedScript == 0 || typedScript == suggestionScript) {
                 int editDistance = calculateLevenshteinDistance(lowerSuggestion, lowerCurrent);
                 if (editDistance <= MAX_EDIT_DISTANCE) {
                     double typoScore = WEIGHT_TYPO_TOLERANCE * (1.0 - (double) editDistance / MAX_EDIT_DISTANCE);
@@ -177,6 +186,22 @@ public class SuggestionRanker {
         }
         
         return score;
+    }
+
+    /** 1 for Latin, 2 for Arabic, 0 for mixed or other content. */
+    private static int wordScript(String word) {
+        int script = 0;
+        for (int offset = 0; offset < word.length(); ) {
+            int codePoint = word.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+            int next = (codePoint >= 'a' && codePoint <= 'z') ? 1
+                    : ((codePoint >= 0x0600 && codePoint <= 0x06FF)
+                    || (codePoint >= 0x0750 && codePoint <= 0x077F)
+                    || (codePoint >= 0x08A0 && codePoint <= 0x08FF)) ? 2 : 0;
+            if (next == 0 || (script != 0 && script != next)) return 0;
+            script = next;
+        }
+        return script;
     }
     
     /**
@@ -285,8 +310,10 @@ public class SuggestionRanker {
             return matches;
         }
         String query = currentWord.toLowerCase(java.util.Locale.ROOT);
+        int queryScript = wordScript(query);
         for (String word : dictionary) {
             if (word == null || Math.abs(word.length() - query.length()) > 2) continue;
+            if (queryScript != 0 && wordScript(word.toLowerCase(java.util.Locale.ROOT)) != queryScript) continue;
             if (word.equalsIgnoreCase(currentWord) || matches.contains(word)) continue;
             int distance = calculateLevenshteinDistance(query, word.toLowerCase(java.util.Locale.ROOT));
             if (distance > 0 && distance <= 2) {
