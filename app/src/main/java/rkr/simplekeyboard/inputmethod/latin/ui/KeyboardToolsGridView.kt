@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Typeface
 import android.util.AttributeSet
 import android.view.Gravity
+import android.view.View
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -72,7 +73,9 @@ class KeyboardToolsGridView @JvmOverloads constructor(
     }
 
     fun setLanguageLocale(locale: Locale?) {
-        layoutDirection = ImeUiKit.layoutDirection(locale)
+        // Keep tool positions physically stable for muscle memory; only labels follow text direction.
+        layoutDirection = View.LAYOUT_DIRECTION_LTR
+        cards.forEach { ImeUiKit.applyTextDirection(it.label, it.label.text, locale) }
     }
 
     fun refreshTheme() {
