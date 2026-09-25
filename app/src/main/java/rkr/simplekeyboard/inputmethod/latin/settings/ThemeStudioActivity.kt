@@ -1,5 +1,6 @@
 package rkr.simplekeyboard.inputmethod.latin.settings
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -53,6 +54,10 @@ import kotlin.math.roundToInt
  * Compose-only editor for appearance. The actual IME remains on the optimized custom View renderer.
  */
 class ThemeStudioActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(UiLocaleManager.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ThemeEngine.setEnabled(this, true)
