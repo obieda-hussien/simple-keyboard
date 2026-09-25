@@ -16,6 +16,7 @@
 
 package rkr.simplekeyboard.inputmethod.latin.learning;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -246,6 +247,50 @@ public class BootstrapVocabulary {
         "من", "ماذا", "ما", "متى", "أين", "كيف", "لماذا", "كم", "أي", "هل"
     };
     
+
+    // Egyptian Arabic conversational core. Variants are intentionally preserved because
+    // users commonly type both hamza-marked and unmarked forms.
+    private static final String[] COMMON_EGYPTIAN_ARABIC_WORDS = {
+        "انا", "إنت", "انت", "انتي", "إنتي", "إحنا", "احنا", "هما",
+        "إزاي", "ازاي", "ليه", "فين", "إمتى", "امتى", "مين", "إيه", "ايه",
+        "ده", "دي", "دول", "كده", "كدا", "هنا", "هناك", "هناك", "عندك", "عندي",
+        "دلوقتي", "النهارده", "النهاردة", "امبارح", "بكرة", "بدري", "متأخر",
+        "لسه", "خلاص", "تمام", "ماشي", "حاضر", "طيب", "طب", "بص", "بصي",
+        "معلش", "آسف", "اسف", "حقك", "حقك عليا", "شكرا", "تسلم", "تسلمي",
+        "ربنا", "يخليك", "يكرمك", "الحمدلله", "إن شاء الله", "ان شاء الله",
+        "مش", "مفيش", "فيه", "فيها", "فيهم", "معايا", "معاك", "معاكي", "معانا",
+        "عايز", "عايزة", "عايزين", "عاوز", "عاوزة", "عاوزين",
+        "محتاج", "محتاجة", "محتاجين", "ممكن", "ينفع", "مينفعش", "لازم",
+        "عارف", "عارفة", "عارفين", "فاهم", "فاهمة", "فاهمين",
+        "شايف", "شايفة", "شايفين", "سامع", "سامعة", "سامعين",
+        "حلو", "حلوة", "جامد", "جامدة", "كويس", "كويسة", "وحش", "وحشة",
+        "كبير", "كبيرة", "صغير", "صغيرة", "كتير", "قليل", "شوية", "اوي", "أوي",
+        "قوي", "سريع", "بطيء", "سهل", "صعب", "مظبوط", "غلط", "صح",
+        "فرحان", "فرحانة", "زعلان", "زعلانة", "تعبان", "تعبانة", "جعان", "جعانة",
+        "عطشان", "عطشانة", "نايم", "نايمة", "صاحي", "صاحية", "فاضي", "فاضية",
+        "رايح", "رايحة", "جاي", "جاية", "راجع", "راجعة", "نازل", "نازلة",
+        "طالع", "طالعة", "داخل", "داخلة", "واقف", "واقفة", "قاعد", "قاعدة",
+        "هروح", "هتيجي", "هتيجى", "هعمل", "هتعمل", "هنعمل", "هجيب", "هتجيب",
+        "هشوف", "هتشوف", "هنشوف", "هقول", "هتقول", "هنقول", "هبعت", "هتبعت",
+        "هكلم", "هتكلم", "هخلص", "هتخلص", "هنخلص", "هبدأ", "هنبدأ",
+        "روحت", "جيت", "عملت", "جبت", "شوفت", "شفت", "قلت", "بعت", "كلمت",
+        "خلصت", "بدأت", "نسيت", "افتكرت", "لقيت", "خدت", "اخدت", "سيبت",
+        "بروح", "باجي", "بعمل", "بجيب", "بشوف", "بقول", "ببعت", "بكلم",
+        "بخلص", "ببدأ", "بعرف", "بفهم", "بحب", "بكره", "بحاول", "بفكر",
+        "روح", "تعالى", "تعالي", "تعال", "هات", "خد", "خدي", "شوف", "قولي",
+        "قول", "ابعت", "ابعتي", "كلمني", "استنى", "استني", "خلي", "سيب",
+        "موبايل", "تليفون", "كمبيوتر", "لاب", "لابتوب", "نت", "واي فاي",
+        "ابلكيشن", "تطبيق", "برنامج", "لينك", "ملف", "فولدر", "صورة", "فيديو",
+        "رسالة", "شات", "مكالمة", "رقم", "باسورد", "اكونت", "حساب",
+        "شغل", "شغلي", "الشغل", "جامعة", "كلية", "مدرسة", "محاضرة", "امتحان",
+        "بيت", "البيت", "شارع", "مشوار", "عربية", "مواصلات", "محطة", "مترو",
+        "قهوة", "شاي", "مياه", "اكل", "أكل", "فطار", "غدا", "عشا",
+        "فلوس", "سعر", "غالي", "رخيص", "حاجة", "حاجات", "موضوع", "مشكلة",
+        "حل", "فكرة", "وقت", "ساعة", "دقيقة", "يوم", "اسبوع", "شهر", "سنة",
+        "برده", "برضه", "عشان", "علشان", "عموما", "اصلا", "أصلا", "تقريبا",
+        "غالبا", "اكيد", "أكيد", "يمكن", "فعلا", "بجد", "خصوصا", "بالظبط"
+    };
+
     // Common punctuation and special suggestions
     private static final String[] COMMON_PUNCTUATION = {
         ".", "?", "!", ",", ";", ":", "'", "\"", "(", ")", "-"
@@ -262,6 +307,9 @@ public class BootstrapVocabulary {
         
         // Add common Arabic words
         for (String word : COMMON_ARABIC_WORDS) {
+            wordTrie.insert(word);
+        }
+        for (String word : COMMON_EGYPTIAN_ARABIC_WORDS) {
             wordTrie.insert(word);
         }
     }
@@ -396,6 +444,36 @@ public class BootstrapVocabulary {
         ngramModel.learnFromSentence("أنا أفهم");
         ngramModel.learnFromSentence("أنا موافق");
         
+        // Egyptian Arabic conversation and messaging patterns.
+        ngramModel.learnFromSentence("انا عايز اعمل");
+        ngramModel.learnFromSentence("انا عايزة اعمل");
+        ngramModel.learnFromSentence("احنا عايزين نعمل");
+        ngramModel.learnFromSentence("انت عامل ايه");
+        ngramModel.learnFromSentence("انتي عاملة ايه");
+        ngramModel.learnFromSentence("عامل ايه دلوقتي");
+        ngramModel.learnFromSentence("تمام الحمدلله");
+        ngramModel.learnFromSentence("ماشي تمام");
+        ngramModel.learnFromSentence("خلاص تمام");
+        ngramModel.learnFromSentence("بص انا شايف");
+        ngramModel.learnFromSentence("مش عارف بصراحة");
+        ngramModel.learnFromSentence("مش فاهم ليه");
+        ngramModel.learnFromSentence("ممكن تبعتلي");
+        ngramModel.learnFromSentence("ممكن تقولي");
+        ngramModel.learnFromSentence("هكلمك بعدين");
+        ngramModel.learnFromSentence("هبعتلك دلوقتي");
+        ngramModel.learnFromSentence("انا جاي دلوقتي");
+        ngramModel.learnFromSentence("انا رايح البيت");
+        ngramModel.learnFromSentence("هنشوف بكرة");
+        ngramModel.learnFromSentence("نتكلم بعدين");
+        ngramModel.learnFromSentence("فين المكان");
+        ngramModel.learnFromSentence("الساعة كام");
+        ngramModel.learnFromSentence("عايز اروح");
+        ngramModel.learnFromSentence("عايز اشوف");
+        ngramModel.learnFromSentence("عايز اعرف");
+        ngramModel.learnFromSentence("خلينا نشوف");
+        ngramModel.learnFromSentence("ولا يهمك");
+        ngramModel.learnFromSentence("معلش حصل خير");
+
         // Punctuation patterns (English)
         ngramModel.learnFromSentence("Hello, how are you?");
         ngramModel.learnFromSentence("Yes, I agree.");
@@ -533,6 +611,17 @@ public class BootstrapVocabulary {
         return Arrays.asList();
     }
     
+    /** Returns every bundled word so typo correction is not limited to hand-written prefixes. */
+    public static List<String> getAllWords() {
+        final ArrayList<String> words = new ArrayList<>(
+                COMMON_ENGLISH_WORDS.length + COMMON_ARABIC_WORDS.length
+                        + COMMON_EGYPTIAN_ARABIC_WORDS.length);
+        words.addAll(Arrays.asList(COMMON_ENGLISH_WORDS));
+        words.addAll(Arrays.asList(COMMON_ARABIC_WORDS));
+        words.addAll(Arrays.asList(COMMON_EGYPTIAN_ARABIC_WORDS));
+        return words;
+    }
+
     /**
      * Gets common punctuation suggestions.
      */
