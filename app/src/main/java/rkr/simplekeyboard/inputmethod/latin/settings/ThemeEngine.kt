@@ -47,6 +47,11 @@ object ThemeEngine {
     fun isEnabled(context: Context): Boolean = prefs(context).getBoolean(PREF_ENABLED, true)
 
     @JvmStatic
+    fun setEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(PREF_ENABLED, enabled).apply()
+    }
+
+    @JvmStatic
     fun read(context: Context): ThemeProfile {
         val p = prefs(context)
         val dynamic = p.getBoolean(PREF_DYNAMIC_COLOR, false)
