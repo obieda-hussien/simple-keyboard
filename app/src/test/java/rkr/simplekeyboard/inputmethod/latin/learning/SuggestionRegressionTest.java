@@ -32,6 +32,30 @@ public class SuggestionRegressionTest {
     }
 
     @Test
+    public void bundledDictionaryIncludesEgyptianAndModernEnglishWords() {
+        List<String> words = BootstrapVocabulary.getAllWords();
+        assertTrue(words.contains("دلوقتي"));
+        assertTrue(words.contains("عايزين"));
+        assertTrue(words.contains("autocorrect"));
+        assertTrue(words.contains("clipboard"));
+    }
+
+    @Test
+    public void arabicOrthographicVariantsRankAsSameWord() {
+        List<String> ranked = SuggestionRanker.rankSuggestions(
+                Arrays.asList("how", "إزاي", "ازايك"), "ازاي", "",
+                new java.util.HashMap<>(), new java.util.HashMap<>());
+        assertEquals("إزاي", ranked.get(0));
+        assertEquals("ازاي", SuggestionRanker.normalizeForComparison("إزاي"));
+    }
+
+    @Test
+    public void boundedDistanceStopsDistantCandidates() {
+        assertEquals(1, SuggestionRanker.calculateBoundedDistance("teh", "the", 2));
+        assertEquals(3, SuggestionRanker.calculateBoundedDistance("keyboard", "house", 2));
+    }
+
+    @Test
     public void restoredLanguageModelRemainsBounded() {
         NGramModel model = new NGramModel();
         StringBuilder contexts = new StringBuilder();
