@@ -36,6 +36,11 @@ import rkr.simplekeyboard.inputmethod.R;
 import rkr.simplekeyboard.inputmethod.latin.utils.FragmentUtils;
 
 public class SettingsActivity extends PreferenceActivity {
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(UiLocaleManager.wrap(newBase));
+    }
+
     private static final String DEFAULT_FRAGMENT = SettingsFragment.class.getName();
     private static final String TAG = SettingsActivity.class.getSimpleName();
 
