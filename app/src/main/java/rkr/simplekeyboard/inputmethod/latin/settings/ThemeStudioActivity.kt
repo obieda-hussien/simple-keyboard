@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -295,6 +296,23 @@ private fun PresetRows(
 @Composable
 private fun KeyboardPreview(profile: ThemeProfile, palette: ThemePalette) {
     val shape = RoundedCornerShape(profile.cornerRadiusDp.dp)
+    val locale = LocalConfiguration.current.locales[0]
+    val arabic = locale.language == "ar"
+    val suggestions = if (arabic) listOf("أنا", "عايز", "تمام")
+        else listOf("the", "keyboard", "looks")
+    val previewRows = if (arabic) {
+        listOf(
+            listOf("ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه", "خ", "ح", "ج"),
+            listOf("ش", "س", "ي", "ب", "ل", "ا", "ت", "ن", "م", "ك", "ة"),
+            listOf("ئ", "ء", "ؤ", "ر", "لا", "ى", "أ")
+        )
+    } else {
+        listOf(
+            listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"),
+            listOf("A", "S", "D", "F", "G", "H", "J", "K", "L"),
+            listOf("Z", "X", "C", "V", "B", "N", "M")
+        )
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color(palette.background))
@@ -307,7 +325,7 @@ private fun KeyboardPreview(profile: ThemeProfile, palette: ThemePalette) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                listOf("أنا", "عايز", "تمام").forEachIndexed { index, value ->
+                suggestions.forEachIndexed { index, value ->
                     Text(
                         value,
                         color = if (index == 0) Color(palette.accent) else Color(palette.onKey),
@@ -316,11 +334,7 @@ private fun KeyboardPreview(profile: ThemeProfile, palette: ThemePalette) {
                     )
                 }
             }
-            listOf(
-                listOf("ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه", "خ", "ح", "ج"),
-                listOf("ش", "س", "ي", "ب", "ل", "ا", "ت", "ن", "م", "ك", "ة"),
-                listOf("ئ", "ء", "ؤ", "ر", "لا", "ى", "أ")
-            ).forEach { row ->
+            previewRows.forEach { row ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(profile.keyInsetDp.dp.coerceAtLeast(1.dp))
@@ -352,7 +366,7 @@ private fun KeyboardPreview(profile: ThemeProfile, palette: ThemePalette) {
                 horizontalArrangement = Arrangement.spacedBy(profile.keyInsetDp.dp.coerceAtLeast(1.dp))
             ) {
                 PreviewKey("🌐", palette, profile, Modifier.weight(0.8f))
-                PreviewKey("العربية", palette, profile, Modifier.weight(3.2f))
+                PreviewKey(if (arabic) "العربية" else "English", palette, profile, Modifier.weight(3.2f))
                 Box(
                     modifier = Modifier
                         .weight(0.9f)
