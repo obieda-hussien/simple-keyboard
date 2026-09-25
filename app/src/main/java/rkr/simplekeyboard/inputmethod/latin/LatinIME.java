@@ -363,6 +363,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     private void loadSettings() {
         mLocale = mRichImm.getCurrentSubtype().getLocaleObject();
+        updateUtilityLocaleDirection();
         final EditorInfo editorInfo = getCurrentInputEditorInfo();
         final InputAttributes inputAttributes = new InputAttributes(editorInfo, isFullscreenMode());
         mSettings.loadSettings(inputAttributes);
@@ -1207,28 +1208,20 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
      * Apply dynamic theming to all UI components.
      */
     private void applyDynamicTheme() {
-        rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager themeManager = 
+        rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager themeManager =
             rkr.simplekeyboard.inputmethod.latin.settings.ThemeManager.getInstance(this);
-        
-        // Apply theme to top container
+
         if (mTopContainer != null) {
             mTopContainer.setBackgroundColor(themeManager.getTopBarBackgroundColor());
         }
-        
-        // Apply theme to top bar
-        if (mTopBar != null) {
-            mTopBar.refreshTheme();
-        }
-        
-        // Apply theme to suggestion strip
-        if (mSuggestionStrip != null) {
-            mSuggestionStrip.refreshTheme();
-        }
-        
-        // Apply theme to emoji keyboard
-        if (mEmojiKeyboard != null) {
-            mEmojiKeyboard.refreshTheme();
-        }
+        if (mTopBar != null) mTopBar.refreshTheme();
+        if (mSuggestionStrip != null) mSuggestionStrip.refreshTheme();
+        if (mEmojiKeyboard != null) mEmojiKeyboard.refreshTheme();
+        if (mToolsGrid != null) mToolsGrid.refreshTheme();
+        if (mClipboardPanel != null) mClipboardPanel.refreshTheme();
+        if (mTextEditingPanel != null) mTextEditingPanel.refreshTheme();
+        if (mTranslatePanel != null) mTranslatePanel.refreshTheme();
+        updateUtilityLocaleDirection();
     }
 
     /**
@@ -1273,7 +1266,8 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     @android.annotation.TargetApi(30)
     public boolean onInlineSuggestionsResponse(
             android.view.inputmethod.InlineSuggestionsResponse response) {
-        if (android.os.Build.VERSION.SDK_INT < 30 || mInlineAutofillBar == null || mTopContainer == null) {
+        if (android.os.Build.VERSION.SDK_INT < 30 || mInlineAutofillBar == null
+                || mTopContainer == null || mActiveUtilityPanel != null) {
             return false;
         }
         final int generation = ++mAutofillGeneration;
