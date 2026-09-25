@@ -64,7 +64,9 @@ public final class ClipboardHistory {
     }
 
     public synchronized void clearRecent() {
-        recent.removeIf(value -> !pinned.contains(value));
+        for (int i = recent.size() - 1; i >= 0; i--) {
+            if (!pinned.contains(recent.get(i))) recent.remove(i);
+        }
     }
 
     public synchronized void clear() {
