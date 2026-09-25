@@ -66,6 +66,7 @@ import rkr.simplekeyboard.inputmethod.latin.settings.Settings;
 import rkr.simplekeyboard.inputmethod.latin.settings.SettingsActivity;
 import rkr.simplekeyboard.inputmethod.latin.settings.SettingsValues;
 import rkr.simplekeyboard.inputmethod.latin.utils.ApplicationUtils;
+import rkr.simplekeyboard.inputmethod.latin.utils.ClipboardHistory;
 import rkr.simplekeyboard.inputmethod.latin.utils.LeakGuardHandlerWrapper;
 import rkr.simplekeyboard.inputmethod.latin.utils.ResourceUtils;
 import rkr.simplekeyboard.inputmethod.latin.utils.ViewLayoutUtils;
@@ -108,6 +109,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     private int mAutofillGeneration = 0;
     private int mEditorGeneration = 0;
     private android.widget.LinearLayout mInlineAutofillBar;
+    private android.widget.LinearLayout mClipboardHistoryBar;
+    private final ClipboardHistory mClipboardHistory = new ClipboardHistory();
+    private boolean mShowingClipboardHistory;
 
     private RichInputMethodManager mRichImm;
     final KeyboardSwitcher mKeyboardSwitcher;
@@ -317,6 +321,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             mInputLogic.closeLearningWorker();
         }
         mAutofillGeneration++;
+        mClipboardHistory.clear();
         // Dismiss any open dialogs to prevent leaks
         if (mOptionsDialog != null && mOptionsDialog.isShowing()) {
             mOptionsDialog.dismiss();
@@ -375,6 +380,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             mTopContainer = view.findViewById(R.id.top_container);
             mSuggestionStrip = view.findViewById(R.id.suggestion_strip);
             mInlineAutofillBar = view.findViewById(R.id.inline_autofill_bar);
+            mClipboardHistoryBar = view.findViewById(R.id.clipboard_history_bar);
             mTopBar = view.findViewById(R.id.keyboard_top_bar);
             
             // Apply dynamic theming to UI components
@@ -410,6 +416,11 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                     @Override
                     public void onClipboardButtonClicked() {
                         insertClipboardContent();
+                    }
+
+                    @Override
+                    public void onClipboardHistoryRequested() {
+                        showClipboardHistory();
                     }
                     
                     @Override
@@ -492,6 +503,10 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         mEditorGeneration++;
         mAutofillGeneration++;
         mShowingAutofill = false;
+        mShowingClipboardHistory = false;
+        if (mClipboardHistoryBar != null) mClipboardHistoryBar.removeAllViews();
+        if (!isClipboardHistoryAllowed(editorInfo)) mClipboardHistory.clear();
+        showToolbarView();
         mForcedToolbarMode = false;
         if (mInlineAutofillBar != null) mInlineAutofillBar.removeAllViews();
         if (mSuggestionStrip != null) mSuggestionStrip.clearSuggestions();
@@ -1137,7 +1152,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     public void updateSuggestionStrip(java.util.List<String> suggestions) {
         if (mSuggestionStrip == null || mTopContainer == null) return;
         mSuggestionStrip.setSuggestions(suggestions);
-        if (!mForcedToolbarMode && !mShowingAutofill) {
+        if (!mForcedToolbarMode && !mShowingAutofill && !mShowingClipboardHistory) {
             if (mSuggestionStrip.hasSuggestions()) showSuggestionsView();
             else showToolbarView();
         }
@@ -1185,6 +1200,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             return true;
         }
         mShowingAutofill = true;
+        mShowingClipboardHistory = false;
         mTopContainer.setDisplayedChild(2);
         final int limit = Math.min(suggestions.size(), 3);
         final int height = Math.round(40 * getResources().getDisplayMetrics().density);
@@ -1372,11 +1388,80 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
                 if (mInputLogic != null && !fullText.isEmpty()) {
                     // Use commitText to properly insert the full clipboard content
                     mInputLogic.mConnection.commitText(fullText, 1);
+                    if (clipData.getItemAt(0).getText() != null
+                            && isClipboardHistoryAllowed(getCurrentInputEditorInfo())) {
+                        mClipboardHistory.recordPaste(fullText);
+                    }
                 }
             }
         } catch (Exception e) {
             // Silently handle any clipboard access errors
             android.util.Log.w(TAG, "Error accessing clipboard: " + e.getMessage());
+        }
+    }
+
+    private boolean isClipboardHistoryAllowed(EditorInfo editorInfo) {
+        return editorInfo != null
+                && (editorInfo.imeOptions & EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) == 0
+                && new InputAttributes(editorInfo, false).mShouldShowSuggestions;
+    }
+
+    private void showClipboardHistory() {
+        if (mTopContainer == null || mClipboardHistoryBar == null
+                || !isClipboardHistoryAllowed(getCurrentInputEditorInfo())) return;
+        mClipboardHistoryBar.removeAllViews();
+        final android.widget.TextView close = new android.widget.TextView(this);
+        close.setText("✕");
+        close.setContentDescription(getString(R.string.clipboard_history_close));
+        close.setGravity(Gravity.CENTER);
+        close.setOnClickListener(v -> closeClipboardHistory());
+        mClipboardHistoryBar.addView(close, new android.widget.LinearLayout.LayoutParams(
+                Math.round(40 * getResources().getDisplayMetrics().density), LayoutParams.MATCH_PARENT));
+        final android.widget.TextView clear = new android.widget.TextView(this);
+        clear.setText("⌫");
+        clear.setContentDescription(getString(R.string.clipboard_history_clear));
+        clear.setGravity(Gravity.CENTER);
+        clear.setOnClickListener(v -> {
+            mClipboardHistory.clear();
+            showClipboardHistory();
+        });
+        mClipboardHistoryBar.addView(clear, new android.widget.LinearLayout.LayoutParams(
+                Math.round(40 * getResources().getDisplayMetrics().density), LayoutParams.MATCH_PARENT));
+        final java.util.List<String> entries = mClipboardHistory.entries();
+        if (entries.isEmpty()) {
+            final android.widget.TextView empty = new android.widget.TextView(this);
+            empty.setText(R.string.clipboard_history_empty);
+            empty.setGravity(Gravity.CENTER_VERTICAL);
+            mClipboardHistoryBar.addView(empty);
+        }
+        for (String entry : entries) {
+            final android.widget.TextView item = new android.widget.TextView(this);
+            item.setText(entry.replace('\n', ' '));
+            item.setSingleLine(true);
+            item.setEllipsize(TextUtils.TruncateAt.END);
+            item.setGravity(Gravity.CENTER);
+            item.setContentDescription(getString(R.string.clipboard_history_paste) + ": " + entry);
+            item.setOnClickListener(v -> {
+                if (isClipboardHistoryAllowed(getCurrentInputEditorInfo()) && mInputLogic != null) {
+                    mInputLogic.mConnection.commitText(entry, 1);
+                    mClipboardHistory.recordPaste(entry);
+                }
+                closeClipboardHistory();
+            });
+            mClipboardHistoryBar.addView(item, new android.widget.LinearLayout.LayoutParams(
+                    0, LayoutParams.MATCH_PARENT, 1));
+        }
+        mShowingClipboardHistory = true;
+        mTopContainer.setDisplayedChild(3);
+    }
+
+    private void closeClipboardHistory() {
+        mShowingClipboardHistory = false;
+        if (mClipboardHistoryBar != null) mClipboardHistoryBar.removeAllViews();
+        if (mSuggestionStrip != null && mSuggestionStrip.hasSuggestions() && !mForcedToolbarMode) {
+            showSuggestionsView();
+        } else {
+            showToolbarView();
         }
     }
     

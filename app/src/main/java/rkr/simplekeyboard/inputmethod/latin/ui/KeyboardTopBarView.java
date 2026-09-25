@@ -44,6 +44,7 @@ public class KeyboardTopBarView extends LinearLayout {
     public interface OnTopBarActionListener {
         void onEmojiButtonClicked();
         void onClipboardButtonClicked();
+        void onClipboardHistoryRequested();
         void onSettingsButtonClicked();
         void onToggleButtonClicked(); // New toggle functionality
     }
@@ -112,6 +113,11 @@ public class KeyboardTopBarView extends LinearLayout {
             if (actionListener != null) {
                 actionListener.onClipboardButtonClicked();
             }
+        });
+        clipboardButton.setOnLongClickListener(v -> {
+            if (actionListener == null) return false;
+            actionListener.onClipboardHistoryRequested();
+            return true;
         });
         
         settingsButton.setOnClickListener(v -> {

@@ -130,6 +130,11 @@
     <string name="one_handed_right">Right</string>
     <string name="auto_correction_title">Conservative autocorrect</string>
     <string name="auto_correction_summary">Correct clear typos on space; press Backspace to restore the original</string>
+    <string name="clipboard_history_hint">Long press Clipboard to show recent pastes</string>
+    <string name="clipboard_history_close">Close paste history</string>
+    <string name="clipboard_history_clear">Clear paste history</string>
+    <string name="clipboard_history_empty">No recent pastes</string>
+    <string name="clipboard_history_paste">Paste saved text</string>
     <string name="delete_swipe">Delete swipe</string>
     
     <!-- Email suggestion preferences -->
