@@ -1282,7 +1282,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         }
         mShowingAutofill = true;
         mShowingClipboardHistory = false;
-        mTopContainer.setDisplayedChild(2);
+        showTopContainerChild(2);
         final int limit = Math.min(suggestions.size(), 3);
         final int height = Math.round(40 * getResources().getDisplayMetrics().density);
         for (int i = 0; i < limit; i++) {
@@ -1702,6 +1702,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             mTranslateSourceWasSelection = false;
         }
         mTranslatePanel.setLanguageLocale(mLocale);
+        mTranslatePanel.setCanReplaceSource(mTranslateSourceWasSelection);
         mTranslatePanel.setSourceText(source);
         showUtilityPanel(mTranslatePanel);
     }
@@ -1976,12 +1977,22 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         closeUtilityPanel(true);
     }
     
+    private void showTopContainerChild(int index) {
+        if (mTopContainer == null || index < 0 || index >= mTopContainer.getChildCount()) return;
+        if (mTopContainer.getDisplayedChild() == index) return;
+        mTopContainer.setDisplayedChild(index);
+        final View target = mTopContainer.getChildAt(index);
+        if (target != null) {
+            rkr.simplekeyboard.inputmethod.latin.ui.ImeUiKit.animateIn(target);
+        }
+    }
+
     /**
      * Shows the toolbar view in the top container (Gboard default state).
      */
     private void showToolbarView() {
         if (mTopContainer != null && mTopBar != null) {
-            mTopContainer.setDisplayedChild(0);
+            showTopContainerChild(0);
             mShowingSuggestions = false;
             mTopBar.setShowingSuggestions(false);
             mTopBar.setPanelOpen(mActiveUtilityPanel != null);
@@ -1997,7 +2008,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             return;
         }
         if (mTopContainer != null && mTopBar != null) {
-            mTopContainer.setDisplayedChild(1);
+            showTopContainerChild(1);
             mShowingSuggestions = true;
             mTopBar.setPanelOpen(false);
             mTopBar.setShowingSuggestions(true);
