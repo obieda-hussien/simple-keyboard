@@ -120,8 +120,8 @@ public class SuggestionRanker {
         double score = 0.0;
         
         if (currentWord != null && !currentWord.isEmpty()) {
-            String lowerSuggestion = suggestion.toLowerCase(java.util.Locale.ROOT);
-            String lowerCurrent = currentWord.toLowerCase(java.util.Locale.ROOT);
+            String lowerSuggestion = normalizeForComparison(suggestion);
+            String lowerCurrent = normalizeForComparison(currentWord);
 
             // A typed Arabic or Latin prefix should not be crowded out by candidates
             // from the other alphabet. Keep both available on a word boundary.
@@ -188,6 +188,32 @@ public class SuggestionRanker {
         return score;
     }
 
+    /**
+     * Normalizes only characters that are routinely omitted or varied while typing Arabic.
+     * The original candidate is always returned to the editor; this value is ranking-only.
+     */
+    static String normalizeForComparison(String value) {
+        if (value == null) return "";
+        final String lower = value.toLowerCase(java.util.Locale.ROOT);
+        final StringBuilder out = new StringBuilder(lower.length());
+        for (int offset = 0; offset < lower.length(); ) {
+            final int cp = lower.codePointAt(offset);
+            offset += Character.charCount(cp);
+            if (cp == 0x0640 || (cp >= 0x064B && cp <= 0x065F)
+                    || cp == 0x0670 || (cp >= 0x06D6 && cp <= 0x06ED)) {
+                continue;
+            }
+            if (cp == 0x0622 || cp == 0x0623 || cp == 0x0625 || cp == 0x0671) {
+                out.append('ا');
+            } else if (cp == 0x0649) {
+                out.append('ي');
+            } else {
+                out.appendCodePoint(cp);
+            }
+        }
+        return out.toString();
+    }
+
     /** 1 for Latin, 2 for Arabic, 0 for mixed or other content. */
     private static int wordScript(String word) {
         int script = 0;
@@ -223,7 +249,7 @@ public class SuggestionRanker {
      * Gets common words that typically follow the given word.
      */
     private static String[] getCommonFollowers(String word) {
-        String lowerWord = word.toLowerCase().trim();
+        String lowerWord = normalizeForComparison(word.trim());
         
         // Common English patterns
         if (lowerWord.equals("i")) return new String[]{"am", "have", "will", "can", "don't"};
@@ -234,11 +260,16 @@ public class SuggestionRanker {
         if (lowerWord.equals("will")) return new String[]{"be", "have", "not", "go", "do"};
         if (lowerWord.equals("can")) return new String[]{"be", "you", "I", "we", "not"};
         
-        // Common Arabic patterns
-        if (lowerWord.equals("أنا")) return new String[]{"أريد", "أحب", "لا", "سوف", "كنت"};
-        if (lowerWord.equals("هذا")) return new String[]{"هو", "ما", "كان", "يعني", "جيد"};
-        if (lowerWord.equals("في")) return new String[]{"البيت", "المدرسة", "الصباح", "المساء", "الوقت"};
-        if (lowerWord.equals("من")) return new String[]{"فضلك", "هنا", "هناك", "الآن", "البداية"};
+        // Arabic and Egyptian Arabic patterns. Keys use ranking normalization.
+        if (lowerWord.equals("انا")) return new String[]{"عايز", "عايزة", "أريد", "بحب", "مش"};
+        if (lowerWord.equals("انت")) return new String[]{"عامل", "عايز", "عارف", "فين", "تمام"};
+        if (lowerWord.equals("احنا")) return new String[]{"عايزين", "هنعمل", "هنشوف", "رايحين", "تمام"};
+        if (lowerWord.equals("مش")) return new String[]{"عارف", "فاهم", "عايز", "مشكلة", "دلوقتي"};
+        if (lowerWord.equals("عايز")) return new String[]{"اعمل", "اروح", "اشوف", "اعرف", "اجيب"};
+        if (lowerWord.equals("عايزين")) return new String[]{"نعمل", "نروح", "نشوف", "نعرف", "نخلص"};
+        if (lowerWord.equals("تمام")) return new String[]{"كده", "الحمدلله", "ماشي", "خلاص", "شكرا"};
+        if (lowerWord.equals("في")) return new String[]{"البيت", "الشغل", "المدرسة", "الصباح", "الوقت"};
+        if (lowerWord.equals("من")) return new String[]{"فضلك", "هنا", "هناك", "دلوقتي", "البداية"};
         
         return new String[]{};
     }
@@ -251,8 +282,8 @@ public class SuggestionRanker {
             return "prediction";
         }
         
-        String lowerSuggestion = suggestion.toLowerCase();
-        String lowerCurrent = currentWord.toLowerCase();
+        String lowerSuggestion = normalizeForComparison(suggestion);
+        String lowerCurrent = normalizeForComparison(currentWord);
         
         if (lowerSuggestion.equals(lowerCurrent)) {
             return "exact";
@@ -309,13 +340,14 @@ public class SuggestionRanker {
         if (currentWord == null || currentWord.length() < 2 || dictionary == null || maxResults <= 0) {
             return matches;
         }
-        String query = currentWord.toLowerCase(java.util.Locale.ROOT);
+        String query = normalizeForComparison(currentWord);
         int queryScript = wordScript(query);
         for (String word : dictionary) {
             if (word == null || Math.abs(word.length() - query.length()) > 2) continue;
-            if (queryScript != 0 && wordScript(word.toLowerCase(java.util.Locale.ROOT)) != queryScript) continue;
-            if (word.equalsIgnoreCase(currentWord) || matches.contains(word)) continue;
-            int distance = calculateLevenshteinDistance(query, word.toLowerCase(java.util.Locale.ROOT));
+            final String normalizedWord = normalizeForComparison(word);
+            if (queryScript != 0 && wordScript(normalizedWord) != queryScript) continue;
+            if (normalizedWord.equals(query) || matches.contains(word)) continue;
+            int distance = calculateLevenshteinDistance(query, normalizedWord);
             if (distance > 0 && distance <= 2) {
                 matches.add(word);
                 if (matches.size() == maxResults) break;
