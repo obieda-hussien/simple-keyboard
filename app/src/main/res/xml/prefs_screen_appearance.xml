@@ -19,6 +19,10 @@
     xmlns:latin="http://schemas.android.com/apk/res-auto"
     android:key="screen_appearance"
     android:title="@string/settings_screen_appearance">
+    <Preference
+        android:key="pref_theme_studio"
+        android:title="@string/theme_studio_title"
+        android:summary="@string/theme_studio_summary" />
     <PreferenceScreen
         android:fragment="rkr.simplekeyboard.inputmethod.latin.settings.ThemeSettingsFragment"
         android:key="screen_theme"
