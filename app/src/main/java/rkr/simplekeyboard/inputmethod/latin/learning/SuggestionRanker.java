@@ -347,13 +347,44 @@ public class SuggestionRanker {
             final String normalizedWord = normalizeForComparison(word);
             if (queryScript != 0 && wordScript(normalizedWord) != queryScript) continue;
             if (normalizedWord.equals(query) || matches.contains(word)) continue;
-            int distance = calculateLevenshteinDistance(query, normalizedWord);
+            int distance = calculateBoundedDistance(query, normalizedWord, 2);
             if (distance > 0 && distance <= 2) {
                 matches.add(word);
                 if (matches.size() == maxResults) break;
             }
         }
         return matches;
+    }
+
+    /**
+     * Memory-bounded edit distance for hot-path typo lookup. Rows that already exceed the
+     * requested distance are abandoned immediately instead of filling an O(n*m) matrix.
+     */
+    static int calculateBoundedDistance(String first, String second, int maxDistance) {
+        if (first == null || second == null) return maxDistance + 1;
+        if (Math.abs(first.length() - second.length()) > maxDistance) return maxDistance + 1;
+        if (first.isEmpty()) return second.length() <= maxDistance ? second.length() : maxDistance + 1;
+        if (second.isEmpty()) return first.length() <= maxDistance ? first.length() : maxDistance + 1;
+
+        int[] previous = new int[second.length() + 1];
+        int[] current = new int[second.length() + 1];
+        for (int j = 0; j <= second.length(); j++) previous[j] = j;
+
+        for (int i = 1; i <= first.length(); i++) {
+            current[0] = i;
+            int rowMin = current[0];
+            for (int j = 1; j <= second.length(); j++) {
+                int cost = first.charAt(i - 1) == second.charAt(j - 1) ? 0 : 1;
+                current[j] = Math.min(Math.min(previous[j] + 1, current[j - 1] + 1),
+                        previous[j - 1] + cost);
+                rowMin = Math.min(rowMin, current[j]);
+            }
+            if (rowMin > maxDistance) return maxDistance + 1;
+            int[] swap = previous;
+            previous = current;
+            current = swap;
+        }
+        return previous[second.length()];
     }
 
     /**
