@@ -26,7 +26,7 @@
     <string name="a11y_key_symbols">الرموز</string>
     <string name="a11y_key_language">تغيير اللغة</string>
     <string name="one_handed_mode">لوحة بيد واحدة</string>
-    <string name="one_handed_mode_summary">تقريب المفاتيح من اليمين أو اليسار عند الوضع الرأسي</string>
+    <string name="one_handed_mode_summary">اختر العرض الكامل أو وضع اليد الواحدة أو لوحة عائمة في المنتصف</string>
     <string name="one_handed_off">إيقاف</string>
     <string name="one_handed_left">اليسار</string>
     <string name="one_handed_right">اليمين</string>
