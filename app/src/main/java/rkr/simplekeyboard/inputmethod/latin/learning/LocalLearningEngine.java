@@ -98,15 +98,12 @@ public class LocalLearningEngine {
         List<String> candidateSuggestions = new ArrayList<>();
         String fullText = (previousContext != null ? previousContext + " " : "") + (currentWord != null ? currentWord : "");
         
-        // Check for calculator expressions first (highest priority for special suggestions)
-        if (CalculatorUtils.isMathExpression(fullText.trim())) {
-            String result = CalculatorUtils.evaluateMathExpression(fullText.trim());
-            if (result != null) {
-                String calcSuggestion = CalculatorUtils.createCalculationSuggestion(fullText.trim(), result);
-                if (calcSuggestion != null) {
-                    candidateSuggestions.add(calcSuggestion);
-                }
-            }
+        // Evaluate once per update; the calculator already performs bounded expression detection.
+        String calculationResult = CalculatorUtils.evaluateMathExpression(fullText.trim());
+        if (calculationResult != null) {
+            String calcSuggestion =
+                    CalculatorUtils.createCalculationSuggestion(fullText.trim(), calculationResult);
+            if (calcSuggestion != null) candidateSuggestions.add(calcSuggestion);
         }
         
         // Clipboard content is inserted only from the explicit toolbar action.
@@ -177,7 +174,9 @@ public class LocalLearningEngine {
             }
         }
         
-        // Apply intelligent ranking
+        // First pass keeps the mature source-aware ordering, then a Kotlin second-stage ranker
+        // combines personal frequency/recency with real n-gram probabilities and keyboard typo
+        // geometry. Both stages are local and bounded.
         List<String> rankedSuggestions = SuggestionRanker.rankSuggestions(
             uniqueSuggestions,
             currentWord,
@@ -185,9 +184,16 @@ public class LocalLearningEngine {
             wordFrequency,
             recentUsage
         );
-        
-        return rankedSuggestions.size() > MAX_SUGGESTIONS ? 
-               rankedSuggestions.subList(0, MAX_SUGGESTIONS) : rankedSuggestions;
+        java.util.Map<String, Double> contextScores =
+                ngramModel.getContextScores(previousContext, rankedSuggestions);
+        return AdaptiveSuggestionRanker.rerank(
+                rankedSuggestions,
+                currentWord,
+                previousContext,
+                wordFrequency,
+                recentUsage,
+                contextScores,
+                MAX_SUGGESTIONS);
     }
 
     /**
@@ -228,14 +234,22 @@ public class LocalLearningEngine {
                     localStorage.addUserWord(word);
                 }
             
-            // Update frequency count
-            wordFrequency.put(word, wordFrequency.getOrDefault(word, 0) + 1);
+            // Ranking signals use the same comparison normalization as typo/correction ranking,
+            // so Arabic alef/diacritic variants reinforce one local model rather than fragment it.
+            final String rankingKey = SuggestionRanker.normalizeForComparison(word);
+            wordFrequency.put(rankingKey,
+                    Math.min(1_000_000, wordFrequency.getOrDefault(rankingKey, 0) + 1));
+            recentUsage.put(rankingKey, System.currentTimeMillis());
             
-            // Update recent usage timestamp
-            recentUsage.put(word, System.currentTimeMillis());
-            
-            // Add to dictionary for typo suggestions
-            if (!dictionaryWords.contains(word)) {
+            // Keep the original spelling for insertion while deduplicating by normalized form.
+            boolean knownForTypos = false;
+            for (String dictionaryWord : dictionaryWords) {
+                if (SuggestionRanker.normalizeForComparison(dictionaryWord).equals(rankingKey)) {
+                    knownForTypos = true;
+                    break;
+                }
+            }
+            if (!knownForTypos) {
                 dictionaryWords.add(word);
             }
             
@@ -314,8 +328,12 @@ public class LocalLearningEngine {
      */
     public synchronized void removeWord(String word) {
         localStorage.removeUserWord(word);
+        final String rankingKey = SuggestionRanker.normalizeForComparison(word);
         wordFrequency.remove(word);
+        wordFrequency.remove(rankingKey);
         recentUsage.remove(word);
+        recentUsage.remove(rankingKey);
+        localStorage.saveRankingSignals(wordFrequency, recentUsage);
         rebuildModels();
     }
 
@@ -368,12 +386,17 @@ public class LocalLearningEngine {
     private void loadLearningData() {
         userWords.clear();
         userWords.addAll(localStorage.getUserWords());
-        for (String word : userWords) wordTrie.insert(word);
+        for (String word : userWords) {
+            wordTrie.insert(word);
+            if (!dictionaryWords.contains(word)) dictionaryWords.add(word);
+        }
+        localStorage.loadRankingSignals(wordFrequency, recentUsage);
         localStorage.loadNGramData(ngramModel);
     }
 
     private void saveLearningData() {
         localStorage.saveNGramData(ngramModel);
+        localStorage.saveRankingSignals(wordFrequency, recentUsage);
     }
     
     private void initializeBootstrapData() {

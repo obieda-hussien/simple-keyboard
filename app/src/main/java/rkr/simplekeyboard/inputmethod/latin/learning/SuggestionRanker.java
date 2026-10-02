@@ -147,7 +147,7 @@ public class SuggestionRanker {
             
             // Typo tolerance (edit distance)
             else if (typedScript == 0 || typedScript == suggestionScript) {
-                int editDistance = calculateLevenshteinDistance(lowerSuggestion, lowerCurrent);
+                int editDistance = calculateBoundedDistance(lowerSuggestion, lowerCurrent, MAX_EDIT_DISTANCE);
                 if (editDistance <= MAX_EDIT_DISTANCE) {
                     double typoScore = WEIGHT_TYPO_TOLERANCE * (1.0 - (double) editDistance / MAX_EDIT_DISTANCE);
                     score += typoScore;
@@ -290,7 +290,7 @@ public class SuggestionRanker {
         } else if (lowerSuggestion.startsWith(lowerCurrent)) {
             return "prefix";
         } else {
-            int distance = calculateLevenshteinDistance(lowerSuggestion, lowerCurrent);
+            int distance = calculateBoundedDistance(lowerSuggestion, lowerCurrent, MAX_EDIT_DISTANCE);
             if (distance <= MAX_EDIT_DISTANCE) {
                 return "typo";
             }

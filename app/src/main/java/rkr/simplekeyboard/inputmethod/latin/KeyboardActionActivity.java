@@ -1,6 +1,7 @@
 package rkr.simplekeyboard.inputmethod.latin;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -11,12 +12,18 @@ import android.widget.Toast;
 import java.util.ArrayList;
 
 import rkr.simplekeyboard.inputmethod.R;
+import rkr.simplekeyboard.inputmethod.latin.settings.UiLocaleManager;
 
 /**
  * Tiny no-history bridge activity used by the IME for system-owned pickers that return a result.
  * It never stores media or speech text; results are immediately sent back to the running IME.
  */
 public final class KeyboardActionActivity extends Activity {
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(UiLocaleManager.wrap(newBase));
+    }
+
     public static final String EXTRA_MODE = "mode";
     public static final String EXTRA_LANGUAGE = "language";
     public static final String EXTRA_TEXT = "text";
@@ -26,14 +33,18 @@ public final class KeyboardActionActivity extends Activity {
 
     public static final String MODE_VOICE = "voice";
     public static final String MODE_IMAGE = "image";
+    public static final String MODE_TRANSLATE = "translate";
 
     public static final String ACTION_VOICE_RESULT =
             "rkr.simplekeyboard.inputmethod.action.VOICE_RESULT";
     public static final String ACTION_IMAGE_RESULT =
             "rkr.simplekeyboard.inputmethod.action.IMAGE_RESULT";
+    public static final String ACTION_TRANSLATE_RESULT =
+            "rkr.simplekeyboard.inputmethod.action.TRANSLATE_RESULT";
 
     private static final int REQUEST_VOICE = 1001;
     private static final int REQUEST_IMAGE = 1002;
+    private static final int REQUEST_TRANSLATE = 1003;
     private boolean launched;
 
     @Override
@@ -58,6 +69,8 @@ public final class KeyboardActionActivity extends Activity {
             launchVoice();
         } else if (MODE_IMAGE.equals(mode)) {
             launchImage();
+        } else if (MODE_TRANSLATE.equals(mode)) {
+            launchTranslate();
         } else {
             finish();
         }
@@ -100,6 +113,32 @@ public final class KeyboardActionActivity extends Activity {
         }
     }
 
+    private void launchTranslate() {
+        final String source = getIntent().getStringExtra(EXTRA_TEXT);
+        if (TextUtils.isEmpty(source) || android.os.Build.VERSION.SDK_INT < 23) {
+            Toast.makeText(this, R.string.translate_unavailable, Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        final Intent process = new Intent(Intent.ACTION_PROCESS_TEXT);
+        process.setType("text/plain");
+        process.putExtra(Intent.EXTRA_PROCESS_TEXT, source);
+        process.putExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, false);
+        if (process.resolveActivity(getPackageManager()) == null) {
+            Toast.makeText(this, R.string.translate_unavailable, Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        try {
+            startActivityForResult(
+                    Intent.createChooser(process, getString(R.string.translate_action)),
+                    REQUEST_TRANSLATE);
+        } catch (RuntimeException e) {
+            Toast.makeText(this, R.string.translate_unavailable, Toast.LENGTH_SHORT).show();
+            finish();
+        }
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == RESULT_OK && data != null) {
@@ -113,6 +152,12 @@ public final class KeyboardActionActivity extends Activity {
                             break;
                         }
                     }
+                }
+            } else if (requestCode == REQUEST_TRANSLATE) {
+                final CharSequence processed = data.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT);
+                if (!TextUtils.isEmpty(processed)) {
+                    sendResult(ACTION_TRANSLATE_RESULT, EXTRA_TEXT,
+                            processed.toString(), null, null);
                 }
             } else if (requestCode == REQUEST_IMAGE) {
                 final Uri uri = data.getData();

@@ -81,6 +81,8 @@ public final class ThemeSettingsFragment extends SubScreenFragment
         if (preference instanceof KeyboardThemePreference) {
             final KeyboardThemePreference pref = (KeyboardThemePreference)preference;
             mSelectedThemeId = pref.mThemeId;
+            ThemeEngine.setEnabled(getActivity(), false);
+            ThemeManager.getInstance(getActivity()).refreshTheme();
             updateSelected();
         }
     }

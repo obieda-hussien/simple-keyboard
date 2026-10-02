@@ -2,40 +2,32 @@
  * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
-
 package rkr.simplekeyboard.inputmethod.latin.learning;
 
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.text.TextUtils;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
- * Handles local storage and persistence of learning data.
- * Stores word frequencies, n-gram models, and user preferences.
+ * Handles private on-device persistence for personalization signals.
  */
 public class LocalStorage {
     private static final String PREF_NAME = "simple_keyboard_learning";
     private static final String KEY_WORD_FREQUENCIES = "word_frequencies";
+    private static final String KEY_RECENT_USAGE = "recent_usage";
     private static final String KEY_BIGRAM_DATA = "bigram_data";
     private static final String KEY_TRIGRAM_DATA = "trigram_data";
     private static final String KEY_USER_WORDS = "user_words";
     private static final String KEY_REJECTED_CORRECTIONS = "rejected_corrections";
-    private static final String SEPARATOR = "|||";
-    private static final String PAIR_SEPARATOR = ":::";
+    private static final int MAX_RANKING_SIGNAL_WORDS = 4096;
 
     private final SharedPreferences preferences;
 
@@ -44,89 +36,133 @@ public class LocalStorage {
     }
 
     /**
-     * Saves word frequencies to local storage.
+     * Legacy compatibility hook. Individual user words are persisted through addUserWord().
      */
     public void saveWordFrequencies(WordTrie wordTrie) {
-        // User words are persisted when they are learned via addUserWord().
-        // Never overwrite them with an empty snapshot of the trie.
-
+        // Intentionally empty.
     }
 
-    /**
-     * Loads word frequencies from local storage.
-     */
     public void loadWordFrequencies(WordTrie wordTrie) {
         Set<String> userWords = preferences.getStringSet(KEY_USER_WORDS, new HashSet<String>());
-        
         for (String word : userWords) {
-            if (!TextUtils.isEmpty(word)) {
-                wordTrie.insert(word);
+            if (!TextUtils.isEmpty(word)) wordTrie.insert(word);
+        }
+    }
+
+    public void saveRankingSignals(Map<String, Integer> frequencies, Map<String, Long> recentUsage) {
+        StringBuilder frequencyData = new StringBuilder();
+        StringBuilder recentData = new StringBuilder();
+
+        List<Map.Entry<String, Integer>> ordered = new ArrayList<>(frequencies.entrySet());
+        ordered.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+        int written = 0;
+        for (Map.Entry<String, Integer> entry : ordered) {
+            if (written >= MAX_RANKING_SIGNAL_WORDS) break;
+            String word = sanitizeSignalWord(entry.getKey());
+            if (word == null) continue;
+            int value = Math.max(1, Math.min(1_000_000, entry.getValue()));
+            frequencyData.append(word).append('\t').append(value).append('\n');
+            Long timestamp = recentUsage.get(entry.getKey());
+            if (timestamp == null) timestamp = recentUsage.get(word);
+            if (timestamp != null && timestamp > 0) {
+                recentData.append(word).append('\t').append(timestamp).append('\n');
+            }
+            written++;
+        }
+
+        preferences.edit()
+                .putString(KEY_WORD_FREQUENCIES, frequencyData.toString())
+                .putString(KEY_RECENT_USAGE, recentData.toString())
+                .apply();
+    }
+
+    public void loadRankingSignals(Map<String, Integer> frequencies, Map<String, Long> recentUsage) {
+        frequencies.clear();
+        recentUsage.clear();
+        parseIntSignals(preferences.getString(KEY_WORD_FREQUENCIES, ""), frequencies);
+        parseLongSignals(preferences.getString(KEY_RECENT_USAGE, ""), recentUsage);
+    }
+
+    private void parseIntSignals(String data, Map<String, Integer> out) {
+        if (TextUtils.isEmpty(data)) return;
+        String[] lines = data.split("\n");
+        for (String line : lines) {
+            if (out.size() >= MAX_RANKING_SIGNAL_WORDS) break;
+            int split = line.lastIndexOf('\t');
+            if (split <= 0 || split >= line.length() - 1) continue;
+            String word = sanitizeSignalWord(line.substring(0, split));
+            if (word == null) continue;
+            try {
+                int value = Integer.parseInt(line.substring(split + 1));
+                if (value > 0) out.put(word, Math.min(1_000_000, value));
+            } catch (NumberFormatException ignored) {
+                // Skip corrupt legacy entries.
             }
         }
     }
 
-    /**
-     * Saves N-gram model data to local storage.
-     */
+    private void parseLongSignals(String data, Map<String, Long> out) {
+        if (TextUtils.isEmpty(data)) return;
+        String[] lines = data.split("\n");
+        long now = System.currentTimeMillis();
+        for (String line : lines) {
+            if (out.size() >= MAX_RANKING_SIGNAL_WORDS) break;
+            int split = line.lastIndexOf('\t');
+            if (split <= 0 || split >= line.length() - 1) continue;
+            String word = sanitizeSignalWord(line.substring(0, split));
+            if (word == null) continue;
+            try {
+                long value = Long.parseLong(line.substring(split + 1));
+                if (value > 0 && value <= now + 86_400_000L) out.put(word, value);
+            } catch (NumberFormatException ignored) {
+                // Skip corrupt legacy entries.
+            }
+        }
+    }
+
+    private String sanitizeSignalWord(String word) {
+        if (TextUtils.isEmpty(word)) return null;
+        String normalized = word.trim().toLowerCase(java.util.Locale.ROOT);
+        if (normalized.length() > 48 || normalized.indexOf('\t') >= 0 || normalized.indexOf('\n') >= 0) {
+            return null;
+        }
+        return normalized;
+    }
+
     public void saveNGramData(NGramModel ngramModel) {
-        String bigramData = ngramModel.serializeBigramData();
-        String trigramData = ngramModel.serializeTrigramData();
-        
         preferences.edit()
-                .putString(KEY_BIGRAM_DATA, bigramData)
-                .putString(KEY_TRIGRAM_DATA, trigramData)
+                .putString(KEY_BIGRAM_DATA, ngramModel.serializeBigramData())
+                .putString(KEY_TRIGRAM_DATA, ngramModel.serializeTrigramData())
                 .apply();
     }
 
-    /**
-     * Loads N-gram model data from local storage.
-     */
     public void loadNGramData(NGramModel ngramModel) {
         String bigramData = preferences.getString(KEY_BIGRAM_DATA, "");
         String trigramData = preferences.getString(KEY_TRIGRAM_DATA, "");
-        
-        if (!TextUtils.isEmpty(bigramData)) {
-            ngramModel.deserializeBigramData(bigramData);
-        }
-        if (!TextUtils.isEmpty(trigramData)) {
-            ngramModel.deserializeTrigramData(trigramData);
-        }
+        if (!TextUtils.isEmpty(bigramData)) ngramModel.deserializeBigramData(bigramData);
+        if (!TextUtils.isEmpty(trigramData)) ngramModel.deserializeTrigramData(trigramData);
     }
 
-    /**
-     * Adds a new word to user vocabulary.
-     */
     public void addUserWord(String word) {
         if (TextUtils.isEmpty(word)) return;
-        
-        Set<String> userWords = new HashSet<>(preferences.getStringSet(KEY_USER_WORDS, new HashSet<String>()));
-        userWords.add(word.toLowerCase().trim());
-        
-        preferences.edit()
-                .putStringSet(KEY_USER_WORDS, userWords)
-                .apply();
+        Set<String> userWords = new HashSet<>(
+                preferences.getStringSet(KEY_USER_WORDS, new HashSet<String>()));
+        userWords.add(word.toLowerCase(java.util.Locale.ROOT).trim());
+        preferences.edit().putStringSet(KEY_USER_WORDS, userWords).apply();
     }
 
-    /**
-     * Removes a word from user vocabulary.
-     */
     public void removeUserWord(String word) {
         if (TextUtils.isEmpty(word)) return;
-        
-        Set<String> userWords = new HashSet<>(preferences.getStringSet(KEY_USER_WORDS, new HashSet<String>()));
-        userWords.remove(word.toLowerCase().trim());
-        
-        preferences.edit()
-                .putStringSet(KEY_USER_WORDS, userWords)
-                .apply();
+        Set<String> userWords = new HashSet<>(
+                preferences.getStringSet(KEY_USER_WORDS, new HashSet<String>()));
+        userWords.remove(word.toLowerCase(java.util.Locale.ROOT).trim());
+        preferences.edit().putStringSet(KEY_USER_WORDS, userWords).apply();
     }
 
-    /**
-     * Clears all learning data.
-     */
     public void clearAllData() {
         preferences.edit()
                 .remove(KEY_WORD_FREQUENCIES)
+                .remove(KEY_RECENT_USAGE)
                 .remove(KEY_BIGRAM_DATA)
                 .remove(KEY_TRIGRAM_DATA)
                 .remove(KEY_USER_WORDS)
@@ -135,27 +171,21 @@ public class LocalStorage {
     }
 
     public Set<String> getRejectedCorrections() {
-        return new HashSet<>(preferences.getStringSet(KEY_REJECTED_CORRECTIONS,
-                new HashSet<String>()));
+        return new HashSet<>(preferences.getStringSet(
+                KEY_REJECTED_CORRECTIONS, new HashSet<String>()));
     }
 
     public void saveRejectedCorrections(Set<String> rejected) {
-        preferences.edit().putStringSet(KEY_REJECTED_CORRECTIONS,
-                new HashSet<>(rejected)).apply();
+        preferences.edit().putStringSet(
+                KEY_REJECTED_CORRECTIONS, new HashSet<>(rejected)).apply();
     }
 
-    /**
-     * Gets the number of stored user words.
-     */
     public int getUserWordCount() {
-        Set<String> userWords = preferences.getStringSet(KEY_USER_WORDS, new HashSet<String>());
-        return userWords.size();
+        return preferences.getStringSet(KEY_USER_WORDS, new HashSet<String>()).size();
     }
 
-    /**
-     * Gets all user words for dictionary lookups.
-     */
     public Set<String> getUserWords() {
-        return new HashSet<>(preferences.getStringSet(KEY_USER_WORDS, new HashSet<String>()));
+        return new HashSet<>(
+                preferences.getStringSet(KEY_USER_WORDS, new HashSet<String>()));
     }
 }

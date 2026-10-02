@@ -36,6 +36,11 @@ import rkr.simplekeyboard.inputmethod.R;
 import rkr.simplekeyboard.inputmethod.latin.utils.FragmentUtils;
 
 public class SettingsActivity extends PreferenceActivity {
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(UiLocaleManager.wrap(newBase));
+    }
+
     private static final String DEFAULT_FRAGMENT = SettingsFragment.class.getName();
     private static final String TAG = SettingsActivity.class.getSimpleName();
 
@@ -92,6 +97,9 @@ public class SettingsActivity extends PreferenceActivity {
     @Override
     protected void onCreate(final Bundle savedState) {
         super.onCreate(savedState);
+        // Manifest labels are resolved by the system locale before attachBaseContext.
+        // Reset the visible title from this activity's keyboard-locale resources.
+        setTitle(R.string.english_ime_name);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             final View container = (View) getListView().getParent().getParent();

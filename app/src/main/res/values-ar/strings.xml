@@ -81,4 +81,72 @@
     <string name="add_language">إضافة لغة</string>
     <string name="remove_language">إزالة اللغة</string>
     <string name="change_keyboard">تغيير لوحة المفاتيح</string>
+
+    <!-- محرر المظهر المتقدم للوحة المفاتيح -->
+    <string name="theme_studio_title">استوديو المظهر</string>
+    <string name="theme_studio_summary">خصّص الألوان وشكل المفاتيح والمسافات وحجم الخط والتباين وألوان النظام مع معاينة مباشرة</string>
+    <string name="theme_studio_back">رجوع</string>
+    <string name="theme_studio_preview">معاينة مباشرة للوحة المفاتيح</string>
+    <string name="theme_studio_presets">أنماط جاهزة</string>
+    <string name="theme_studio_hue">درجة اللون</string>
+    <string name="theme_studio_saturation">تشبّع اللون</string>
+    <string name="theme_studio_surface_tone">درجة سطوع الخلفية</string>
+    <string name="theme_studio_corner_radius">استدارة المفاتيح</string>
+    <string name="theme_studio_key_spacing">المسافة بين المفاتيح</string>
+    <string name="theme_studio_font_scale">حجم رموز المفاتيح</string>
+    <string name="theme_studio_border">وضوح الحدود</string>
+    <string name="theme_studio_dynamic_color">استخدام ألوان النظام الديناميكية</string>
+    <string name="theme_studio_dynamic_color_summary">استخدم لون Material You من الجهاز على أندرويد 12 فأحدث</string>
+    <string name="theme_studio_high_contrast">تباين مرتفع</string>
+    <string name="theme_studio_high_contrast_summary">اجعل النصوص والأيقونات أوضح فوق المفاتيح</string>
+    <string name="theme_studio_reset">إعادة ضبط المظهر</string>
+    <string name="theme_preset_graphite">جرافيت</string>
+    <string name="theme_preset_violet">بنفسجي</string>
+    <string name="theme_preset_ocean">محيطي</string>
+    <string name="theme_preset_emerald">زمردي</string>
+    <string name="theme_preset_rose">وردي</string>
+    <string name="theme_preset_amoled">AMOLED أسود</string>
+    <string name="theme_preset_light">فاتح</string>
+
+
+    <!-- واجهات أدوات لوحة المفاتيح -->
+    <string name="tool_emoji">رموز الإيموجي</string>
+    <string name="tool_clipboard">الحافظة</string>
+    <string name="tool_text_editing">تعديل النص</string>
+    <string name="tool_translate">ترجمة</string>
+    <string name="tool_voice">إدخال صوتي</string>
+    <string name="tool_image">صورة</string>
+    <string name="tool_theme">المظهر</string>
+    <string name="tool_settings">الإعدادات</string>
+    <string name="close_panel">إغلاق اللوحة</string>
+
+    <string name="clipboard_panel_title">الحافظة</string>
+    <string name="clipboard_pinned">مثبّت</string>
+    <string name="clipboard_long_press_pin">اضغط مطولًا للتثبيت</string>
+    <string name="clipboard_long_press_unpin">اضغط مطولًا لإلغاء التثبيت</string>
+
+    <string name="text_editing_title">تعديل النصوص</string>
+    <string name="edit_move_left">يسار</string>
+    <string name="edit_move_up">أعلى</string>
+    <string name="edit_move_down">أسفل</string>
+    <string name="edit_move_right">يمين</string>
+    <string name="edit_home">البداية</string>
+    <string name="edit_end">النهاية</string>
+    <string name="edit_select">تحديد</string>
+    <string name="edit_select_all">تحديد الكل</string>
+    <string name="edit_copy">نسخ</string>
+    <string name="edit_cut">قص</string>
+    <string name="edit_paste">لصق</string>
+    <string name="edit_undo">تراجع</string>
+    <string name="edit_redo">إعادة</string>
+
+    <string name="translate_auto">تلقائي</string>
+    <string name="translate_external_app">المترجم</string>
+    <string name="translate_source_hint">حدد نصًا أو اكتب شيئًا أولًا</string>
+    <string name="translate_result_hint">ستظهر الترجمة هنا</string>
+    <string name="translate_action">ترجمة</string>
+    <string name="translate_replace">استبدال</string>
+    <string name="translate_insert">إدراج</string>
+    <string name="translate_unavailable">لا يوجد تطبيق ترجمة نصوص متاح</string>
+
 </resources>

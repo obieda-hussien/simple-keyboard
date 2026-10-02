@@ -24,7 +24,7 @@
         android:settingsActivity="rkr.simplekeyboard.inputmethod.latin.settings.SettingsActivity"
         android:supportsSwitchingToNextInputMethod="true"
         android:supportsInlineSuggestions="true">
-    <subtype android:icon="@drawable/ic_ime_switcher_dark"
+    <subtype android:icon="@drawable/ic_keyboard_switcher"
         android:imeSubtypeMode="keyboard"
         android:isAsciiCapable="true" />
 </input-method>

@@ -17,6 +17,7 @@
 package rkr.simplekeyboard.inputmethod.latin.utils;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.content.res.Resources;
 
 import java.util.HashMap;
@@ -36,6 +37,8 @@ public final class LocaleResourceUtils {
     private static volatile boolean sInitialized = false;
     private static final Object sInitializeLock = new Object();
     private static Resources sResources;
+    private static Context sContext;
+    private static volatile Locale sDisplayLocaleOverride;
     // Exceptional locale whose name should be displayed in Locale.ROOT.
     private static final HashMap<String, Integer> sExceptionalLocaleDisplayedInRootLocale =
             new HashMap<>();
@@ -62,6 +65,7 @@ public final class LocaleResourceUtils {
 
     private static void initLocked(final Context context) {
         final Resources res = context.getResources();
+        sContext = context.getApplicationContext();
         sResources = res;
 
         final String[] exceptionalLocaleInRootLocale = res.getStringArray(
@@ -82,6 +86,27 @@ public final class LocaleResourceUtils {
         }
     }
 
+    /**
+     * Override the locale used by keyboard-owned language labels. The keyboard's selected
+     * language is intentionally allowed to differ from the device locale.
+     */
+    public static void setDisplayLocale(final Locale locale) {
+        sDisplayLocaleOverride = locale;
+    }
+
+    private static Locale getUiDisplayLocale() {
+        final Locale override = sDisplayLocaleOverride;
+        return override != null ? override : sResources.getConfiguration().locale;
+    }
+
+    private static Resources getResourcesForLocale(final Locale locale) {
+        if (sContext == null || locale == null) return sResources;
+        final Configuration configuration = new Configuration(sResources.getConfiguration());
+        configuration.setLocale(locale);
+        configuration.setLayoutDirection(locale);
+        return sContext.createConfigurationContext(configuration).getResources();
+    }
+
     private static Locale getDisplayLocale(final String localeString) {
         if (sExceptionalLocaleDisplayedInRootLocale.containsKey(localeString)) {
             return Locale.ROOT;
@@ -97,7 +122,7 @@ public final class LocaleResourceUtils {
      */
     public static String getLocaleDisplayNameInSystemLocale(
             final String localeString) {
-        final Locale displayLocale = sResources.getConfiguration().locale;
+        final Locale displayLocale = getUiDisplayLocale();
         return getLocaleDisplayNameInternal(localeString, displayLocale);
     }
 
@@ -120,7 +145,7 @@ public final class LocaleResourceUtils {
      */
     public static String getLanguageDisplayNameInSystemLocale(
             final String localeString) {
-        final Locale displayLocale = sResources.getConfiguration().locale;
+        final Locale displayLocale = getUiDisplayLocale();
         final String languageString;
         if (sExceptionalLocaleDisplayedInRootLocale.containsKey(localeString)) {
             languageString = localeString;
@@ -161,7 +186,7 @@ public final class LocaleResourceUtils {
 
         final String displayName;
         if (exceptionalNameResId != null) {
-            displayName = sResources.getString(exceptionalNameResId);
+            displayName = getResourcesForLocale(displayLocale).getString(exceptionalNameResId);
         } else {
             displayName = LocaleUtils.constructLocaleFromString(localeString)
                     .getDisplayName(displayLocale);

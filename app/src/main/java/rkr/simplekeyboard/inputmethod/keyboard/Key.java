@@ -797,6 +797,16 @@ public class Key implements Comparable<Key> {
         return mHitbox.right - mX - mWidth;
     }
 
+    /** Exposes visual classification to the renderer without exposing mutable key state. */
+    public int getBackgroundType() {
+        return mBackgroundType;
+    }
+
+    /** Returns whether this key is currently pressed. */
+    public boolean isPressed() {
+        return mPressed;
+    }
+
     /**
      * Informs the key that it has been pressed, in case it needs to change its appearance or
      * state.

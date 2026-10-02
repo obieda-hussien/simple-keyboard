@@ -84,6 +84,30 @@
             android:layout_height="wrap_content"
             android:visibility="gone" />
 
+        <rkr.simplekeyboard.inputmethod.latin.ui.KeyboardToolsGridView
+            android:id="@+id/keyboard_tools_grid"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <rkr.simplekeyboard.inputmethod.latin.ui.ClipboardPanelView
+            android:id="@+id/clipboard_panel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <rkr.simplekeyboard.inputmethod.latin.ui.TextEditingPanelView
+            android:id="@+id/text_editing_panel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <rkr.simplekeyboard.inputmethod.latin.ui.TranslatePanelView
+            android:id="@+id/translate_panel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
     </FrameLayout>
     
 </LinearLayout>
